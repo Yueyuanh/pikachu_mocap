@@ -30,7 +30,25 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
 
 
-if __name__ == '__main__':
-    print(f'threeMesh preview  →  http://127.0.0.1:{PORT}/  (Ctrl-C 退出)')
-    with ThreadedTCPServer(('', PORT), Handler) as httpd:
+def main():
+    # 8767 被占就自动往后找空闲端口，避免报 Address already in use
+    for port in range(PORT, PORT + 2000):
+        try:
+            httpd = ThreadedTCPServer(('', port), Handler)
+        except OSError:
+            continue
+        break
+    else:
+        print('找不到空闲端口'); return 1
+    print(f'threeMesh preview  →  http://127.0.0.1:{port}/  (Ctrl-C 退出)')
+    try:
         httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

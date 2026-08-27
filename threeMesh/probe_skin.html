@@ -1,0 +1,10 @@
+<!DOCTYPE html><meta charset=utf-8><title>skin probe</title>
+<script type="importmap">{"imports":{"three":"/lib/three.module.js"}}</script>
+<script type="module">
+import { GLTFLoader } from '/lib/GLTFLoader.js';
+window.__r={step:'start'};
+new GLTFLoader().loadAsync('/assets/skin.glb').then(m=>{
+  let sk=0, bones=0, big=0; m.scene.traverse(o=>{if(o.isSkinnedMesh)sk++; if(o.isBone)bones++;});
+  window.__r={step:'ok',skinned:sk,bones};
+}).catch(e=>{window.__r={step:'err',msg:(e&&e.message)||String(e)};});
+</script>

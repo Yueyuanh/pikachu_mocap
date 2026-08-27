@@ -171,6 +171,23 @@ def set_pose(pose):
 # UI helpers
 # ==========================
 
+def _is_bone_selected(pbone):
+    """兼容各 Blender 版本检查骨骼选中状态。
+
+    - Blender 4.4+：姿态模式下用 PoseBone.bone_select
+    - 旧版本：Bone.select（仅在编辑/老版本可用）
+    """
+    try:
+        return pbone.bone_select
+    except AttributeError:
+        pass
+    try:
+        return pbone.bone.select
+    except AttributeError:
+        pass
+    return False
+
+
 def get_active_pose_bone(context=None):
 
     ctx = context or bpy.context
@@ -182,7 +199,7 @@ def get_active_pose_bone(context=None):
     obj = ctx.object
     if obj and obj.type == 'ARMATURE' and obj.pose:
         for b in obj.pose.bones:
-            if b.bone.select:
+            if _is_bone_selected(b):
                 return b
 
     return None
@@ -245,6 +262,107 @@ def get_bone_tree():
         })
 
     return bones
+
+
+# ==========================
+# 获取场景结构（用于 socket 检查 Blender 里的 URDF / 皮肤）
+# ==========================
+
+def get_scene_info():
+    """返回 Blender 当前场景结构：所有对象的名称/类型/父级，以及每个骨架的各骨名称/父/head/tail。
+
+    用途：让外部（Qt / 脚本）通过 socket 检查 Blender 里导入的 URDF 与皮肤 rig，
+    从而核对 retarget_map.yaml / blender_urdf_map.yaml 里的目标骨是否存在。
+    """
+    objects = []
+    armatures = []
+
+    for ob in bpy.data.objects:
+        objects.append({
+            "name": ob.name,
+            "type": ob.type,
+            "parent": ob.parent.name if ob.parent else None,
+            "children": len(ob.children),
+        })
+        if ob.type == 'ARMATURE':
+            bones = []
+            for b in ob.data.bones:
+                bones.append({
+                    "name": b.name,
+                    "parent": b.parent.name if b.parent else None,
+                    "head": [float(v) for v in b.head_local],
+                    "tail": [float(v) for v in b.tail_local],
+                })
+            armatures.append({"name": ob.name, "bones": bones})
+
+    # body 0 之外也看下空物体/集合名，帮助识别 URDF 导入结构
+    return {
+        "objects": objects,
+        "armatures": armatures,
+        "collections": [c.name for c in bpy.data.collections],
+    }
+
+
+def set_urdf_joint(armature_name, bone_name, axis, angle_rad):
+    """驱动导入到 Blender 的 URDF 骨架中的某个骨：围绕其某轴旋转（弧度）。
+
+    与 set_joint 的区别：set_joint 针对皮肤"rig"且角度单位度；
+    这里允许指定任意骨架名、任意骨、弧度，用来驱动 Blender 里的 URDF。
+    """
+    try:
+        arm, bone = get_pose_bone(armature_name, bone_name)
+    except Exception as e:
+        _send_debug(f"set_urdf_joint error: {e}")
+        return
+    bone.rotation_mode = 'XYZ'
+    e = bone.rotation_euler
+    if axis == "x":
+        e.x = angle_rad
+    elif axis == "y":
+        e.y = angle_rad
+    elif axis == "z":
+        e.z = angle_rad
+    bone.rotation_euler = e
+    bpy.context.view_layer.update()
+
+
+def _is_urdf_target_enabled(name):
+    """是否驱动该骨架：仅当它在插件面板（Skeleton Server → Drive URDF armatures）里被勾选。
+
+    未在勾选集合中出现的骨架默认放行（True），这样面板尚未同步 / 旧版 addon 时也能工作。
+    """
+    scene = getattr(bpy.context, "scene", None)
+    if scene is None or not hasattr(scene, "skserver_urdf_targets"):
+        return True
+    for t in scene.skserver_urdf_targets:
+        if t.name == name:
+            return bool(t.enabled)
+    return True
+
+
+def set_urdf_pose(armature_name, pose):
+    """批量驱动 URDF 骨架：pose = {bone: [x,y,z](rad)}。
+
+    只驱动插件面板里勾选（enabled）的目标骨架，未勾选整骨架忽略，
+    从而保证 meshcat 与“被勾选的 Blender URDF”保持一致。
+    """
+    if not _is_urdf_target_enabled(armature_name):
+        return
+    try:
+        arm = get_armature(armature_name)
+        ensure_pose_mode(arm)
+    except Exception as e:
+        _send_debug(f"set_urdf_pose error: {e}")
+        return
+    for bone_name, angles in (pose or {}).items():
+        bone = arm.pose.bones.get(bone_name)
+        if bone is None:
+            continue
+        bone.rotation_mode = 'XYZ'
+        e = bone.rotation_euler
+        e.x, e.y, e.z = angles[0], angles[1], angles[2]
+        bone.rotation_euler = e
+    bpy.context.view_layer.update()
 
 
 # ==========================
@@ -362,6 +480,26 @@ def handle_message(msg):
                 "type": "transforms",
                 "data": transforms
             })
+
+        elif data["type"] == "request_scene":
+
+            server.send_message({
+                "type": "scene",
+                "data": get_scene_info()
+            })
+
+        elif data["type"] == "set_urdf_joint":
+
+            set_urdf_joint(
+                data.get("armature", ""),
+                data.get("bone", ""),
+                data.get("axis", "y"),
+                float(data.get("angle_rad", 0.0)),
+            )
+
+        elif data["type"] == "set_urdf_pose":
+
+            set_urdf_pose(data.get("armature", ""), data.get("pose") or {})
 
     except Exception as e:
 

@@ -16,6 +16,79 @@ from . import rig_sync
 
 
 # ==========================
+# 可驱动的 URDF 骨架多选（面板勾选集合）
+# ==========================
+
+def _is_urdf_armature(ob):
+    """URDF importer 命名的骨架：骨名含 `.revolute.bone` 或 `.fixed.bone`。"""
+    if ob is None or ob.type != 'ARMATURE':
+        return False
+    for b in ob.data.bones:
+        if ".revolute.bone" in b.name or ".fixed.bone" in b.name:
+            return True
+    return False
+
+
+def _sync_urdf_targets(scene):
+    """把场景里现存的 URDF 骨架同步进勾选集合（新出现的自动加入，默认勾选；删除的移除）。"""
+    coll = scene.skserver_urdf_targets
+    present = [ob.name for ob in bpy.data.objects if _is_urdf_armature(ob)]
+    existing = {t.name for t in coll}
+    for name in present:
+        if name not in existing:
+            t = coll.add()
+            t.name = name
+            t.enabled = True
+    drop = [i for i, t in enumerate(coll) if t.name not in present]
+    for i in reversed(drop):
+        coll.remove(i)
+
+
+class SKSERVER_URDFTarget(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(name="Armature")
+    enabled: bpy.props.BoolProperty(name="Enable", default=True)
+
+# ==========================
+# URDF 重定向目标骨（可选适配）
+# ==========================
+
+_URDF_TARGET_BONES = [
+    # (URDF 关节, 目标骨骼, 轴)
+    ("head_yaw_joint", "head", "z"),
+    ("head_pitch_joint", "head", "y"),
+    ("head_roll_joint", "head", "x"),
+    ("left_arm_pitch_joint", "upper_arm_fk.L", "y"),
+    ("left_arm_roll_joint", "upper_arm_fk.L", "x"),
+    ("left_arm_yaw_joint", "upper_arm_fk.L", "z"),
+    ("left_elbow_ankle_joint", "forearm_fk.L", "y"),
+    ("right_arm_pitch_joint", "upper_arm_fk.R", "y"),
+    ("right_arm_roll_joint", "upper_arm_fk.R", "x"),
+    ("right_arm_yaw_joint", "upper_arm_fk.R", "z"),
+    ("right_elbow_ankle_joint", "forearm_fk.R", "y"),
+    ("left_hip_pitch_joint", "hips", "y"),
+    ("left_hip_roll_joint", "hips", "x"),
+    ("left_hip_yaw_joint", "hips", "z"),
+    ("left_knee_joint", "foot_ik.L", "x"),
+    ("left_ankle_joint", "foot_ik.L", "y"),
+    ("right_hip_pitch_joint", "hips", "y"),
+    ("right_hip_roll_joint", "hips", "x"),
+    ("right_hip_yaw_joint", "hips", "z"),
+    ("right_knee_joint", "foot_ik.R", "x"),
+    ("right_ankle_joint", "foot_ik.R", "y"),
+]
+
+
+def check_urdf_target_bones(arm):
+    """返回 (存在列表, 缺失列表)，供面板核对 retarget_map.yaml 的目标骨是否在 rig 中。"""
+    if arm is None:
+        return [], _URDF_TARGET_BONES
+    existing = {b.name for b in arm.pose.bones}
+    found = [(j, b, a) for (j, b, a) in _URDF_TARGET_BONES if b in existing]
+    missing = [(j, b, a) for (j, b, a) in _URDF_TARGET_BONES if b not in existing]
+    return found, missing
+
+
+# ==========================
 # Log helpers
 # ==========================
 
@@ -127,6 +200,28 @@ class SKSERVER_PT_panel(bpy.types.Panel):
             layout.label(text="Active Bone: None")
 
         layout.separator()
+        layout.label(text="Drive URDF armatures (multi-select:)", icon="CHECKBOX_HLT")
+        _sync_urdf_targets(context.scene)
+        coll = context.scene.skserver_urdf_targets
+        if len(coll) == 0:
+            layout.label(text="(no URDF armature found)", icon="INFO")
+        for t in coll:
+            layout.prop(t, "enabled", text=t.name, toggle=True)
+        if len(coll) > 1:
+            layout.label(text="→ 勾选的会被 set_urdf_pose 驱动", icon="INFO")
+
+        layout.separator()
+
+        # URDF 重定向目标骨核对
+        arm = rig_sync.get_armature()
+        found, missing = check_urdf_target_bones(arm)
+        layout.label(text=f"URDF target bones: {len(found)} ok / {len(missing)} missing")
+        if missing:
+            layout.label(text="Missing (check retarget_map.yaml):", icon="ERROR")
+            for j, b, a in missing[:10]:
+                layout.label(text=f"  {j} -> {b} ({a})")
+            if len(missing) > 10:
+                layout.label(text=f"  ... and {len(missing)-10} more")
 
         layout.separator()
         layout.label(text="Logs:")
@@ -156,6 +251,12 @@ def register():
 
     for c in classes:
         bpy.utils.register_class(c)
+    bpy.utils.register_class(SKSERVER_URDFTarget)
+    bpy.types.Scene.skserver_urdf_targets = bpy.props.CollectionProperty(type=SKSERVER_URDFTarget)
+
+    # 自动注册消息处理循环，保证 request_*/set_urdf_* 等双向命令能被处理
+    if not bpy.app.timers.is_registered(rig_sync.blender_loop):
+        bpy.app.timers.register(rig_sync.blender_loop, persistent=True)
     logs = _ensure_server_logs()
     server.add_log("Addon registered")
     server.add_log(f"Addon path: {os.path.abspath(__file__)}")
@@ -167,5 +268,6 @@ def register():
 
 def unregister():
 
+    bpy.utils.unregister_class(SKSERVER_URDFTarget)
     for c in classes:
         bpy.utils.unregister_class(c)

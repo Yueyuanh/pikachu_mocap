@@ -169,6 +169,11 @@ def socket_server():
         print("Client connected:", addr)
         add_log(f"Client connected: {addr}")
 
+        # 新客户端接入时先断开旧的（服务端只保留一个客户端，避免旧连接占坑导致无响应）
+        old = client_conn
+        if old is not None and old is not conn:
+            _close_socket(old)
+
         conn.settimeout(0.5)
         _set_client_state(True, conn)
 

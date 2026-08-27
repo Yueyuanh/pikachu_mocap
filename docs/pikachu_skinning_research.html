@@ -1,0 +1,289 @@
+<!doctype html>
+<title>Pikachu 连续蒙皮</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ── tokens ── dark-first (视口底) */
+  :root{
+    --bg:#0d1016; --bg2:#141a23; --panel:#1a2130; --panel2:#202a3b;
+    --ink:#e8edf5; --ink-dim:#9aa7b8; --faint:#6d7992;
+    --line:#2a3444; --line-strong:#3a4761;
+    --accent:#5aa2ff; --ok:#3fcd8c; --warn:#ffb65b; --crit:#ff8080;
+    --c-x:#ff5d5d; --c-y:#58e08a; --c-z:#5a9bff;
+  }
+  :root[data-theme="light"]{
+    --bg:#f3f5f8; --bg2:#eaedf2; --panel:#ffffff; --panel2:#f5f7fa;
+    --ink:#18222f; --ink-dim:#5a6879; --faint:#8b96a5;
+    --line:#d8dfe8; --line-strong:#c2ccd8;
+    --accent:#1a6fd4; --ok:#1c8f61; --warn:#a06a00; --crit:#ce3f4b;
+    --c-x:#d94848; --c-y:#1f9c5a; --c-z:#2a6fd4;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1016; --bg2:#141a23; --panel:#1a2130; --panel2:#202a3b;
+    --ink:#e8edf5; --ink-dim:#9aa7b8; --faint:#6d7992;
+    --line:#2a3444; --line-strong:#3a4761;
+    --accent:#5aa2ff; --ok:#3fcd8c; --warn:#ffb65b; --crit:#ff8080;
+    --c-x:#ff5d5d; --c-y:#58e08a; --c-z:#5a9bff;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Archivo",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:16px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    font-feature-settings:"tnum";
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:48px 24px 80px}
+
+  /* ── masthead ── */
+  .kicker{
+    font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-dim);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .kicker .len::before{content:"·";margin:0 6px;color:var(--faint)}
+  h1{
+    font-size:clamp(28px,5vw,44px);line-height:1.1;font-weight:700;
+    margin:14px 0 10px;letter-spacing:-.01em;text-wrap:balance;
+  }
+  .lede{color:var(--ink-dim);font-size:17px;max-width:640px;margin:0 0 8px}
+
+  /* verdict bar */
+  .verdict{
+    display:flex;gap:14px;align-items:flex-start;
+    background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--ok);
+    border-radius:10px;padding:16px 18px;margin:24px 0 34px;
+  }
+  .verdict .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);margin-top:8px;flex:none}
+  .verdict b{display:block;margin-bottom:2px}
+  .verdict p{margin:0;color:var(--ink-dim);font-size:15px}
+
+  /* sections */
+  .sec{margin:38px 0}
+  .sec .h{
+    display:flex;align-items:baseline;gap:12px;margin:0 0 4px;
+  }
+  .sec .h h2{
+    font-size:20px;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance;
+  }
+  .sec .h .tag{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);
+    letter-spacing:.08em;
+  }
+  .sec > p{color:var(--ink-dim);margin:6px 0 14px;max-width:680px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;
+  }
+  .card .t{font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .card p{color:var(--ink-dim);font-size:15px;margin:0}
+  .card code,.mono{font-family:"IBM Plex Mono",monospace;font-size:.88em;color:var(--ink);
+    background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    font-family:"IBM Plex Mono",monospace;font-size:12px;
+    border:1px solid var(--line-strong);border-radius:999px;padding:4px 12px;color:var(--ink-dim);
+  }
+  .chip.yes{color:var(--ok);border-color:var(--ok)}
+  .chip.no{color:var(--crit);border-color:var(--crit)}
+
+  .ax{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+  .ax i{width:14px;height:14px;border-radius:3px;display:inline-block;vertical-align:-2px}
+  .ax.x i{background:var(--c-x)} .ax.y i{background:var(--c-y)} .ax.z i{background:var(--c-z)}
+
+  /* table */
+  .tblwrap{overflow-x:auto;margin:12px 0}
+  table{border-collapse:collapse;width:100%;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.08em;
+     text-transform:uppercase;color:var(--ink-dim);font-weight:600}
+  td .st{color:var(--faint);font-size:13px}
+  .pill{white-space:nowrap;font-family:"IBM Plex Mono",monospace;font-size:12px;
+     border-radius:999px;padding:2px 10px}
+  .pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);
+           border:1px solid var(--ok);color:var(--ok)}
+  .pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);
+           border:1px solid var(--warn);color:var(--warn)}
+  .pill.crit{background:color-mix(in srgb,var(--crit) 18%,transparent);
+           border:1px solid var(--crit);color:var(--crit)}
+
+  /* roadmap */
+  .road{list-style:none;margin:8px 0 0;padding:0}
+  .road li{position:relative;padding:0 0 22px 34px;border-left:1px solid var(--line)}
+  .road li:last-child{border-left:none;padding-bottom:0}
+  .road .n{
+    position:absolute;left:-15px;top:0;width:29px;height:29px;border-radius:50%;
+    background:var(--bg);border:1px solid var(--line-strong);
+    display:flex;align-items:center;justify-content:center;
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--accent);font-weight:600;
+  }
+  .road .t{font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .road .d{color:var(--ink-dim);font-size:15px;margin:4px 0 8px;max-width:640px}
+  .road .acc{font-size:13.5px;color:var(--faint)}
+  .road .acc b{color:var(--ok);font-weight:500}
+
+  .risk{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);
+    border-radius:10px;padding:14px 18px}
+  .risk p{margin:0;color:var(--ink-dim);font-size:15px}
+  .risk p b{color:var(--ink)}
+
+  .foot{margin-top:46px;padding-top:18px;border-top:1px solid var(--line);
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--faint);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .foot .axislab{display:inline-flex;gap:14px}
+</style>
+
+<body>
+<div class="wrap">
+
+  <div class="kicker">
+    <span>Pikachu 动作系统 · 可行性调研</span>
+    <span class="len">2026-08-28</span>
+    <span class="axislab">
+      <span class="ax"><i></i></span>
+    </span>
+  </div>
+  <span class="axislab" style="display:none">
+    <span class="ax x"><i></i>X</span><span class="ax y"><i></i>Y</span><span class="ax z"><i></i>Z</span>
+  </span>
+
+  <h1>把蒙皮连续变形搬进实时预览</h1>
+  <p class="lede">MeshCat 能不能给 Pikachu 角色“套皮”？结论：它的几何层做不了顶点蒙皮，但工程上有一条现成的 three.js/glTF 替代路径——而且仓库里还留着当年验证过的控制器。</p>
+
+  <div class="verdict">
+    <span class="dot"></span>
+    <div>
+      <b>结论：可行，且有现成骨架可复用</b>
+      <p>想做“顶点随多根骨骼加权、平滑变形的连续蒙皮”，必须离开 MeshCat，改用 three.js + skinned glTF。全链路工具已就绪（QWebEngine 6.6、Blender MCP、CDN 可达），历史 <code>viewer.html</code> 提供验证过的驱动接口。唯一未定的关键未知量是 FBX 骨名与 URDF 21 关节名的对齐程度。</p>
+    </div>
+  </div>
+
+  <!-- 1 · 能力边界 -->
+  <div class="sec">
+    <div class="h"><h2>能力边界</h2><span class="tag">ROOT CAUSE</span></div>
+    <p>为什么绕不开 three.js：这是能力层的限制，不是实现细节。</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="t">MeshCat <span class="pill crit">不支持蒙皮</span></div>
+        <p><code>meshcat.geometry</code> 里没有 <code>SkinnedMesh</code> 或骨骼蒙皮类（已实测）。只能放静态网格 + 逐关节刚体 <code>set_transform</code>——表现为“每根骨一个硬块”，关节处无变形。</p>
+      </div>
+      <div class="card">
+        <div class="t">three.js / glTF <span class="pill ok">原生支持</span></div>
+        <p><code>GLTFLoader</code> 加载带蒙皮的 <code>.glb</code> → 拿到 <code>SkinnedMesh.skeleton.bones</code> → 设 <code>bone.rotation</code> 即实时蒙皮变形（CPU skinning）。这正是“连续套皮”所需的。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 · 资产盘点 -->
+  <div class="sec">
+    <div class="h"><h2>现成资产盘点</h2><span class="tag">ASSETS</span></div>
+    <p>决定成本的第一是“有没有已做过的部分”。关键发现在这里。</p>
+    <div class="tblwrap"><table>
+      <tr><th>资产</th><th>状态</th><th>对实现的意义</th></tr>
+      <tr><td><code>assets/glTF/viewer.html</code></td>
+          <td><span class="pill ok">可复用(历史)</span></td>
+          <td>一套<b>完整 three.js 蒙皮查看器</b>：加载 <code>pikachu_role.glb</code> → 遍历 <code>SkinnedMesh</code> → 逐骨 <code>bone.rotation[axis]</code>，带 WebSocket 外驱接口。</td></tr>
+      <tr><td><code>assets/FBX/</code> 4 个 fbx</td>
+          <td><span class="pill ok">现存</span></td>
+          <td><code>pikachu_skin_Tpose.fbx</code>(2.4M)、<code>pikachu_skin_self_rig.fbx</code>(1.4M) 大概率是<b>带蒙皮</b>的精致皮肤——是“皮”的源头。</td></tr>
+      <tr><td><code>urdf/…/pikachu_v025.fbx</code></td>
+          <td><span class="pill ok">现存</span></td>
+          <td>原始角色 FBX（5.9M），备用皮肤源。</td></tr>
+      <tr><td><code>/glTF/pikachu_role.glb</code></td>
+          <td><span class="pill warn">已删除</span></td>
+          <td>历史 viewer 依赖它，现需从皮肤 FBX 重新生成。</td></tr>
+      <tr><td>离线 three.js / 本地 .js</td>
+          <td><span class="pill warn">缺失</span></td>
+          <td>需下载一次 three ESM 到本地（CDN 已验证可达）。</td></tr>
+    </table></div>
+  </div>
+
+  <!-- 3 · 工具链 -->
+  <div class="sec">
+    <div class="h"><h2>工具链就绪度</h2><span class="tag">TOOLING</span></div>
+    <p>四个前提逐项核验过，全部成立。</p>
+    <div class="chips">
+      <span class="chip yes">QWebEngine 6.6（Qt 内嵌预览）</span>
+      <span class="chip yes">Blender 经 MCP 运行（FBX→glTF 转换器）</span>
+      <span class="chip yes">three.js CDN 可达（1.27MB）</span>
+      <span class="chip yes">websockets 12.0 已装（WS 驱动通道）</span>
+    </div>
+    <p style="margin-top:14px">驱动通道二选一：<code>QtWebChannel</code>（Python→页面直调 JS，免开端口，适合嵌入）<span style="color:var(--faint)">或</span>历史 viewer 的 <code>WebSocket :8765</code> 协议（<code>{joint,axis,angle(弧度)}</code>，适合独立浏览器打开）。</p>
+  </div>
+
+  <!-- 4 · 关键未知量 -->
+  <div class="sec">
+    <div class="h"><h2>唯一关键未知量</h2><span class="tag">UNKNOWN</span></div>
+    <p>整条链路里只有一个点需要“跑一次 Blender 导入/导出”才能定死：</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="t">FBX 骨名 vs URDF 21 关节名</div>
+        <p>若 skin 骨名 ≈ URDF 关节名（如 <code>left_knee_joint</code>）→ <b>零映射</b>，URDF 角直接喂骨；若为 Blender 风格（<code>DEF_…</code>）→ 需一张映射表（复用 <code>retarget_map</code> 思路）。</p>
+      </div>
+      <div class="card">
+        <div class="t">rest-pose / 轴 / sign / bias</div>
+        <p>需核对骨骼 bind pose 与 URDF 基准是否一致，决定要不要补 sign 与 bias。这是整个方案最花时间、通常要迭代 1–2 轮的环节。</p>
+      </div>
+    </div>
+    <p style="margin-top:12px;color:var(--faint);font-size:14px">出于“本次先不改动”，此处在报告中标记为<a>待实测</a>，未做导入/导出。</p>
+  </div>
+
+  <!-- 5 · 路线 -->
+  <div class="sec">
+    <div class="h"><h2>推荐实施路线</h2><span class="tag">P0 → P3</span></div>
+    <ul class="road">
+      <li><span class="n">P0</span>
+        <div class="t">源头资产：皮肤 → 可驱动 glb</div>
+        <div class="d">用 Blender（MCP）把 <code>pikachu_skin_Tpose.fbx</code> 导成<b>带蒙皮的 <code>.glb</code></b>，同时只读核对骨名。</div>
+        <div class="acc"><b>验收</b>：产出能被 three 加载的 skin glb + 一份骨名对齐结论。</div>
+      </li>
+      <li><span class="n">P1</span>
+        <div class="t">最小前端：Qt 内嵌显示蒙皮</div>
+        <div class="d">复用历史 <code>viewer.html</code> 起一个 QWebEngine 页，离线下好 three，静态可看可转。</div>
+        <div class="acc"><b>验收</b>：Qt 面板里出现可旋转的蒙皮角色。</div>
+      </li>
+      <li><span class="n">P2</span>
+        <div class="t">驱动接线：URDF 角 → bone.rotation</div>
+        <div class="d">URDF 关节角（弧度）经 骨映射/sign/bias → 经 QWebChannel/WS 设 <code>bone.rotation</code>；滑块即驱动蒙皮连续变形。</div>
+        <div class="acc"><b>验收</b>：拖关节，角色顶点平滑变形。</div>
+      </li>
+      <li><span class="n">P3</span>
+        <div class="t">整合进 Pikachu_Retarget</div>
+        <div class="d">与现有 Blender / meshcat 链路并存或替换 meshcat 面板，URDF / NPZ 模式统一切到蒙皮预览。</div>
+        <div class="acc"><b>验收</b>：NPZ 播放时角色连续蒙皮动作。</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 6 · 风险 -->
+  <div class="sec">
+    <div class="h"><h2>主要风险</h2><span class="tag">RISK</span></div>
+    <div class="risk">
+      <p><b>P0 需当前 Blender 会话配合一次导出</b>（会写出 <code>.glb</code> 文件，属“改动”，本次未做）。<b>骨架对齐</b>（rest pose / 轴 sign / bias）需要迭代校调，是这个方案最花时间的部分。</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>本次全程只读 · 无导入 / 导出 / 写文件 / 改库</span>
+    <span class="axislab">
+      <span class="ax x"><i></i>X</span>
+      <span class="ax y"><i></i>Y</span>
+      <span class="ax z"><i></i>Z</span>
+      <span style="color:var(--faint);margin-left:6px">视口坐标轴</span>
+    </span>
+  </div>
+
+</div>
+</body>
+</html>

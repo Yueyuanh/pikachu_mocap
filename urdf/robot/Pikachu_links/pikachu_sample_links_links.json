@@ -1,0 +1,284 @@
+{
+  "format": 1,
+  "unit": "mm",
+  "robot": "",
+  "source": "pikachu_sample_links",
+  "links": {
+    "base_link": {
+      "group": "躯干",
+      "x_mm": 80,
+      "y_mm": 90,
+      "z_mm": 200,
+      "length_mm": 200
+    },
+    "head_link": {
+      "group": "头",
+      "x_mm": 90,
+      "y_mm": 110,
+      "z_mm": 120,
+      "length_mm": 120
+    },
+    "left_hip_pitch_link": {
+      "group": "腿·髋",
+      "x_mm": 40,
+      "y_mm": 35.5,
+      "z_mm": 25,
+      "length_mm": 25
+    },
+    "left_hip_roll_link": {
+      "group": "腿·髋",
+      "x_mm": 40,
+      "y_mm": 25,
+      "z_mm": 46,
+      "length_mm": 46
+    },
+    "left_hip_yaw_link": {
+      "group": "腿·髋",
+      "x_mm": 40,
+      "y_mm": 25,
+      "z_mm": 25,
+      "length_mm": 25
+    },
+    "left_knee_link": {
+      "group": "腿·膝",
+      "x_mm": 40,
+      "y_mm": 25,
+      "z_mm": 70,
+      "length_mm": 70
+    },
+    "left_ankle_link": {
+      "group": "腿·踝/脚",
+      "x_mm": 80,
+      "y_mm": 50,
+      "z_mm": 20,
+      "length_mm": 20
+    },
+    "right_hip_pitch_link": {
+      "group": "腿·髋",
+      "x_mm": 40,
+      "y_mm": 35.5,
+      "z_mm": 25,
+      "length_mm": 25
+    },
+    "right_hip_roll_link": {
+      "group": "腿·髋",
+      "x_mm": 40,
+      "y_mm": 25,
+      "z_mm": 46,
+      "length_mm": 46
+    },
+    "right_hip_yaw_link": {
+      "group": "腿·髋",
+      "x_mm": 40,
+      "y_mm": 25,
+      "z_mm": 25,
+      "length_mm": 25
+    },
+    "right_knee_link": {
+      "group": "腿·膝",
+      "x_mm": 40,
+      "y_mm": 25,
+      "z_mm": 70,
+      "length_mm": 70
+    },
+    "right_ankle_link": {
+      "group": "腿·踝/脚",
+      "x_mm": 80,
+      "y_mm": 50,
+      "z_mm": 20,
+      "length_mm": 20
+    },
+    "left_arm_pitch_link": {
+      "group": "臂·肩/上臂",
+      "x_mm": 30,
+      "y_mm": 49,
+      "z_mm": 30,
+      "length_mm": 30
+    },
+    "left_arm_roll_link": {
+      "group": "臂·肩/上臂",
+      "x_mm": 30,
+      "y_mm": 30,
+      "z_mm": 51,
+      "length_mm": 51
+    },
+    "left_arm_yaw_link": {
+      "group": "臂·肘/前臂",
+      "x_mm": 30,
+      "y_mm": 30,
+      "z_mm": 21,
+      "length_mm": 21
+    },
+    "left_elbow_link": {
+      "group": "臂·肘/前臂",
+      "x_mm": 30,
+      "y_mm": 30,
+      "z_mm": 30,
+      "length_mm": 30
+    },
+    "right_arm_pitch_link": {
+      "group": "臂·肩/上臂",
+      "x_mm": 30,
+      "y_mm": 49,
+      "z_mm": 30,
+      "length_mm": 30
+    },
+    "right_arm_roll_link": {
+      "group": "臂·肩/上臂",
+      "x_mm": 30,
+      "y_mm": 30,
+      "z_mm": 51,
+      "length_mm": 51
+    },
+    "right_arm_yaw_link": {
+      "group": "臂·肘/前臂",
+      "x_mm": 30,
+      "y_mm": 30,
+      "z_mm": 21,
+      "length_mm": 21
+    },
+    "right_elbow_link": {
+      "group": "臂·肘/前臂",
+      "x_mm": 30,
+      "y_mm": 30,
+      "z_mm": 30,
+      "length_mm": 30
+    }
+  },
+  "by_group": {
+    "躯干": {
+      "base_link": {
+        "x_mm": 80,
+        "y_mm": 90,
+        "z_mm": 200,
+        "length_mm": 200
+      }
+    },
+    "头": {
+      "head_link": {
+        "x_mm": 90,
+        "y_mm": 110,
+        "z_mm": 120,
+        "length_mm": 120
+      }
+    },
+    "腿·髋": {
+      "left_hip_pitch_link": {
+        "x_mm": 40,
+        "y_mm": 35.5,
+        "z_mm": 25,
+        "length_mm": 25
+      },
+      "left_hip_roll_link": {
+        "x_mm": 40,
+        "y_mm": 25,
+        "z_mm": 46,
+        "length_mm": 46
+      },
+      "left_hip_yaw_link": {
+        "x_mm": 40,
+        "y_mm": 25,
+        "z_mm": 25,
+        "length_mm": 25
+      },
+      "right_hip_pitch_link": {
+        "x_mm": 40,
+        "y_mm": 35.5,
+        "z_mm": 25,
+        "length_mm": 25
+      },
+      "right_hip_roll_link": {
+        "x_mm": 40,
+        "y_mm": 25,
+        "z_mm": 46,
+        "length_mm": 46
+      },
+      "right_hip_yaw_link": {
+        "x_mm": 40,
+        "y_mm": 25,
+        "z_mm": 25,
+        "length_mm": 25
+      }
+    },
+    "腿·膝": {
+      "left_knee_link": {
+        "x_mm": 40,
+        "y_mm": 25,
+        "z_mm": 70,
+        "length_mm": 70
+      },
+      "right_knee_link": {
+        "x_mm": 40,
+        "y_mm": 25,
+        "z_mm": 70,
+        "length_mm": 70
+      }
+    },
+    "腿·踝/脚": {
+      "left_ankle_link": {
+        "x_mm": 80,
+        "y_mm": 50,
+        "z_mm": 20,
+        "length_mm": 20
+      },
+      "right_ankle_link": {
+        "x_mm": 80,
+        "y_mm": 50,
+        "z_mm": 20,
+        "length_mm": 20
+      }
+    },
+    "臂·肩/上臂": {
+      "left_arm_pitch_link": {
+        "x_mm": 30,
+        "y_mm": 49,
+        "z_mm": 30,
+        "length_mm": 30
+      },
+      "left_arm_roll_link": {
+        "x_mm": 30,
+        "y_mm": 30,
+        "z_mm": 51,
+        "length_mm": 51
+      },
+      "right_arm_pitch_link": {
+        "x_mm": 30,
+        "y_mm": 49,
+        "z_mm": 30,
+        "length_mm": 30
+      },
+      "right_arm_roll_link": {
+        "x_mm": 30,
+        "y_mm": 30,
+        "z_mm": 51,
+        "length_mm": 51
+      }
+    },
+    "臂·肘/前臂": {
+      "left_arm_yaw_link": {
+        "x_mm": 30,
+        "y_mm": 30,
+        "z_mm": 21,
+        "length_mm": 21
+      },
+      "left_elbow_link": {
+        "x_mm": 30,
+        "y_mm": 30,
+        "z_mm": 30,
+        "length_mm": 30
+      },
+      "right_arm_yaw_link": {
+        "x_mm": 30,
+        "y_mm": 30,
+        "z_mm": 21,
+        "length_mm": 21
+      },
+      "right_elbow_link": {
+        "x_mm": 30,
+        "y_mm": 30,
+        "z_mm": 30,
+        "length_mm": 30
+      }
+    }
+  }
+}

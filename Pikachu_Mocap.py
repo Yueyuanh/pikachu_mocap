@@ -2177,6 +2177,10 @@ if __name__ == "__main__":
 
     print("URDF_PATH:", os.path.abspath(urdf_path))
 
+    # QtWebEngine 要求共享 OpenGL 上下文,必须早于 QApplication 创建时设置,
+    # 否则 meshcat 内嵌的 QWebEngineView 无法初始化 WebGL。
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
+
     app = QApplication(sys.argv)
 
     w = Studio(urdf_path=urdf_path)

@@ -6,11 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pikachu Motion Capture — a real-time system that captures human poses via MediaPipe and transfers them to a Pikachu character skeleton. Supports Blender integration and URDF robot model visualization.
 
+> 🎬 **想程序化驱动 / 导出 Pikachu 关节？先读 [`docs/BLENDER_JOINT_CONTROL.md`](docs/BLENDER_JOINT_CONTROL.md)** —— 里面是 socket 控制协议（端口 9999）、21 个可控关节+极限、54 骨 rig 层级、以及一套可复制的驱动示例。
+
 ## Running the Project
 
 ```bash
 # Main GUI application (requires webcam)
 python Pikachu_Mocap.py
+
+# URDF → Blender rig retarget tool (no webcam; URDF sliders + Meshcat 3D)
+# 映射规则见 retarget_map.yaml（joint -> bone/axis/sign/bias/limit）
+python Pikachu_Retarget.py
 
 # MediaPipe pose detection demo
 python pose/MediaPipe/main.py [--names] [--axes] [--grid]

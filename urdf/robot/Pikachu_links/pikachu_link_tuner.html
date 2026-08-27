@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pikachu 连杆调校台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#101318;
+  --panel:#171c24;
+  --panel2:#1d232e;
+  --raise:#232b38;
+  --line:#29313f;
+  --line2:#343e50;
+  --text:#e7edf6;
+  --text-dim:#a6b2c4;
+  --muted:#6f7c90;
+  --accent:#ff933a;          /* SCAD 高亮橙 */
+  --accent-soft:rgba(255,147,58,.14);
+  --blue:#5f7cff;             /* 取自 leg_hip_yaw 蓝 */
+  --ok:#56c98a;
+  --shadow:0 12px 40px rgba(0,0,0,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101318; --panel:#171c24; --panel2:#1d232e; --raise:#232b38;
+    --line:#29313f; --line2:#343e50; --text:#e7edf6; --text-dim:#a6b2c4; --muted:#6f7c90;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101318; --panel:#171c24; --panel2:#1d232e; --raise:#232b38;
+  --line:#29313f; --line2:#343e50; --text:#e7edf6; --text-dim:#a6b2c4; --muted:#6f7c90;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#eef1f6; --panel:#f7f9fc; --panel2:#e9eef5; --raise:#dfe6f0;
+    --line:#cfd7e3; --line2:#bcc7d6; --text:#1a2130; --text-dim:#4a5668; --muted:#72809a;
+    --accent:#e06d14; --accent-soft:rgba(224,109,20,.12); --blue:#3d5adf; --ok:#24915a;
+    --shadow:0 12px 32px rgba(30,40,60,.16);
+  }
+}
+:root[data-theme="light"]{
+  --bg:#eef1f6; --panel:#f7f9fc; --panel2:#e9eef5; --raise:#dfe6f0;
+  --line:#cfd7e3; --line2:#bcc7d6; --text:#1a2130; --text-dim:#4a5668; --muted:#72809a;
+  --accent:#e06d14; --accent-soft:rgba(224,109,20,.12); --blue:#3d5adf; --ok:#24915a;
+  --shadow:0 12px 32px rgba(30,40,60,.16);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer}
+input{font:inherit;color:inherit}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  display:flex;align-items:center;gap:16px;padding:12px 18px;
+  border-bottom:1px solid var(--line); background:var(--panel);
+  position:sticky;top:0;z-index:10;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.2px}
+.mark{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),#ffb35c);color:#1a1208;flex:none;
+  box-shadow:0 4px 14px rgba(255,147,58,.35)}
+.mark svg{width:18px;height:18px}
+.brand small{display:block;font-weight:400;color:var(--muted);font-size:11px;letter-spacing:.4px}
+.status{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--text-dim);
+  border:1px solid var(--line);padding:5px 10px;border-radius:999px;background:var(--panel2);white-space:nowrap}
+.status b{color:var(--accent);font-weight:600}
+
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  padding:7px 12px;border-radius:8px;font-size:13px;font-weight:500;transition:.15s}
+.btn:hover{border-color:var(--line2);background:var(--raise)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1208}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn:active{transform:translateY(1px)}
+
+/* ---------- 布局 ---------- */
+.layout{display:grid;grid-template-columns:340px 1fr 1fr;grid-template-rows:1fr auto;gap:12px;
+  height:calc(100% - 57px);padding:12px;min-height:0}
+.sidecell,.v3cell,.footcell,.v2cell{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.sidecell{grid-column:1;grid-row:1}
+.footcell{grid-column:1;grid-row:2;overflow-y:auto;padding:12px 14px}
+.v3cell{grid-column:2;grid-row:1/3}
+.v2cell{grid-column:3;grid-row:1/3}
+.cell-head{flex:none;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;color:var(--text-dim);
+  letter-spacing:.5px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.cell-head .dim{color:var(--muted);font-weight:400;letter-spacing:.3px;margin-left:8px;font-size:10px}
+.cell-head .dim.mm{color:var(--accent)}
+.seclabel{flex:none;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;color:var(--accent);
+  letter-spacing:.5px;margin:12px 2px 6px}
+.sidecell .scroll{flex:1;overflow-y:auto;min-height:0;padding:2px 12px 14px}
+.viewport{flex:1;min-height:0;position:relative;border:0;border-radius:0;background:var(--panel2);overflow:hidden;
+  display:flex;align-items:center;justify-content:center}
+.viewport canvas{width:auto;height:auto;display:block;touch-action:none}
+.view2d-inner{flex:1;min-height:0;position:relative;background:var(--panel2);overflow:hidden;
+  display:flex;align-items:stretch;gap:12px;padding:12px}
+.view2d-inner .cv-wrap{flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center}
+.view2d-inner .cv-wrap canvas{width:auto;height:auto;display:block;touch-action:none}
+/* 侧边：关键尺寸表（文字不放图纸上，避免遮挡主体） */
+.dimtable{flex:none;width:212px;align-self:center;border-collapse:collapse;font-family:"IBM Plex Mono",monospace}
+.dimtable th,.dimtable td{border:1px solid var(--line);padding:4px 9px;font-size:11px;line-height:1.45}
+.dimtable th{color:var(--text-dim);font-weight:600;background:var(--panel);text-align:center}
+.dimtable td{color:var(--text);vertical-align:top}
+.dimtable td.nt{color:var(--accent);font-weight:600;text-align:center;width:26px}
+.dimtable td.val{color:var(--accent);font-weight:600;text-align:right;white-space:nowrap;width:62px}
+.footcell .mini{display:flex;gap:8px}
+.footcell .export{margin-top:12px}
+.footcell .src{margin-top:12px}
+.tiny{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);margin:8px 2px 0;line-height:1.5}
+.tabs{position:absolute;top:10px;right:12px;display:flex;gap:4px}
+.tabs button{border:1px solid var(--line);background:var(--panel);color:var(--text-dim);
+  padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+.tabs button.on{background:var(--accent);color:#1a1208;border-color:var(--accent);font-weight:600}
+/* 3D 视图右上角：正/侧/底 视角预设（独立于 2D 的 .tabs，避免共用点击处理） */
+.sat3d{position:absolute;top:10px;right:12px;display:flex;gap:4px;z-index:3}
+.sat3d button{border:1px solid var(--line);background:var(--panel);color:var(--text-dim);
+  padding:3px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:"IBM Plex Mono",monospace}
+.sat3d button:hover{color:var(--text)}
+.sat3d button.on{background:var(--accent);color:#1a1208;border-color:var(--accent);font-weight:600}
+
+/* ---------- 参数面板 ---------- */
+.grptitle{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;margin:14px 2px 4px;font-family:"IBM Plex Mono",monospace}
+.grptitle:first-child{margin-top:2px}
+.row{display:flex;align-items:center;gap:8px;padding:3px 2px}
+.row select{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+  border-radius:7px;padding:4px 8px;font-size:12px;cursor:pointer}
+.row .pname{width:76px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text-dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;cursor:help}
+.row input[type=range]{flex:1}
+.slider-row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;padding:4px 0}
+.slider-row label{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;
+  font-size:11px;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+.slider-row label .val{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+.slider-row input{width:100%;accent-color:var(--accent);height:16px}
+.slider-row small{color:var(--muted);font-size:10px;font-family:"IBM Plex Mono",monospace;text-align:right}
+.slider-row .key{color:var(--text-dim)}
+
+.mini{display:flex;gap:8px}
+.mini .btn{flex:1}
+.export{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.erow{display:flex;gap:8px;margin-top:4px}
+.erow .btn{flex:1;text-align:center}
+.export .uw{width:100%;margin-top:8px}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.legend .sw{display:flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted)}
+.legend .dot{width:10px;height:10px;border-radius:3px;flex:none}
+
+/* ---------- 参数分组（折叠）与数值框 ---------- */
+.slider-row .rowctrl{grid-column:1/-1;display:flex;gap:6px;align-items:center}
+.slider-row .rowctrl input[type=range]{flex:1;height:14px}
+.slider-row .num{width:74px;flex:none;background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  padding:4px 6px;color:var(--text);text-align:right;font-family:"IBM Plex Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums}
+.slider-row .num:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+#groups .grp{background:var(--panel2);border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden}
+#groups .grp summary{list-style:none;cursor:pointer;padding:8px 12px;font-weight:600;display:flex;align-items:center;gap:8px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);user-select:none}
+#groups .grp summary::-webkit-details-marker{display:none}
+#groups .grp summary:hover{background:var(--raise);color:var(--text)}
+#groups .grp summary .cn{flex:none;font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px}
+#groups .grp[open]{border-color:var(--line2)}
+#groups .grp[open] summary{color:var(--text);border-bottom:1px solid var(--line)}
+#groups .grpbox{padding:8px 12px;display:flex;flex-direction:column}
+#joints .grpbox{padding:8px}
+.jrow{border:1px solid var(--line);border-radius:7px;padding:6px 8px;margin:0 0 6px;background:var(--panel3,var(--panel2))}
+.jrow .jtop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.jrow .jname{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jrow .fix{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer;flex:none;user-select:none}
+.jrow .fix input{accent-color:var(--accent);margin:0}
+.jrow .fix i{font-style:normal}
+.jrow .jlim{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}
+.jrow .jlim span{display:flex;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace}
+.jrow .jlim .num{width:62px;flex:none;background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  padding:3px 5px;color:var(--text);text-align:right;font-size:11px;font-family:"IBM Plex Mono",monospace}
+.jrow .jlim .num:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.none{font-size:11px;color:var(--muted);padding:6px 2px}
+
+/* ---------- 数据源 ---------- */
+.src details{margin-top:auto}
+.src summary{cursor:pointer;font-size:12px;color:var(--muted);font-family:"IBM Plex Mono",monospace;
+  padding:6px 0;user-select:none}
+.src textarea{width:100%;height:280px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--text);border-radius:8px;padding:10px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+  line-height:1.6;resize:vertical}
+.src .srow{display:flex;gap:8px;margin-top:8px}
+code.k{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text-dim)}
+
+/* 消息 */
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--raise);
+  color:var(--text);border:1px solid var(--line2);padding:9px 16px;border-radius:9px;
+  font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:50}
+#toast.show{opacity:1}
+#toast.err{border-color:#e5583f}
+input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;overflow:visible}
+  .side{max-height:52vh;border-right:none;border-bottom:1px solid var(--line)}
+  .main{grid-template-rows:56vh 300px;overflow:visible}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9h4l2-4 2 4 3-2 2 5-3 3 1 4-3 1-1-3-1 3-3-1 1-4-3-3z"/><circle cx="9" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="11" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+    </span>
+    <span>连杆调校台<small>Pikachu · URDF/xacro link tuner</small></span>
+  </div>
+  <div class="status">
+    <span id="statLink">–</span> links · <span id="statJoint">–</span> joints · <span id="statParam">–</span> params
+  </div>
+  <label class="btn" style="margin-left:2px;margin-left:0">载入文件
+    <input type="file" id="fileInput" accept=".xacro,.urdf,.xml" hidden>
+  </label>
+  <button class="btn primary" id="btnReload">应用源码</button>
+</header>
+
+<div class="layout">
+  <aside class="sidecell">
+    <div class="cell-head">连杆长度 · 关节</div>
+    <div class="scroll">
+      <div class="seclabel">连杆长度</div>
+      <div id="groups"></div>
+      <div class="seclabel">关节 · 固定 / 限位 / effort</div>
+      <div id="joints"></div>
+      <div class="legend" id="legend" style="margin-top:8px"></div>
+    </div>
+  </aside>
+
+  <section class="v3cell" id="view3d">
+    <div class="cell-head">3D 模型 <span class="dim">拖动旋转 · 滚轮缩放</span></div>
+    <div class="viewport">
+      <canvas id="canvas3d"></canvas>
+      <div class="sat3d">
+        <button id="vpFront">正</button>
+        <button id="vpSide">侧</button>
+        <button id="vpBottom">底</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="footcell">
+    <div class="mini">
+      <button class="btn" id="btnReset">重置默认</button>
+      <button class="btn" id="btnTheme" title="切换明暗主题">主题</button>
+    </div>
+    <div class="export">
+      <div class="grptitle">导出 / 保存</div>
+      <div class="erow">
+        <button class="btn" id="btnSaveX" title="把当前参数写回并另存为 .xacro">保存 Xacro</button>
+        <button class="btn" id="btnSaveURDF" title="按当前参数生成纯几何 .urdf 并写入已选目录">导出 URDF</button>
+      </div>
+      <button class="btn uw" id="btnSave2D" title="导出带 mm 尺寸标注的 2D 图纸为 PNG">导出 2D 图纸 (PNG)</button>
+      <button class="btn uw primary" id="btnExportAll" title="一次性导出 URDF + Xacro + 2D PNG + 连杆长度JSON，写入所选目录">一键导出全部 · URDF / Xacro / PNG / JSON</button>
+      <p class="tiny">导出会写入你方框里选的文件夹（推荐 urdf/robot/Pikachu_links）；不支持时退回下载。</p>
+    </div>
+    <div class="src">
+      <details>
+        <summary>数据源 · xacro / URDF</summary>
+        <textarea id="src" spellcheck="false"></textarea>
+        <div class="srow">
+          <button class="btn" id="btnLoadSample">载入内置示例</button>
+          <button class="btn primary" id="btnApply">解析 &amp; 渲染</button>
+        </div>
+      </details>
+    </div>
+  </aside>
+
+  <section class="v2cell">
+    <div class="cell-head">简化示意图 <span class="dim mm" id="dimUnit2">mm 尺寸</span></div>
+    <div class="view2d-inner">
+      <div class="cv-wrap">
+        <canvas id="canvas2d"></canvas>
+        <div class="tabs">
+          <button id="tbFront" class="on" data-v="front">正面</button>
+          <button id="tbSide" data-v="side">侧面</button>
+        </div>
+      </div>
+      <table class="dimtable">
+        <thead><tr><th>#</th><th>测距</th><th>值</th></tr></thead>
+        <tbody id="dimRows"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<script type="text/plain" id="src-default">
+<!--
+Pikachu 简化模型 演示数据：
+严格对应 urdf/Pikachu_V025.urdf 的 19 个可驱动关节 + 躯干 + 头。
+所有长度集中为一个可调参数，可整体适配骨骼。单位:米。
+可替换成本地完整 .xacro / .urdf 文件重新解析。
+-->
+<robot name="pikachu_sample_links" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:property name="pelvis_half_width" value="0.0515"/><!-- 骨盆半宽 -->
+  <xacro:property name="shoulder_height"   value="0.2"/><!-- 肩高/躯干高 -->
+  <xacro:property name="torso_len_x"       value="0.08"/><!-- 躯干前后厚 -->
+  <xacro:property name="torso_width_y"     value="0.09"/><!-- 躯干左右宽 -->
+  <xacro:property name="hip_pitch_to_roll_y" value="0.0355"/>
+  <xacro:property name="hip_roll_to_yaw_z"   value="0.046"/>
+  <xacro:property name="thigh_length" value="0.025"/><!-- 大腿长(重点) -->
+  <xacro:property name="shank_length" value="0.070"/><!-- 小腿长(重点) -->
+  <xacro:property name="leg_thick_x" value="0.04"/><xacro:property name="leg_width_y" value="0.025"/>
+  <xacro:property name="foot_len_x" value="0.08"/><xacro:property name="foot_wid_y" value="0.05"/><xacro:property name="foot_hgt_z" value="0.02"/>
+  <xacro:property name="arm_pitch_to_roll_y" value="0.049"/>
+  <xacro:property name="arm_upper_z" value="0.051"/><xacro:property name="arm_lower_z" value="0.021"/>
+  <xacro:property name="arm_thick_x" value="0.03"/><xacro:property name="arm_width_y" value="0.03"/>
+  <xacro:property name="head_len_x" value="0.09"/><xacro:property name="head_wid_y" value="0.11"/><xacro:property name="head_hgt_z" value="0.12"/><xacro:property name="head_bottom_offset" value="0.0"/>
+  <xacro:property name="arm_lim_min" value="-1.57"/><xacro:property name="arm_lim_max" value="1.57"/>
+  <xacro:property name="head_lim_min" value="-0.8"/><xacro:property name="head_lim_max" value="0.8"/>
+  <xacro:property name="mat_torso" value="0.55 0.60 0.75 1"/><xacro:property name="mat_head" value="0.98 0.85 0.30 1"/>
+  <xacro:property name="mat_leg_hip_pitch" value="0.90 0.35 0.80 1"/><xacro:property name="mat_leg_hip_roll" value="1.00 0.60 0.20 1"/><xacro:property name="mat_leg_hip_yaw" value="0.35 0.55 1.00 1"/><xacro:property name="mat_leg_knee" value="0.30 0.80 0.35 1"/><xacro:property name="mat_leg_ankle" value="0.25 0.28 0.35 1"/>
+  <xacro:property name="mat_arm_pitch" value="0.75 0.35 1.00 1"/><xacro:property name="mat_arm_roll" value="1.00 0.90 0.25 1"/><xacro:property name="mat_arm_yaw" value="0.30 0.85 0.80 1"/><xacro:property name="mat_arm_elbow" value="1.00 0.45 0.55 1"/>
+  <material name="torso_blue"><color rgba="${mat_torso}"/></material>
+  <material name="head_yellow"><color rgba="${mat_head}"/></material>
+  <material name="leg_hip_pitch"><color rgba="${mat_leg_hip_pitch}"/></material>
+  <material name="leg_hip_roll"><color rgba="${mat_leg_hip_roll}"/></material>
+  <material name="leg_hip_yaw"><color rgba="${mat_leg_hip_yaw}"/></material>
+  <material name="leg_knee"><color rgba="${mat_leg_knee}"/></material>
+  <material name="leg_ankle"><color rgba="${mat_leg_ankle}"/></material>
+  <material name="arm_pitch"><color rgba="${mat_arm_pitch}"/></material>
+  <material name="arm_roll"><color rgba="${mat_arm_roll}"/></material>
+  <material name="arm_yaw"><color rgba="${mat_arm_yaw}"/></material>
+  <material name="arm_elbow"><color rgba="${mat_arm_elbow}"/></material>
+
+  <xacro:macro name="leg_links" params="side sn">
+    <link name="${side}_hip_pitch_link"><visual><origin xyz="0 ${sn*hip_pitch_to_roll_y/2} 0" rpy="0 0 0"/><geometry><box size="${leg_thick_x} ${hip_pitch_to_roll_y} ${leg_width_y}"/></geometry><material name="leg_hip_pitch"/></visual></link>
+    <joint name="${side}_hip_roll_joint" type="revolute"><origin xyz="0 ${sn*hip_pitch_to_roll_y} 0" rpy="0 0 0"/><parent link="${side}_hip_pitch_link"/><child link="${side}_hip_roll_link"/><axis xyz="${sn} 0 0"/><limit lower="-0.09" upper="0.26" effort="9"/><velocity>1</velocity></joint>
+    <link name="${side}_hip_roll_link"><visual><origin xyz="0 0 ${-hip_roll_to_yaw_z/2}" rpy="0 0 0"/><geometry><box size="${leg_thick_x} ${leg_width_y} ${hip_roll_to_yaw_z}"/></geometry><material name="leg_hip_roll"/></visual></link>
+    <joint name="${side}_hip_yaw_joint" type="revolute"><origin xyz="0 0 ${-hip_roll_to_yaw_z}" rpy="0 0 0"/><parent link="${side}_hip_roll_link"/><child link="${side}_hip_yaw_link"/><axis xyz="0 0 ${sn}"/><limit lower="-0.09" upper="0.26" effort="9"/><velocity>1</velocity></joint>
+    <link name="${side}_hip_yaw_link"><visual><origin xyz="0 0 ${-thigh_length/2}" rpy="0 0 0"/><geometry><box size="${leg_thick_x} ${leg_width_y} ${thigh_length}"/></geometry><material name="leg_hip_yaw"/></visual></link>
+    <joint name="${side}_knee_joint" type="revolute"><origin xyz="0 0 ${-thigh_length}" rpy="0 0 0"/><parent link="${side}_hip_yaw_link"/><child link="${side}_knee_link"/><axis xyz="0 1 0"/><limit lower="0" upper="1.57" effort="12.5"/><velocity>3</velocity></joint>
+    <link name="${side}_knee_link"><visual><origin xyz="0 0 ${-shank_length/2}" rpy="0 0 0"/><geometry><box size="${leg_thick_x} ${leg_width_y} ${shank_length}"/></geometry><material name="leg_knee"/></visual></link>
+    <joint name="${side}_ankle_joint" type="revolute"><origin xyz="0 0 ${-shank_length}" rpy="0 0 0"/><parent link="${side}_knee_link"/><child link="${side}_ankle_link"/><axis xyz="0 -1 0"/><limit lower="-0.52" upper="1.05" effort="9"/><velocity>2</velocity></joint>
+    <link name="${side}_ankle_link"><visual><origin xyz="${foot_len_x/6} 0 ${-foot_hgt_z/2}" rpy="0 0 0"/><geometry><box size="${foot_len_x} ${foot_wid_y} ${foot_hgt_z}"/></geometry><material name="leg_ankle"/></visual></link>
+  </xacro:macro>
+
+  <xacro:macro name="arm_links" params="side sn">
+    <link name="${side}_arm_pitch_link"><visual><origin xyz="0 ${sn*arm_pitch_to_roll_y/2} 0" rpy="0 0 0"/><geometry><box size="${arm_thick_x} ${arm_pitch_to_roll_y} ${arm_width_y}"/></geometry><material name="arm_pitch"/></visual></link>
+    <joint name="${side}_arm_roll_joint" type="revolute"><origin xyz="0 ${sn*arm_pitch_to_roll_y} 0" rpy="0 0 0"/><parent link="${side}_arm_pitch_link"/><child link="${side}_arm_roll_link"/><axis xyz="${sn} 0 0"/><limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2"/><velocity>2</velocity></joint>
+    <link name="${side}_arm_roll_link"><visual><origin xyz="0 0 ${-arm_upper_z/2}" rpy="0 0 0"/><geometry><box size="${arm_thick_x} ${arm_width_y} ${arm_upper_z}"/></geometry><material name="arm_roll"/></visual></link>
+    <joint name="${side}_arm_yaw_joint" type="revolute"><origin xyz="0 0 ${-arm_upper_z}" rpy="0 0 0"/><parent link="${side}_arm_roll_link"/><child link="${side}_arm_yaw_link"/><axis xyz="0 0 ${sn}"/><limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2"/><velocity>2</velocity></joint>
+    <link name="${side}_arm_yaw_link"><visual><origin xyz="0 0 ${-arm_lower_z/2}" rpy="0 0 0"/><geometry><box size="${arm_thick_x} ${arm_width_y} ${arm_lower_z}"/></geometry><material name="arm_yaw"/></visual></link>
+    <joint name="${side}_elbow_joint" type="revolute"><origin xyz="0 0 ${-arm_lower_z}" rpy="0 -1.57 0"/><parent link="${side}_arm_yaw_link"/><child link="${side}_elbow_link"/><axis xyz="0 ${-1*sn} 0"/><limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2"/><velocity>2</velocity></joint>
+    <link name="${side}_elbow_link"><visual><origin xyz="0 0 ${-arm_thick_x/2}" rpy="0 0 0"/><geometry><box size="${arm_thick_x} ${arm_width_y} ${arm_thick_x}"/></geometry><material name="arm_elbow"/></visual></link>
+  </xacro:macro>
+
+  <link name="base_link"><visual><origin xyz="0 0 ${shoulder_height/2}" rpy="0 0 0"/><geometry><box size="${torso_len_x} ${torso_width_y} ${shoulder_height}"/></geometry><material name="torso_blue"/></visual></link>
+
+  <joint name="head_joint" type="revolute"><origin xyz="0 0 ${shoulder_height + head_bottom_offset + head_hgt_z/2}" rpy="0 0 0"/><parent link="base_link"/><child link="head_link"/><axis xyz="0 1 0"/><limit lower="${head_lim_min}" upper="${head_lim_max}" effort="2"/><velocity>2</velocity></joint>
+  <link name="head_link"><visual><origin xyz="0 0 0" rpy="0 0 0"/><geometry><box size="${head_len_x} ${head_wid_y} ${head_hgt_z}"/></geometry><material name="head_yellow"/></visual></link>
+
+  <joint name="left_hip_pitch_joint" type="revolute"><origin xyz="0 ${pelvis_half_width} 0" rpy="0 0 0"/><parent link="base_link"/><child link="left_hip_pitch_link"/><axis xyz="0 -1 0"/><limit lower="0" upper="2.44" effort="12.5"/><velocity>2</velocity></joint>
+  <joint name="right_hip_pitch_joint" type="revolute"><origin xyz="0 ${-pelvis_half_width} 0" rpy="0 0 0"/><parent link="base_link"/><child link="right_hip_pitch_link"/><axis xyz="0 -1 0"/><limit lower="0" upper="2.44" effort="12.5"/><velocity>2</velocity></joint>
+  <joint name="left_arm_pitch_joint" type="revolute"><origin xyz="0 ${pelvis_half_width} ${shoulder_height}" rpy="0 0 0"/><parent link="base_link"/><child link="left_arm_pitch_link"/><axis xyz="0 -1 0"/><limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2"/><velocity>2</velocity></joint>
+  <joint name="right_arm_pitch_joint" type="revolute"><origin xyz="0 ${-pelvis_half_width} ${shoulder_height}" rpy="0 0 0"/><parent link="base_link"/><child link="right_arm_pitch_link"/><axis xyz="0 -1 0"/><limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2"/><velocity>2</velocity></joint>
+
+  <xacro:leg_links side="left" sn="1"></xacro:leg_links>
+  <xacro:leg_links side="right" sn="-1"></xacro:leg_links>
+  <xacro:arm_links side="left" sn="1"></xacro:arm_links>
+  <xacro:arm_links side="right" sn="-1"></xacro:arm_links>
+</robot>
+</script>
+
+<script>
+"use strict";
+
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s);
+// 渲染分辨率系数：比设备像素略放大，让画面/标注更清晰（离线导出会临时调大，导出后还原）
+let RENDER_RES=Math.max(2,(window.devicePixelRatio||1)*1.6);
+// 导出开关：导出 PNG 时把每个尺寸的数值直接画进图纸，脚本内下载图也带数据
+let dimDrawVals=false;
+const toast=(m,err)=>{const t=$('#toast');t.textContent=m;t.classList.add('show');if(err)t.classList.add('err');else t.classList.remove('err');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2600)};;
+function mm(v){return (v*1000).toFixed(1);}
+function fmt(v){return (+v).toPrecision(4);}
+
+/* ================= 数学：向量 / 旋转矩阵 3x3 ================= */
+function rpyToMat(rpy){ // rpy=(r,p,y)->R = Rz(y)Ry(p)Rx(r)
+  const r=rpy[0],p=rpy[1],y=rpy[2];
+  const cr=Math.cos(r),sr=Math.sin(r),cp=Math.cos(p),sp=Math.sin(p),cy=Math.cos(y),sy=Math.sin(y);
+  return [
+    [cy*cp, cy*sp*sr - sy*cr, cy*sp*cr + sy*sr],
+    [sy*cp, sy*sp*sr + cy*cr, sy*sp*cr - cy*sr],
+    [-sp,   cp*sr,            cp*cr]
+  ];
+}
+function matMul(A,B){const m=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let i=0;i<3;i++)for(let k=0;k<3;k++)for(let j=0;j<3;j++)m[i][j]+=A[i][k]*B[k][j];
+  return m;}
+function matVec(M,v){return [M[0][0]*v[0]+M[0][1]*v[1]+M[0][2]*v[2],M[1][0]*v[0]+M[1][1]*v[1]+M[1][2]*v[2],M[2][0]*v[0]+M[2][1]*v[1]+M[2][2]*v[2]];}
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+
+/* ================= xacro 展开 ================= */
+function evalMath(expr, props){
+  let s = String(expr).trim();
+  if(s.startsWith('${') && s.endsWith('}')) s = s.slice(2,-1).trim(); // 剥掉最外层 ${ }
+  // 变量内联（${var} 与算式内裸标识符 var 两种形式都解析）
+  s = s.replace(/\$\{([A-Za-z_]\w*)\}/g,(m,n)=>{
+    if(!(n in props)) throw new Error('未定义变量: '+n);
+    return String(props[n]);
+  });
+  s = s.replace(/\b[A-Za-z_]\w*\b/g,(n)=> (n in props) ? String(props[n]) : n);
+  // 归一 + 校验：仅允许数字与算术符号
+  s=s.replace(/--/g,'+').replace(/\s+/g,' ');
+  if(!/^[\d+\-*/().\s]+$/.test(s)) throw new Error('非法表达式: '+s.trim().slice(0,32));
+  let v;
+  try{ v=Function('"use strict";return ('+s+');')(); }
+  catch(e){ throw new Error(e&&e.name==='ReferenceError' ? '未定义的变量: '+e.message : (e&&e.message||String(e))); }
+  const out=+v; return isFinite(out)?out:0;
+}
+function expand(src, overrides){
+  const props={}; let doc=src;
+  if(overrides){ for(const k in overrides) props[k]=overrides[k]; }
+  // 1. property（含宏内 property 也要提取；已由 overrides 覆盖的不重取）
+  const propRe=/<xacro:property[^>]*\bname="([\w]+)"\s+value="([^"]*)"\s*\/>/g; let m;
+  while((m=propRe.exec(src))){ if(!(m[1] in props)) props[m[1]]=m[2].trim(); }
+  // 读完后再把 <xacro:property .../> 从文档里删掉——否则导出 URDF 会残留未绑定前缀(xmlns:xacro 已被移除)而报 unbound prefix
+  doc = doc.replace(/<xacro:property\b[^>]*\/>/g,'');
+  // 2. 收集宏定义并删除
+  const macros={};
+  const macroRe=/<xacro:macro\b([^>]*)\bname="(\w+)"\s*params="([^"]*)"\s*>([\s\S]*?)<\/xacro:macro>/g;
+  doc=doc.replace(macroRe,(all,pre,name,par,bd)=>{
+    macros[name]={params:par.trim().split(/\s+/).filter(Boolean), body:bd};
+    return '';
+  });
+  // 3. 展开宏调用（支持成对或自闭合）
+  for(let k=0;k<3;k++){
+    const callRe=/<xacro:(\w+)\b([^>]*?)\/?>\s*(?:<\/xacro:\1>)?/g;
+    doc=doc.replace(callRe,(all,name,attrsStr)=>{
+      const macro=macros[name]; if(!macro) return all;
+      const attrs={}; const am=/\(\w+\)/ .exec('') || null; // noop
+      const avRe=/(\w+)=["']([^"']*)["']/g; let a;
+      while((a=avRe.exec(attrsStr))) attrs[a[1]]=a[2];
+      let body=macro.body;
+      for(const p of macro.params){
+        const v=attrs[p]||'';
+        body=body.replace(new RegExp('\\$\\{'+p+'\\}','g'), v);
+        if(/^[\d.eE+-]+$/.test(v)){ // 算式内裸参数(如 sn*0.0355/2)
+          const pv=/^-\d/.test(v) ? '('+v+')' : v; // 负值包括号，避免 --1
+          body=body.replace(new RegExp('\\b'+p+'\\b','g'), pv);
+        }
+      }
+      return body;
+    });
+  }
+  // 4. 内联其余属性（${prop}）
+  doc = doc.replace(/\$\{([A-Za-z_]\w*)\}/g,(m,n)=>{
+    if(n in props){
+      const v=props[n];
+      return /^[\d.eE+-]+$/.test(String(v)) ? String(v) : v;
+    }
+    throw new Error(`未定义变量: ${n}`);
+  });
+  // 5. 求值所有 ${...} 算式 -> 数字
+  doc = doc.replace(/\$\{([^}]*)\}/g,(m,inner)=>evalMath(inner,props));
+  // 6. 兜底：清除一切残留的 xacro 元素，保证导出文档是干净的纯 URDF
+  doc = doc.replace(/<\/?xacro:[^>]*>/g,'');
+  return {props, doc};
+}
+
+/* ================= URDF 结构 ================= */
+function parseRobot(xmlStr){
+  const dom=new DOMParser().parseFromString(xmlStr,'text/xml');
+  if(dom.querySelector('parsererror')) throw new Error('XML 解析失败: '+(dom.querySelector('parsererror').textContent||'').trim());
+  const root=dom.documentElement;
+  const mats={};
+  root.querySelectorAll('material').forEach(mm=>{
+    const c=mm.querySelector('color'); if(c)mats[mm.getAttribute('name')]=c.getAttribute('rgba').trim();
+  });
+  const links={}; // name -> {size:[x,y,z], origin:[x,y,z], color}
+  root.querySelectorAll('link').forEach(lk=>{
+    const vs=lk.querySelector('visual'); if(!vs) return;
+    const g=vs.querySelector('geometry');
+    const b=g&&g.querySelector('box'); if(!b) return;
+    const o=vs.querySelector('origin');
+    const mk=(v,f)=>{const t=v?a[v]():[0,0,0];return t;};
+    const oa=o?o.getAttribute('xyz').trim().split(/\s+/).map(Number):[0,0,0];
+    const ra=o&&o.getAttribute('rpy')?o.getAttribute('rpy').trim().split(/\s+/).map(Number):[0,0,0];
+    const sz=b.getAttribute('size').trim().split(/\s+/).map(Number);
+    const mn=vs.querySelector('material')&&vs.querySelector('material').getAttribute('name');
+    links[lk.getAttribute('name')]={origin:oa,rpy:ra,size:sz,mat:mn,color:mats[mn]||['.7','.7','.75','1'].join(' ')};
+  });
+  const joints=[];
+  root.querySelectorAll('joint').forEach(jf=>{
+    const o=jf.querySelector('origin');
+    joints.push({
+      name:jf.getAttribute('name'),type:jf.getAttribute('type'),
+      parent:jf.querySelector('parent').getAttribute('link'),
+      child:jf.querySelector('child').getAttribute('link'),
+      origin:o?o.getAttribute('xyz').trim().split(/\s+/).map(Number):[0,0,0],
+      rpy:o&&o.getAttribute('rpy')?o.getAttribute('rpy').trim().split(/\s+/).map(Number):[0,0,0],
+      axis:jf.querySelector('axis')?jf.querySelector('axis').getAttribute('xyz').trim().split(/\s+/).map(Number):[0,0,0],
+      limit:jf.querySelector('limit')?[+jf.querySelector('limit').getAttribute('lower'),+jf.querySelector('limit').getAttribute('upper')]:null,
+      effort:jf.querySelector('limit')&&jf.querySelector('limit').getAttribute('effort')?+jf.querySelector('limit').getAttribute('effort'):5
+    });
+  });
+  return {links, joints};
+}
+
+/* ================= 世界变换 ================= */
+// 返回每个 link 的 {pos:linkFrame原点 world, R:旋转} 与父级
+function computeTFs(model){
+  const {links,joints}=model;
+  const tf={};
+  let base=Object.keys(links).find(n=>!joints.some(j=>j.child===n))||'base_link';
+  const stack=[{name:base,pos:[0,0,0],R:[[1,0,0],[0,1,0],[0,0,1]]}];
+  tf[base]=stack[0];
+  const childrenOf={}; joints.forEach(j=>{(childrenOf[j.parent]=childrenOf[j.parent]||[]).push(j)});
+  const visited=new Set([base]);
+  while(stack.length){
+    const c=stack.pop();
+    for(const j of (childrenOf[c.name]||[])){
+      if(visited.has(j.child)) continue; visited.add(j.child);
+      const oj=j.origin;
+      const linkPos=add(c.pos, matVec(c.R, oj));
+      const R=matMul(c.R, rpyToMat(j.rpy));
+      const t={pos:linkPos,R}; tf[j.child]=t;
+      stack.push({name:j.child,pos:linkPos,R});
+    }
+  }
+  return tf;
+}
+
+/* 计算每个 link 的 box 8 角点（world） */
+function boxCorners(link, tf){
+  const s=link.size, o=link.origin;
+  const R=tf.R, pos=tf.pos;
+  const hx=s[0]/2,hy=s[1]/2,hz=s[2]/2;
+  const out=[];
+  for(let i=0;i<8;i++){
+    const dx=(i&1)?hx:-hx, dy=(i&2)?hy:-hy, dz=(i&4)?hz:-hz;
+    out.push(add(pos, matVec(R,[o[0]+dx,o[1]+dy,o[2]+dz])));
+  }
+  return out;
+}
+const EDGES=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+
+/* ================= 3D 渲染 ================= */
+const cv3=$('#canvas3d'), ctx3=cv3.getContext('2d');
+let Rx=0.35, Ry=0.5, zoom=1;   // 俯角 + 水平转角：正立 3/4 视角（URDF 为 Z 朝上）
+function proj3D(w, cam){
+  // 相机: 先绕竖直轴(Z)水平转角 ry(cam.ry=Ry)，再绕世界X 俯角 rx(cam.rx=Rx)
+  const hv=!!cam.ry, ch=Math.cos(cam.ry), sh=Math.sin(cam.ry);
+  const cv=Math.cos(cam.rx), sv=Math.sin(cam.rx);
+  const x1= hv? ch*w[0]+sh*w[1] : w[0];
+  const y1= hv? -sh*w[0]+ch*w[1] : w[1];
+  const z1= w[2];
+  const y2=cv*y1 + sv*z1;   // 俯角把高度(z, 上方)抬到屏幕纵向(y2), 头 z 大 -> y2 大 -> 屏幕上方(取负)
+  const z2=-sv*y1 + cv*z1;  // 深度, 用于 painter 排序
+  return [x1, -y2, z2];     // 屏幕右=x1, 屏幕上=-y2, 深=z2
+}
+function render3D(model, mode){
+  const tfs=computeTFs(model);
+  const robots=[];
+  for(const n in model.links){
+    const lk=model.links[n]; const tf=tfs[n]; if(!tf) continue;
+    const wcp=boxCorners(lk,tf);
+    const parts=[];
+    for(let e=0;e<12;e++){
+      const a=proj3D(wcp[EDGES[e][0]],mode), b=proj3D(wcp[EDGES[e][1]],mode);
+      parts.push([a,b]);
+    }
+    robots.push({edges:parts, color:lk.color, z:proj3D(cent(wcp),mode)[2]});
+  }
+  const W=cv3.width,H=cv3.height;
+  ctx3.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2;
+  const s = (Math.min(W,H)*0.75)/(2*Math.max(0.05,span3(tfs))) * zoom;
+  drawGrid(mode,s,cx,cy);
+  robots.sort((A,B)=>B.z-A.z); // far->near
+  for(const b of robots){
+    const col=parseColor(b.color);
+    // 画边
+    for(const [a3,b3] of b.edges){
+      const A=[a3[0]*s+cx, a3[1]*s+cy], B=[b3[0]*s+cx, b3[1]*s+cy];
+      ctx3.strokeStyle=col.css; ctx3.globalAlpha=.95; ctx3.lineWidth=2; ctx3.lineJoin='round';
+      ctx3.beginPath();ctx3.moveTo(A[0],A[1]);ctx3.lineTo(B[0],B[1]);ctx3.stroke();
+    }
+    ctx3.globalAlpha=1;
+  }
+}
+function cent(pts){return pts.reduce((a,p)=>[a[0]+p[0]/pts.length,a[1]+p[1]/pts.length,a[2]+p[2]/pts.length],[0,0,0]);}
+function span3(tfs){let mx=0;for(const n in tfs){for(const p of tfs[n].pos)mx=Math.max(mx,Math.abs(p));}return mx;}
+function parseColor(rgba){
+  const p=rgba.trim().split(/\s+/).map(Number);
+  const rr=Math.round(p[0]*255),gg=Math.round(p[1]*255),bb=Math.round(p[2]*255);
+  return {css:`rgb(${rr},${gg},${bb})`, fill:`rgba(${rr},${gg},${bb},.22)`};
+}
+function drawGrid(mode,s,cx,cy){
+  ctx3.strokeStyle='rgba(128,140,160,.10)';ctx3.lineWidth=1;
+  const lim=14;ctx3.beginPath();
+  for(let i=-lim;i<=lim;i++){
+    ctx3.moveTo(cx+i*s*0.05,cy-lim*s*0.05);ctx3.lineTo(cx+i*s*0.05,cy+lim*s*0.05);
+    ctx3.moveTo(cx-lim*s*0.05,cy+i*s*0.05);ctx3.lineTo(cx+lim*s*0.05,cy+i*s*0.05);
+  }
+  ctx3.stroke();
+}
+
+/* ================= 2D 简化图 ================= */
+let dimView='front';
+function themeVar(n,d){const v=getComputedStyle(document.documentElement).getPropertyValue(n).trim();return v||d;}
+function render2D(model){
+  const tfs=computeTFs(model);
+  const cv=$('#canvas2d'),ctx=cv.getContext('2d');
+  if(ctx.setTransform) ctx.setTransform(1,0,0,1,0,0);
+  const W=cv.width,H=cv.height;
+  const bg=themeVar('--panel','#151b26'), ink=themeVar('--text','#e8ecf4'),
+        soft=themeVar('--text-dim','#9aa6b8'), lineC=themeVar('--line','#2b3445'), accent='#ff933a';
+  // ① 不透明背景 + 边框（不再透明）
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle=lineC; ctx.lineWidth=1; ctx.strokeRect(7,7,W-14,H-14);
+  // ② 抬头说明
+  ctx.fillStyle=soft; ctx.font='600 '+(Math.round(12*RENDER_RES))+'px "IBM Plex Mono",monospace';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Pikachu 关键尺寸示意 · '+(dimView==='front'?'正面(宽Y × 高Z)':'侧面(厚X × 高Z)')+' · 单位 mm',
+    Math.round(16*RENDER_RES), Math.round(12*RENDER_RES));
+  const isFront=dimView==='front';
+  const cx=W/2, cy=H/2;
+  const s=(Math.min(W,H)*0.46)/(2*Math.max(0.05,span3(tfs)));
+  // ③ 画每个链路 box（浅底勾勒身体轮廓）
+  for(const n in model.links){
+    const lk=model.links[n], tf=tfs[n]; if(!tf) continue;
+    const pts=boxCorners(lk,tf).map(p=>lf(p,isFront));
+    const ax=Math.min(...pts.map(p=>p[0])), bx=Math.max(...pts.map(p=>p[0]));
+    const ay=Math.min(...pts.map(p=>p[1])), by=Math.max(...pts.map(p=>p[1]));
+    const col=parseColor(lk.color);
+    ctx.fillStyle=col.fill; ctx.strokeStyle=col.css; ctx.lineWidth=Math.max(1,1.2*RENDER_RES);
+    ctx.fillRect(cx+ax*s, cy+ay*s, (bx-ax)*s, (by-ay)*s);
+    ctx.strokeRect(cx+ax*s, cy+ay*s, (bx-ax)*s, (by-ay)*s);
+  }
+  // ④ 关键尺寸标注：仅正面视图中绘制 5 条尺寸线（文字在右侧表格）
+  if(isFront) drawKeyDims(ctx,tfs,s,cx,cy,accent,RENDER_RES);
+  updateDimTable(tfs);
+}
+// 侧边尺寸表：把 5 项轴线距离填进 dimRows，避免在图纸上写字挡主体
+function updateDimTable(tfs){
+  const el=$('#dimRows'); if(!el) return;
+  el.innerHTML='';
+  for(const D of KEYDIMS){
+    const ca=(()=>{try{return D.a(tfs);}catch(e){return null;}})();
+    const cb=(()=>{try{return D.b(tfs);}catch(e){return null;}})();
+    if(!ca||!cb) continue;
+    const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
+    const tr=document.createElement('tr');
+    const td1=document.createElement('td'); td1.className='nt'; td1.textContent=D.no;
+    const td2=document.createElement('td'); td2.textContent=D.zh;
+    const td3=document.createElement('td'); td3.className='val'; td3.textContent=Math.round(val*1000)+' mm';
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+    el.appendChild(tr);
+  }
+}
+function lf(p,front){
+  // URDF: x=前后(侧面)、y=左右(正面)、z=高。front 用 y(左右宽) 平面，side 用 x(前后厚) 平面。z 取负使"头"在上。
+  return front? [p[1],-p[2]] : [p[0],-p[2]];
+}
+// 2D 关键尺寸：只标注用户指定的 5 项距离（正面视图），从实际关节原点/轴线位置量取
+// pick 返回 {a,b}：两测量参考点的世界坐标（若命中的 link 不存在则默认跳过）
+const KEYDIMS=[
+  {no:'①', zh:'hip_pitch 轴 → arm_pitch 轴',
+   a:(t)=>t.left_hip_pitch_link&&t.left_hip_pitch_link.pos, ad:[0,-1,0],
+   b:(t)=>t.left_arm_pitch_link&&t.left_arm_pitch_link.pos, bd:[0,-1,0]},
+  {no:'②', zh:'base原点 → hip_roll 轴',
+   a:(t)=>t.base_link&&[0,0,0], ad:null,
+   b:(t)=>t.left_hip_roll_link&&t.left_hip_roll_link.pos, bd:[1,0,0]},
+  {no:'③', zh:'hip_pitch 轴 → knee 轴（垂直距离）',
+   a:(t)=>t.left_hip_pitch_link&&t.left_hip_pitch_link.pos, ad:[0,-1,0],
+   b:(t)=>t.left_knee_link&&t.left_knee_link.pos, bd:[0,1,0]},
+  {no:'④', zh:'knee 轴 → ankle 轴',
+   a:(t)=>t.left_knee_link&&t.left_knee_link.pos, ad:[0,1,0],
+   b:(t)=>t.left_ankle_link&&t.left_ankle_link.pos, bd:[0,-1,0]},
+  {no:'⑤', zh:'base中轴线 → arm_roll 轴',
+   a:(t)=>t.left_arm_roll_link&&[0,0,t.left_arm_roll_link.pos[2]], ad:[0,0,1],
+   b:(t)=>t.left_arm_roll_link&&t.left_arm_roll_link.pos, bd:[1,0,0]}
+];
+function cross3(u,v){return [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];}
+function len3(v){return Math.hypot(v[0],v[1],v[2]);}
+// 两参考物的距离：每个都能是【点】(d=null)或【轴】(d 为轴方向，过该点)。
+// - 轴×轴：异面用公垂线距离；平行用垂直两轴线的垂距
+// - 轴×点 / 点×轴：点到直线的距离；点×点：两点距离
+function refDist(a,ad,b,bd){
+  const w=[b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+  if(ad&&bd){
+    const nv=cross3(ad,bd), ln=len3(nv);
+    if(ln>1e-9) return Math.abs(w[0]*nv[0]+w[1]*nv[1]+w[2]*nv[2])/ln;   // 异面
+    return len3(cross3(w,ad))/len3(ad);                                 // 平行：忽略公共方向分量
+  }
+  if(ad) return len3(cross3(w,ad))/len3(ad);                            // 点 b 到轴 a
+  if(bd) return len3(cross3(w,bd))/len3(bd);                            // 点 a 到轴 b
+  return len3(w);                                                       // 点×点
+}
+function drawKeyDims(ctx,tfs,s,cx,cy,accent,dpr){
+  const drawn=[];
+  ctx.textBaseline='middle';
+  for(const D of KEYDIMS){
+    const ca=(()=>{try{return D.a(tfs);}catch(e){return null;}})();
+    const cb=(()=>{try{return D.b(tfs);}catch(e){return null;}})();
+    if(!ca||!cb) continue;
+    const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
+    const pa=lf(ca,true), pb=lf(cb,true);   // 正面投影：[y,-z]
+    const x1=cx+pa[0]*s, y1=cy+pa[1]*s, x2=cx+pb[0]*s, y2=cy+pb[1]*s;
+    // 位移最靠近的线，避免尺寸线互相叠加
+    let off=16*dpr;
+    for(const d of drawn){ if(Math.hypot((d.x1+d.x2)/2-(x1+x2)/2,(d.y1+d.y2)/2-(y1+y2)/2) < 20*dpr) off+=18*dpr; }
+    drawn.push({x1,y1,x2,y2});
+    drawDimLine(ctx,x1,y1,x2,y2,D.no, Math.round(val*1000)+' mm', off, accent, dpr);
+  }
+  ctx.textBaseline='middle';
+}
+// 尺寸线：细线 + 箭头 + 编号；仅导出时额外把数值(dimDrawVals)画在线上，确保下载图也带数据。
+// 页面实时图保持干净无字，数值/说明都在右侧表格。
+function drawDimLine(ctx,x1,y1,x2,y2,tag,valText,off,accent,dpr){
+  const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy); if(L<1) return;
+  const ux=dx/L,uy=dy/L,nx=-uy,ny=ux;
+  const xa=x1+nx*off,ya=y1+ny*off,xb=x2+nx*off,yb=y2+ny*off;
+  // 端点引线（靠向尺寸线）
+  ctx.strokeStyle='rgba(255,147,58,.40)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(xa,ya); ctx.moveTo(x2,y2); ctx.lineTo(xb,yb); ctx.stroke();
+  // 尺寸线
+  ctx.strokeStyle=accent; ctx.lineWidth=1.3*dpr;
+  ctx.beginPath(); ctx.moveTo(xa,ya); ctx.lineTo(xb,yb); ctx.stroke();
+  // 箭头
+  const al=6*dpr; ctx.fillStyle=accent;
+  for(const t of [0,L]){
+    const px=xa+ux*t,py=ya+uy*t, bx=-ux*al,by=-uy*al;
+    ctx.beginPath();
+    ctx.moveTo(px,py);
+    ctx.lineTo(px-bx+(-uy)*-al, py-by+ ux*al);
+    ctx.lineTo(px-bx+(+uy)*-al, py-by- ux*al);
+    ctx.closePath(); ctx.fill();
+  }
+  // 编号（+导出时的数值）
+  const mx=(xa+xb)/2, my=(ya+yb)/2;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=accent;
+  ctx.font='600 '+Math.round((dimDrawVals?13:11)*dpr)+'px "IBM Plex Mono",monospace';
+  ctx.fillText(dimDrawVals? (tag+' '+valText) : tag, mx, my);
+  ctx.textBaseline='middle';
+}
+
+/* ================= 重绘统一 ================= */
+function fitSquare(cv,pad){
+  const p=cv.parentElement;
+  const side=Math.max(120,Math.floor(Math.min(p.clientWidth,p.clientHeight)-(pad||0)));
+  cv.style.width=side+'px'; cv.style.height=side+'px';
+  cv.width=Math.round(side*RENDER_RES); cv.height=Math.round(side*RENDER_RES);
+}
+function setSize(){
+  fitSquare($('#canvas3d')); fitSquare($('#canvas2d'),4);   // 3D/2D 视窗居中成正方形
+  if(Model) renderAll();
+}
+function renderAll(){
+  if(!Model) return;
+  const mode={rx:Rx,ry:Ry};
+  render3D(Model,mode);
+  render2D(Model);
+}
+let Model=null, Props={};
+
+/* ================= 参数控制 ================= */
+const GROUPS=[
+  ['torso','躯干'],['shoulder','躯干'],['head','头'],['hip','腿·骨盆'],['pelvis','腿·骨盆'],
+  ['thigh','腿·大腿'],['shank','腿·小腿'],['leg_','腿·截面'],['foot','腿·脚'],
+  ['arm_','臂'],['arm_lim','臂·限位'],['head_lim','头·限位']
+];
+function groupOf(name){
+  if(name.startsWith('mat_'))return '材质';
+  if(name.endsWith('_lim')) return /^head/i.test(name)?'头·限位':'臂·限位';
+  if(/^thigh/.test(name))return '腿·大腿';
+  if(/^shank/.test(name))return '腿·小腿';
+  if(/^(hip|pelvis)/.test(name))return '腿·骨盆';
+  if(/^foot/.test(name))return '腿·脚';
+  if(/^leg/.test(name))return '腿·截面';
+  if(/^torso|^shoulder/.test(name))return '躯干';
+  if(/^head/.test(name))return '头';
+  if(/^arm/.test(name))return '臂';
+  return '其它';
+}
+function buildControls(params){
+  const wrap=$('#groups'); wrap.innerHTML='';
+  const order=[['躯干',[]],['头',[]],['腿·骨盆',[]],['腿·大腿',[]],['腿·小腿',[]],['腿·脚',[]],['腿·截面',[]],['臂',[]],['臂·限位',[]],['头·限位',[]],['其它',[]]];
+  const names=Object.keys(params).sort((a,b)=>order.map(g=>g[0]).indexOf(groupOf(a))-order.map(g=>g[0]).indexOf(groupOf(b))||a.localeCompare(b));
+  for(const name of names){
+    const g=order.find(o=>o[0]===groupOf(name));
+    if(!g)continue; const raw=String(params[name]);
+    if(!/^\d/.test(raw))continue;        // 只保留长度/限位数值；材质标签不进入面板
+    g[1].push({name,val:+raw,isLen:!name.endsWith('_lim')});
+  }
+  for(const [glabel,items] of order){
+    if(!items.length)continue;
+    const det=document.createElement('details');
+    det.className='grp';
+    det.innerHTML=`<summary>${glabel}<span class="cn">${items.length}</span></summary>`;
+    const box=document.createElement('div'); box.className='grpbox';
+    for(const it of items){
+      const row=document.createElement('div'); row.className='slider-row';
+      {
+        const lim=it.name.endsWith('_lim')?[-3,3]:[it.val*0.3,it.val*3];
+        const step=it.name.endsWith('_lim')?0.05:Math.max(0.0001,it.val*0.01);
+        const unit=it.name.endsWith('_lim')?' rad':' m';
+        row.innerHTML=`<label data-n="${it.name}" title="${it.name}"><span class="key">${it.name}</span><span class="val" id="v_${it.name}">${fmt(it.val)}${unit}</span></label>
+          <div class="rowctrl">
+            <input type="range" min="${lim[0].toFixed(4)}" max="${lim[1].toFixed(4)}" step="${step.toFixed(4)}" value="${it.val}" data-n="${it.name}">
+            <input type="number" class="num" min="${lim[0].toFixed(4)}" max="${lim[1].toFixed(4)}" step="${step.toFixed(4)}" value="${it.val.toFixed(4)}" data-n="${it.name}">
+          </div>`;
+        const rng=row.querySelector('input[type=range]'), num=row.querySelector('.num');
+        const upd=(v)=>{ const f=+v; Props[it.name]=f; const l=row.querySelector('#v_'+it.name); if(l)l.textContent=fmt(f)+unit; rebuildScene(); };
+        rng.addEventListener('input',()=>{ num.value=rng.value; upd(rng.value); });
+        num.addEventListener('change',()=>{ rng.value=num.value; upd(num.value); });
+      }
+      box.appendChild(row);
+    }
+    det.appendChild(box); wrap.appendChild(det);
+  }
+}
+
+/* ================= 关节：固定 / 限位 / effort ================= */
+var JointConf={};   // {name:{fixed,lower,upper,effort}}
+function jointGroup(name){
+  if(name==='head_joint'||name.endsWith('_head_joint'))return '0·头';
+  if(name.includes('_hip_'))return '1·髋';
+  if(name.includes('_knee'))return '2·膝';
+  if(name.includes('_ankle'))return '3·踝';
+  if(name.includes('_elbow'))return '5·肘';
+  return '4·肩/上臂';
+}
+function buildJointControls(model){
+  const wrap=$('#joints'); wrap.innerHTML='';
+  const revs=model.joints.filter(j=>j.type==='revolute'); // 只有可动关节可配置
+  if(!revs.length){ wrap.innerHTML='<div class="none">(无可动关节)</div>'; return; }
+  const groups={};
+  for(const j of revs){ const g=jointGroup(j.name); (groups[g]=groups[g]||[]).push(j); }
+  const order=['0·头','1·髋','2·膝','3·踝','4·肩/上臂','5·肘'];
+  for(const g of order){
+    const arr=groups[g]; if(!arr)continue;
+    const det=document.createElement('details'); det.className='grp';
+    det.innerHTML=`<summary>${g}<span class="cn">${arr.length}</span></summary>`;
+    const box=document.createElement('div'); box.className='grpbox';
+    for(const j of arr){
+      const cfg=JointConf[j.name]||{};
+      const lim=j.limit||[-3,3];
+      const lo=cfg.lower!==undefined?cfg.lower:lim[0];
+      const up=cfg.upper!==undefined?cfg.upper:lim[1];
+      const ef=cfg.effort!==undefined?cfg.effort:j.effort;
+      const fixed=!!cfg.fixed;
+      const short=j.name.replace(/_joint$/,'').replace(/(left|right)_/,'');
+      const row=document.createElement('div'); row.className='jrow';
+      row.innerHTML=`
+        <div class="jtop">
+          <span class="jname" title="${j.name}">${short}</span>
+          <label class="fix"><input type="checkbox" data-j="${j.name}" ${fixed?'checked':''}> <i>固定</i></label>
+        </div>
+        <div class="jlim">
+          <span>min<input type="number" class="num" value="${(+lo).toFixed(3)}" data-j="${j.name}" data-k="lower" step="0.05"></span>
+          <span>max<input type="number" class="num" value="${(+up).toFixed(3)}" data-j="${j.name}" data-k="upper" step="0.05"></span>
+          <span>effort<input type="number" class="num" value="${(+ef).toFixed(2)}" data-j="${j.name}" data-k="effort" step="1"></span>
+        </div>`;
+      row.querySelector('input[type=checkbox]').addEventListener('change',e=>{
+        const c=JointConf[j.name]=JointConf[j.name]||{}; c.fixed=e.target.checked;
+      });
+      row.querySelectorAll('input[type=number]').forEach(inp=>{
+        inp.addEventListener('change',e=>{
+          const c=JointConf[j.name]=JointConf[j.name]||{}; c[e.target.dataset.k]=+e.target.value;
+        });
+      });
+      box.appendChild(row);
+    }
+    det.appendChild(box); wrap.appendChild(det);
+  }
+}
+
+function rgbaToHex(r){const p=String(r).trim().split(/\s+/).map(Number);return '#'+[p[0],p[1],p[2]].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');}
+function hexToRgba(h){const n=parseInt(h.slice(1),16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255,1].map(v=>+v.toFixed(3)).join(' ');}
+function rebuildScene(){
+  try{
+    const {doc}=expand($('#src').value, Props);
+    Model=parseRobot(doc);
+    syncLegend();
+    buildJointControls(Model);
+    updateStats(); renderAll();
+  }catch(e){ toast('解析出错: '+e.message,true); }
+}
+
+/* ================= 状态与图例 ================= */
+function syncLegend(){
+  const leg=$('#legend'); leg.innerHTML='';
+  const seen=new Set();
+  for(const n in Model.links){ if(seen.has(Model.links[n].mat))continue; seen.add(Model.links[n].mat);
+    const c=parseColor(Model.links[n].color);
+    const el=document.createElement('span');el.className='sw';
+    el.innerHTML=`<span class="dot" style="background:${c.css}"></span>${n.replace(/^(left|right)_/,'')}`;
+    leg.appendChild(el);
+  }
+}
+function updateStats(){
+  $('#statLink').textContent=Object.keys(Model.links).length;
+  $('#statJoint').textContent=Model.joints.length;
+  $('#statParam').textContent=Object.keys(Props).length;
+}
+
+/* ================= 交互 ================= */
+let dragging=false,lx=0,ly=0;
+cv3.addEventListener('pointerdown',e=>{dragging=true;lx=e.clientX;ly=e.clientY;cv3.setPointerCapture(e.pointerId);});
+window.addEventListener('pointermove',e=>{if(!dragging)return;Rx+=(e.clientY-ly)*0.008;Ry+=(e.clientX-lx)*0.008;lx=e.clientX;ly=e.clientY;Rx=Math.max(-Math.PI,Math.min(Math.PI,Rx));renderAll();});
+window.addEventListener('pointerup',()=>dragging=false);
+cv3.addEventListener('wheel',e=>{e.preventDefault();zoom*=e.deltaY>0?0.92:1.08;zoom=Math.max(0.3,Math.min(6,zoom));renderAll();},{passive:false});
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');dimView=b.dataset.v;renderAll();
+}));
+// 3D 视角预设：正视图 / 侧视图 / 底视图（正投影，相机视角固定为正交角）
+const PRESET_3D={vpFront:[Math.PI/2,Math.PI/2],vpSide:[Math.PI/2,0],vpBottom:[Math.PI,0]};
+document.querySelectorAll('.sat3d button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.sat3d button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  const p=PRESET_3D[b.id]; if(!p)return;
+  Rx=p[0]; Ry=p[1]; zoom=1; renderAll();
+}));
+function loadSrc(text,msg){
+  try{
+    $('#src').value=text;
+    const {props}=expand(text);
+    Props=Object.assign({},props);
+    buildControls(props);
+    rebuildScene();
+    if(msg)toast(msg);
+  }catch(e){ toast('载入出错: '+e.message,true); }
+}
+$('#btnReload').addEventListener('click',()=>loadSrc($('#src').value,'已应用源码 ✓'));
+$('#btnApply').addEventListener('click',()=>loadSrc($('#src').value,'已解析 ✓'));
+$('#btnLoadSample').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已载入内置示例'));
+$('#btnReset').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已重置默认'));
+$('#btnTheme').addEventListener('click',()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';toast('已切换主题');});
+$('#fileInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>loadSrc(r.result,'已载入文件 ✓');
+  r.readAsText(f);e.target.value='';
+});
+
+/* ================= 导出（优先写入选定目录，失败退回下载） ================= */
+function srcName(){
+  const m=$('#src').value.match(/<robot\b[^>]*\bname="([\w.-]+)"/);
+  return m?m[1]:'pikachu_links';
+}
+async function fsSave(filename, data, ext){
+  const mime=ext==='png'?'image/png':'application/xml';
+  const blob=data instanceof Blob? data : new Blob([data],{type:mime});
+  if(window.showSaveFilePicker){
+    try{
+      const h=await window.showSaveFilePicker({
+        suggestedName:filename,
+        types:[{description:ext==='png'?'PNG 图片':'URDF / Xacro 文件', accept:{[mime]:[ext==='png'?'.png':'.urdf,.xacro']}}]
+      });
+      const w=await h.createWritable(); await w.write(blob); await w.close();
+      return '已写入所选文件（可选到 urdf/robot/Pikachu_links）';
+    }catch(e){ if(e.name==='AbortError') return '已取消保存'; }
+    // 其它错误 -> 走下载兜底
+  }
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  return '此浏览器不支持直接选目录，已改为下载';
+}
+function dl(name,data){
+  const url=URL.createObjectURL(data); const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),900);
+}
+// 把 2D 简图以较高固定分辨率渲成 PNG Blob（不改坏当前界面画布状态）
+function exportPNG(){
+  const cv=$('#canvas2d');
+  const SAVE={w:cv.width,h:cv.height,sw:cv.style.width,sh:cv.style.height};
+  const BIG=2880;             // 导出分辨率：2× 于前，部分对 JPEG/PNG 足够清晰
+  const _rr=RENDER_RES;       // 导出时调大字号/线宽比例，保证 2880 图上的数值可读
+  RENDER_RES=Math.max(6,Math.round(BIG/470));
+  cv.width=BIG; cv.height=BIG; cv.style.width='auto'; cv.style.height='auto';
+  dimDrawVals=true;           // 把每个尺寸的数值烧进图纸，导出图带数据
+  render2D(Model);
+  dimDrawVals=false;
+  const url=cv.toDataURL('image/png');
+  RENDER_RES=_rr;
+  // 恢复界面画布并重绘
+  cv.width=SAVE.w; cv.height=SAVE.h; cv.style.width=SAVE.sw; cv.style.height=SAVE.sh;
+  render2D(Model);
+  const bin=atob(url.split(',')[1]); const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+  return new Blob([u],{type:'image/png'});
+}
+// 一键导出：支持选目录则一次写入全部文件，否则依次下载
+async function fsExportAll(files){
+  if(window.showDirectoryPicker){
+    try{
+      const dir=await window.showDirectoryPicker();
+      for(const f of files){
+        const h=await dir.getFileHandle(f.name,{create:true});
+        const w=await h.createWritable(); await w.write(f.data); await w.close();
+      }
+      return '已写入 '+files.length+' 个文件到所选文件夹（建议 urdf/robot/Pikachu_links）';
+    }catch(e){ if(e.name==='AbortError') return '已取消'; }
+    // 其它错误退回下载
+  }
+  for(const f of files){ dl(f.name,f.data); await new Promise(r=>setTimeout(r,360)); }
+  return '当前浏览器不支持选目录，已依次下载 '+files.length+' 个文件';
+}
+// 把记录好的关节固定/限位/effort 设置写进导出文档
+function applyJointConf(doc){
+  if(!Object.keys(JointConf).length) return doc;
+  return doc.replace(/<joint\b([^>]*?)type="([^"]+)"([^>]*)>([\s\S]*?)<\/joint>/g,(all,pre,type,mid,body)=>{
+    const nm=(pre+mid).match(/name="([^"]+)/); const name=nm&&nm[1]; if(!name) return all;
+    const c=JointConf[name]; if(!c) return all;
+    const lo=c.lower!==undefined?c.lower:((/lower="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||0);
+    const up=c.upper!==undefined?c.upper:((/upper="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||0);
+    const ef=c.effort!==undefined?c.effort:((/effort="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||5);
+    let t=type, b=body;
+    if(c.fixed){
+      t='fixed';
+      b=body
+        .replace(/<axis[^>]*\/>/,'')
+        .replace(/<limit[^>]*\/>/,'')
+        .replace(/\s*<velocity[^>]*\/>/g,'');
+    }else if(b.indexOf('<limit')<0){
+      b=b+'\n    <limit lower="'+lo+'" upper="'+up+'" effort="'+ef+'" />';
+    }else if(c.lower!==undefined||c.upper!==undefined||c.effort!==undefined){
+      b=b.replace(/<limit([^>]*)>/, '<limit$1').replace(/<limit([^>]*)\/>/, '<limit'+' lower="'+lo+'" upper="'+up+'" effort="'+ef+'" />');
+    }
+    return '<joint'+pre+'type="'+t+'"'+mid+'>'+b+'</joint>';
+  });
+}
+function buildXacroText(){
+  let t=$('#src').value;
+  for(const k in Props){
+    const re=new RegExp('(<xacro:property\\s+name="'+k+'"\\s+value=")[^"]*(")');
+    t=t.replace(re,(m,a,b)=>a+String(Props[k])+b);
+  }
+  return t;
+}
+// 连杆分类：按名字前缀归到身体部位
+const LINK_GROUPS=[
+  ['躯干',/^(base|torso|pelvis|shoulder|chest|abs)/],
+  ['头',/^head/],
+  ['腿·髋',/hip/],
+  ['腿·膝',/knee/],
+  ['腿·踝/脚',/ankle|foot|toe/],
+  ['臂·肩/上臂',/arm_(pitch|roll)|upper_arm/],
+  ['臂·肘/前臂',/arm_yaw|elbow|forearm|lower_arm/]
+];
+function buildLinksJson(){
+  const out={format:1, unit:'mm', robot:(Model&&Model.robotName)||'', source:srcName(), links:{}};
+  const byGroup={};
+  for(const n in Model.links){
+    const lk=Model.links[n];
+    const g=(LINK_GROUPS.find(x=>x[1].test(n))||['其它',/^$/])[0];
+    const rec={x_mm:+mm(lk.size[0]), y_mm:+mm(lk.size[1]), z_mm:+mm(lk.size[2]), length_mm:+mm(lk.size[2])};
+    out.links[n]=Object.assign({group:g},rec);
+    (byGroup[g]=byGroup[g]||{})[n]=rec;
+  }
+  out.by_group=byGroup;
+  return JSON.stringify(out,null,2);
+}
+$('#btnSaveX').addEventListener('click',async()=>{
+  const r=await fsSave(srcName()+'.xacro', buildXacroText(), 'xacro');
+  toast('已保存 Xacro · '+r);
+});
+$('#btnSaveURDF').addEventListener('click',async()=>{
+  try{
+    const {doc}=expand($('#src').value,Props);
+    // 去掉可能残留的命名空间声明，并规范头部：避免 xml 声明重复/前缀未绑定
+    const clean=applyJointConf(doc)
+      .replace(' xmlns:xacro="http://www.ros.org/wiki/xacro"','')
+      .replace(/^\s*<\?xml[^>]*\?>\s*/,'')
+      .trim();
+    const out='<?xml version="1.0" encoding="UTF-8"?>\n'+clean+'\n';
+    const r=await fsSave(srcName()+'.urdf', out, 'urdf');
+    toast('已导出 URDF（含固定 / 限位 / effort）· '+r);
+  }catch(e){ toast('导出 URDF 失败: '+e.message,true); }
+});
+$('#btnSave2D').addEventListener('click',async()=>{
+  try{
+    if(!Model) throw new Error('尚无模型');
+    const r=await fsSave(srcName()+'_2d.png', exportPNG(), 'png');
+    toast('已导出 2D 图纸（PNG）· '+r);
+  }catch(e){ toast('导出 2D PNG 失败: '+e.message,true); }
+});
+$('#btnExportAll').addEventListener('click',async()=>{
+  try{
+    if(!Model) throw new Error('尚无模型');
+    const base=srcName();
+    // URDF（含固定/限位/effort，已清洗 xacro 残留与重复 xml 头）
+    const {doc}=expand($('#src').value,Props);
+    const urdf='<?xml version="1.0" encoding="UTF-8"?>\n'+
+      applyJointConf(doc).replace(' xmlns:xacro="http://www.ros.org/wiki/xacro"','')
+        .replace(/^\s*<\?xml[^>]*\?>\s*/,'').trim()+'\n';
+    const xacroT=buildXacroText();
+    const jsonT=buildLinksJson();
+    toast('正在渲染并导出 URDF + Xacro + PNG + JSON …');
+    const files=[
+      {name:base+'.urdf',     data:new Blob([urdf],{type:'application/xml'})},
+      {name:base+'.xacro',    data:new Blob([xacroT],{type:'application/xml'})},
+      {name:base+'_links.json',data:new Blob([jsonT],{type:'application/json'})},
+      {name:base+'_2d.png',   data:exportPNG()}
+    ];
+    const r=await fsExportAll(files);
+    toast('一键导出完成 · '+r);
+  }catch(e){ toast('一键导出失败: '+e.message,true); }
+});
+
+/* ================= 启动 ================= */
+function boot(){
+  setSize(); window.addEventListener('resize',()=>{setSize();renderAll();});
+  // 默认加载同目录的 xacro（http 服务下）；file:// 下 fetch 会被浏览器拦截 → 回退内置示例
+  fetch('pikachu_sample_links.xacro').then(r=>{ if(!r.ok)throw new Error('HTTP '+r.status); return r.text(); })
+    .then(t=>loadSrc(t,'已载入当前目录 pikachu_sample_links.xacro'))
+    .catch(()=>{ loadSrc($('#src-default').textContent.trim());
+      toast('未读到同目录 pikachu_sample_links.xacro，已载入内置示例（建议用 http server 打开本页）',true); });
+}
+boot();
+</script>
+</body>
+</html>

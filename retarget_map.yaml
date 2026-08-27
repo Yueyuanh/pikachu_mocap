@@ -1,0 +1,178 @@
+# ============================================================================
+# Pikachu URDF(V025) → Blender rig 重定向映射
+# ============================================================================
+# 用途：把单自由度 URDF 关节角，映射到 Blender 皮卡丘 rig 骨架的某个姿态骨骼
+#       的某一个本地旋转轴上。
+#
+#   公式:  sink_axis_angle = joint_angle(度) * sign + bias
+#   随后按 limit 钳位，写入 pose[bone][axis]。
+#
+# 字段说明:
+#   bone  : Blender 姿态骨骼名（须存在于 rig 骨架中，缺省用 upper_arm_fk.* 等既有控制骨）
+#   axis  : 该骨骼本地旋转轴之一（x/y/z）。同一骨骼的不同轴可叠加（如 head.z+head.y+head.x）
+#   sign  : 方向（+1 原向，-1 反向）
+#   bias  : 偏置（度），即该轴上的基准/零位偏移
+#   limit : 该轴上最终角度的钳位区间 [min, max]（度），已折算 URDF 弧度限位
+#
+# 编辑本文件即可调整 "URDF 关节 ↔ Blender 皮卡丘骨骼" 的对应关系（关节名、轴、方向、偏置、限位）。
+# 修改后在 GUI 的重定向面板点 【Reload Map】 生效。
+# ============================================================================
+
+version: 1
+
+retarget:
+
+  # ── 头部 ────────────────────────────────────────────────────────────────
+  # head 骨三轴分别对应 yaw/pitch/roll；sign 依据 URDF 轴方向（-Y / -X）给定初值
+  head_yaw_joint:
+    bone: head
+    axis: z
+    sign: 1
+    bias: 0.0
+    limit: [-60.0, 60.0]
+
+  head_pitch_joint:
+    bone: head
+    axis: y
+    sign: -1
+    bias: 0.0
+    limit: [-60.0, 60.0]
+
+  head_roll_joint:
+    bone: head
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-60.0, 60.0]
+
+  # ── 左臂 ────────────────────────────────────────────────────────────────
+  left_arm_pitch_joint:
+    bone: upper_arm_fk.L
+    axis: y
+    sign: -1
+    bias: 0.0
+    limit: [-60.0, 180.0]
+
+  left_arm_roll_joint:
+    bone: upper_arm_fk.L
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 90.0]
+
+  left_arm_yaw_joint:
+    bone: upper_arm_fk.L
+    axis: z
+    sign: 1
+    bias: 0.0
+    limit: [-90.0, 90.0]
+
+  left_elbow_ankle_joint:
+    bone: forearm_fk.L
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 140.0]
+
+  # ── 右臂 ────────────────────────────────────────────────────────────────
+  right_arm_pitch_joint:
+    bone: upper_arm_fk.R
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-60.0, 180.0]
+
+  right_arm_roll_joint:
+    bone: upper_arm_fk.R
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 90.0]
+
+  right_arm_yaw_joint:
+    bone: upper_arm_fk.R
+    axis: z
+    sign: 1
+    bias: 0.0
+    limit: [-90.0, 90.0]
+
+  right_elbow_ankle_joint:
+    bone: forearm_fk.R
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 140.0]
+
+  # ── 左腿 ────────────────────────────────────────────────────────────────
+  # 腿部默认映射 hips(骨盆) + foot_ik(脚 IK 控制骨)。如需细化到 thigh/shin，
+  # 可将 bone 改为上下文中实际存在的腿部 FK 骨名后重载即可。
+  left_hip_pitch_joint:
+    bone: hips
+    axis: y
+    sign: -1
+    bias: 0.0
+    limit: [0.0, 140.0]
+
+  left_hip_roll_joint:
+    bone: hips
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  left_hip_yaw_joint:
+    bone: hips
+    axis: z
+    sign: 1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  left_knee_joint:
+    bone: foot_ik.L
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 90.0]
+
+  left_ankle_joint:
+    bone: foot_ik.L
+    axis: y
+    sign: -1
+    bias: 0.0
+    limit: [-30.0, 60.0]
+
+  # ── 右腿 ────────────────────────────────────────────────────────────────
+  right_hip_pitch_joint:
+    bone: hips
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 140.0]
+
+  right_hip_roll_joint:
+    bone: hips
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  right_hip_yaw_joint:
+    bone: hips
+    axis: z
+    sign: -1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  right_knee_joint:
+    bone: foot_ik.R
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 90.0]
+
+  right_ankle_joint:
+    bone: foot_ik.R
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-30.0, 60.0]

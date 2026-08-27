@@ -4,6 +4,7 @@ __pycache__/
 
 # Blender 物理/模拟缓存与备份（blendcache_* 是本命中产物，.blend1 是上版本备份）
 assets/blendcache_*/
+*.blend1
 
 # 大二进制资产保留（.blend/.fbx/STL 需提交），仅忽略缓存/备份
 

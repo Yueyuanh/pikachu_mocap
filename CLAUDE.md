@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+
+不要读图！不要读图！不要读图！
+
 ## Project Overview
 
 Pikachu Motion Capture — a real-time system that captures human poses via MediaPipe and transfers them to a Pikachu character skeleton. Supports Blender integration and URDF robot model visualization.

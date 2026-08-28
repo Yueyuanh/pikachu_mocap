@@ -49,131 +49,132 @@ retarget:
   # ── 左臂 ────────────────────────────────────────────────────────────────
   # arm_L = 肩（三轴收 pitch/roll/yaw），arm_pitch_L = 下臂/肘
   left_arm_pitch_joint:
-    bone: arm_L
-    axis: y
+    bone: arm_pitch_L
+    axis: x
     sign: -1
     bias: 0.0
     limit: [-60.0, 180.0]
 
   left_arm_roll_joint:
-    bone: arm_L
-    axis: x
+    bone: arm_pitch_L
+    axis: z
     sign: 1
     bias: 0.0
     limit: [0.0, 90.0]
 
   left_arm_yaw_joint:
-    bone: arm_L
-    axis: z
-    sign: 1
-    bias: 0.0
-    limit: [-90.0, 90.0]
-
-  left_elbow_ankle_joint:
     bone: arm_pitch_L
     axis: y
     sign: 1
     bias: 0.0
-    limit: [0.0, 140.0]
+    limit: [-90.0, 90.0]
+
+
+  # left_elbow_ankle_joint:
+  #   bone: arm_pitch_L
+  #   axis: y
+  #   sign: 1
+  #   bias: 0.0
+  #   limit: [0.0, 140.0]
 
   # ── 右臂 ────────────────────────────────────────────────────────────────
   right_arm_pitch_joint:
-    bone: arm_R
-    axis: y
-    sign: 1
+    bone: arm_pitch_R
+    axis: x
+    sign: -1
     bias: 0.0
     limit: [-60.0, 180.0]
 
   right_arm_roll_joint:
-    bone: arm_R
-    axis: x
+    bone: arm_pitch_R
+    axis: z
     sign: 1
     bias: 0.0
     limit: [0.0, 90.0]
 
   right_arm_yaw_joint:
-    bone: arm_R
-    axis: z
-    sign: 1
-    bias: 0.0
-    limit: [-90.0, 90.0]
-
-  right_elbow_ankle_joint:
     bone: arm_pitch_R
     axis: y
     sign: 1
     bias: 0.0
-    limit: [0.0, 140.0]
+    limit: [-90.0, 90.0]
+
+  # right_elbow_ankle_joint:
+  #   bone: arm_pitch_R
+  #   axis: y
+  #   sign: 1
+  #   bias: 0.0
+  #   limit: [0.0, 140.0]
 
   # ── 左腿 ────────────────────────────────────────────────────────────────
   # hip_L = 骨盆（roll/yaw），hip_pitch_L = 大腿（pitch），其余单轴
   left_hip_pitch_joint:
     bone: hip_pitch_L
-    axis: y
-    sign: -1
-    bias: 0.0
-    limit: [0.0, 140.0]
-
-  left_hip_roll_joint:
-    bone: hip_L
     axis: x
     sign: 1
+    bias: 0.0
+    limit: [-140.0, 0.0]
+
+  left_hip_roll_joint:
+    bone: hip_pitch_L
+    axis: z
+    sign: -1
     bias: 0.0
     limit: [-5.0, 15.0]
 
   left_hip_yaw_joint:
-    bone: hip_L
-    axis: z
+    bone: hip_pitch_L
+    axis: y
     sign: 1
     bias: 0.0
     limit: [-5.0, 15.0]
 
   left_knee_joint:
     bone: hip_knee_L
-    axis: y
-    sign: 1
+    axis: x
+    sign: -1
     bias: 0.0
     limit: [0.0, 90.0]
 
   left_ankle_joint:
     bone: hip_ankle_L
-    axis: y
+    axis: x
     sign: -1
     bias: 0.0
-    limit: [-30.0, 60.0]
+    limit: [-60.0, 30.0]
 
   # ── 右腿 ────────────────────────────────────────────────────────────────
   right_hip_pitch_joint:
     bone: hip_pitch_R
-    axis: y
-    sign: 1
-    bias: 0.0
-    limit: [0.0, 140.0]
-
-  right_hip_roll_joint:
-    bone: hip_R
     axis: x
     sign: -1
     bias: 0.0
-    limit: [-5.0, 15.0]
+    limit: [-140.0, 0.0]
 
-  right_hip_yaw_joint:
-    bone: hip_R
+  right_hip_roll_joint:
+    bone: hip_pitch_R
     axis: z
     sign: -1
     bias: 0.0
     limit: [-5.0, 15.0]
 
+  right_hip_yaw_joint:
+    bone: hip_pitch_R
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-15.0, 5.0]
+
   right_knee_joint:
     bone: hip_knee_R
-    axis: y
+    axis: x
     sign: 1
     bias: 0.0
     limit: [0.0, 90.0]
 
   right_ankle_joint:
     bone: hip_ankle_R
-    axis: y
+    axis: x
     sign: 1
     bias: 0.0
-    limit: [-30.0, 60.0]
+    limit: [-60.0, 30.0]

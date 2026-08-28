@@ -33,28 +33,60 @@ armatures:
       right_knee_joint:       { bone: right_knee_joint.revolute.bone,      axis: y, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
       right_ankle_joint:      { bone: right_ankle_joint.revolute.bone,     axis: y, sign:  1, bias: 0.0, limit: [-30.0, 60.0] }
 
+
+      left_arm_pitch_joint:   { bone: left_arm_pitch_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      left_arm_roll_joint:    { bone: left_arm_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      right_arm_pitch_joint:  { bone: right_arm_pitch_joint.revolute.bone,  axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      right_arm_roll_joint:   { bone: right_arm_roll_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+
   # ── B. 全可动 20 骨（含手臂 revolute；仅单一 head_joint 骨，无法干净表达 head_yaw/pitch/roll 三维）──
   # 腿：与 A 同名同轴同 sign。臂：同样是“骨长轴==关节轴”，axis:x sign:+1。
   # （arm_roll 在 Qt 侧 npz 路径已做 ±90° 对正；这里按骨长轴直驱）
   # head：本骨架只有 head_joint.revolute.bone 单骨（轴+Y），无法表示 3dof 头 → 按“缺则省略”不映射。
   - name: "pikachu_sample_links"
     joints:
-      left_hip_pitch_joint:   { bone: left_hip_pitch_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      left_hip_pitch_joint:   { bone: left_hip_pitch_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [0.0, 140.0] }
       left_hip_roll_joint:    { bone: left_hip_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
-      left_hip_yaw_joint:     { bone: left_hip_yaw_joint.revolute.bone,     axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
-      left_knee_joint:        { bone: left_knee_joint.revolute.bone,        axis: y, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
-      left_ankle_joint:       { bone: left_ankle_joint.revolute.bone,       axis: y, sign:  1, bias: 0.0, limit: [-30.0, 60.0] }
+      left_hip_yaw_joint:     { bone: left_hip_yaw_joint.revolute.bone,     axis: y, sign:  -1, bias: 0.0, limit: [-15.0, 5.0] }
+      left_knee_joint:        { bone: left_knee_joint.revolute.bone,        axis: y, sign:  -1, bias: 0.0, limit: [-90.0, 0.0] }
+      left_ankle_joint:       { bone: left_ankle_joint.revolute.bone,       axis: y, sign:  -1, bias: 0.0, limit: [-60.0, 30.0] }
       right_hip_pitch_joint:  { bone: right_hip_pitch_joint.revolute.bone,  axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
       right_hip_roll_joint:   { bone: right_hip_roll_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
       right_hip_yaw_joint:    { bone: right_hip_yaw_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
       right_knee_joint:       { bone: right_knee_joint.revolute.bone,       axis: y, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
       right_ankle_joint:      { bone: right_ankle_joint.revolute.bone,      axis: y, sign:  1, bias: 0.0, limit: [-30.0, 60.0] }
 
-      left_arm_pitch_joint:   { bone: left_arm_pitch_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      left_arm_pitch_joint:   { bone: left_arm_pitch_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [-90.0, 90.0] }
       left_arm_roll_joint:    { bone: left_arm_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
-      left_arm_yaw_joint:     { bone: left_arm_yaw_joint.revolute.bone,     axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
-      left_elbow_ankle_joint: { bone: left_elbow_joint.revolute.bone,       axis: y, sign:  1, bias: 0.0, limit: [0.0, 110.0] }
+      # left_arm_yaw_joint:     { bone: left_arm_yaw_joint.revolute.bone,     axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      # left_elbow_ankle_joint: { bone: left_elbow_joint.revolute.bone,       axis: y, sign:  1, bias: 0.0, limit: [0.0, 110.0] }
       right_arm_pitch_joint:  { bone: right_arm_pitch_joint.revolute.bone,  axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
-      right_arm_roll_joint:   { bone: right_arm_roll_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
-      right_arm_yaw_joint:    { bone: right_arm_yaw_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
-      right_elbow_ankle_joint: { bone: right_elbow_joint.revolute.bone,      axis: y, sign:  1, bias: 0.0, limit: [0.0, 110.0] }
+      right_arm_roll_joint:   { bone: right_arm_roll_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [-90.0, 90.0] }
+      # right_arm_yaw_joint:    { bone: right_arm_yaw_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      # right_elbow_ankle_joint: { bone: right_elbow_joint.revolute.bone,      axis: y, sign:  1, bias: 0.0, limit: [0.0, 110.0] }
+      head_joint: { bone: head_joint.revolute.bone, axis: y, sign: 1, bias: 0.0, limit: [-30.0, 30.0] }
+
+
+  - name: "pikachu_sample_links_v2.1"
+    joints:
+      left_hip_pitch_joint:   { bone: left_hip_pitch_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [0.0, 140.0] }
+      left_hip_roll_joint:    { bone: left_hip_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_hip_yaw_joint:     { bone: left_hip_yaw_joint.revolute.bone,     axis: y, sign:  -1, bias: 0.0, limit: [-15.0, 5.0] }
+      left_knee_joint:        { bone: left_knee_joint.revolute.bone,        axis: y, sign:  -1, bias: 0.0, limit: [-90.0, 0.0] }
+      left_ankle_joint:       { bone: left_ankle_joint.revolute.bone,       axis: y, sign:  -1, bias: 0.0, limit: [-60.0, 30.0] }
+      right_hip_pitch_joint:  { bone: right_hip_pitch_joint.revolute.bone,  axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      right_hip_roll_joint:   { bone: right_hip_roll_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      right_hip_yaw_joint:    { bone: right_hip_yaw_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      right_knee_joint:       { bone: right_knee_joint.revolute.bone,       axis: y, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      right_ankle_joint:      { bone: right_ankle_joint.revolute.bone,      axis: y, sign:  1, bias: 0.0, limit: [-30.0, 60.0] }
+
+      left_arm_pitch_joint:   { bone: left_arm_pitch_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [-90.0, 90.0] }
+      left_arm_roll_joint:    { bone: left_arm_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      # left_arm_yaw_joint:     { bone: left_arm_yaw_joint.revolute.bone,     axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      # left_elbow_ankle_joint: { bone: left_elbow_joint.revolute.bone,       axis: y, sign:  1, bias: 0.0, limit: [0.0, 110.0] }
+      right_arm_pitch_joint:  { bone: right_arm_pitch_joint.revolute.bone,  axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      right_arm_roll_joint:   { bone: right_arm_roll_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [-90.0, 90.0] }
+      # right_arm_yaw_joint:    { bone: right_arm_yaw_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      # right_elbow_ankle_joint: { bone: right_elbow_joint.revolute.bone,      axis: y, sign:  1, bias: 0.0, limit: [0.0, 110.0] }
+
+      head_joint: { bone: head_joint.revolute.bone, axis: y, sign: 1, bias: 0.0, limit: [-30.0, 30.0] }

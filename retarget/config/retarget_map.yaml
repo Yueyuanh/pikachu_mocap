@@ -77,21 +77,21 @@ retarget:
   # ── 右臂 ────────────────────────────────────────────────────────────────
   right_arm_pitch_joint:
     bone: upper_arm_fk.R
-    axis: y
+    axis: x
     sign: 1
     bias: 0.0
     limit: [-60.0, 180.0]
 
   right_arm_roll_joint:
     bone: upper_arm_fk.R
-    axis: x
+    axis: z
     sign: 1
     bias: 0.0
     limit: [0.0, 90.0]
 
   right_arm_yaw_joint:
     bone: upper_arm_fk.R
-    axis: z
+    axis: y
     sign: 1
     bias: 0.0
     limit: [-90.0, 90.0]

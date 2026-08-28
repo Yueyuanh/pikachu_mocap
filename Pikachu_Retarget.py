@@ -79,6 +79,18 @@ DIRECT_BONES = [
     ("tail", (-90, 90)),
 ]
 
+# Pikacuh_skin_self_rig_v2 自定义皮肤骨架的骨骼（name, (lo,hi) 度）——用于直接控制这张皮肤，方便适配映射
+V2_BONES = [
+    ("base_link", (-30, 30)),
+    ("head", (-60, 60)),
+    ("arm_L", (-120, 120)), ("arm_pitch_L", (-120, 120)),
+    ("arm_R", (-120, 120)), ("arm_pitch_R", (-120, 120)),
+    ("hip_L", (-30, 30)),
+    ("hip_pitch_L", (-120, 120)), ("hip_knee_L", (-120, 120)), ("hip_ankle_L", (-90, 90)),
+    ("hip_R", (-30, 30)),
+    ("hip_pitch_R", (-120, 120)), ("hip_knee_R", (-120, 120)), ("hip_ankle_R", (-90, 90)),
+]
+
 # NPZ 关节 dof 列序（= twin_server.py 的 PIKACHU_JOINT_NAMES，14 列）→ 对应 URDF 关节名
 NPZ_COLUMNS_TO_URDF = [
     ("left_hip_pitch_joint", False), ("left_hip_roll_joint", False), ("left_hip_yaw_joint", False),
@@ -243,6 +255,7 @@ class URDFJointWidget(QWidget):
 
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(4)
         self.sync_checkbox = QCheckBox()
         self.sync_checkbox.setChecked(bool(self.sync_checked))
         self.sync_checkbox.toggled.connect(self._on_sync_toggled)
@@ -250,13 +263,19 @@ class URDFJointWidget(QWidget):
         title.setStyleSheet("font-size: 12px; font-weight: 600;")
         header.addWidget(self.sync_checkbox, 0)
         header.addWidget(title, 1)
+        # 角度显示 + (limits) 放在关节名称旁
+        self.value_label = QLabel()
+        self.value_label.setFixedWidth(170)
+        self.value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.value_label.setStyleSheet("font-size: 11px;")
+        self.update_value_label(0.0)
+        header.addWidget(self.value_label, 0)
         layout.addLayout(header)
 
         slider_lay = QHBoxLayout()
-        slider_lay.setContentsMargins(20, 0, 0, 0)
+        slider_lay.setContentsMargins(24, 0, 0, 0)
         self.slider = QSlider(Qt.Horizontal)
-        self.slider.setMinimumWidth(200)
-        self.slider.setMaximumWidth(500)
+        self.slider.setMinimumWidth(120)
         if self.use_degree:
             a, b = int(lower * 180 / math.pi), int(upper * 180 / math.pi)
         else:
@@ -266,11 +285,6 @@ class URDFJointWidget(QWidget):
         self.slider.setValue(0)
         self.slider.valueChanged.connect(self._on_slider_change)
         slider_lay.addWidget(self.slider, 1)
-        self.value_label = QLabel()
-        self.value_label.setFixedWidth(190)
-        self.value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.update_value_label(0.0)
-        slider_lay.addWidget(self.value_label, 0)
         layout.addLayout(slider_lay)
         self.setLayout(layout)
 
@@ -288,7 +302,7 @@ class URDFJointWidget(QWidget):
     def update_value_label(self, angle_rad):
         angle_deg = angle_rad * 180.0 / math.pi
         ld, ud = self.lower * 180.0 / math.pi, self.upper * 180.0 / math.pi
-        self.value_label.setText(f"{angle_rad:.2f}(rad) {angle_deg:.1f}(deg) ({ld:.0f},{ud:.0f})")
+        self.value_label.setText(f"{angle_deg:.1f}°  ({ld:.0f}~{ud:.0f})")
 
     def set_use_degree(self, use_degree):
         if self.use_degree == use_degree:
@@ -578,6 +592,7 @@ class RetargetStudio(QWidget):
         self.burdf_map = self._load_burdf_map()
 
         self.bone_angles = {name: [0, 0, 0] for name, _ in DIRECT_BONES}
+        self.v2_bone_angles = {name: [0, 0, 0] for name, _ in V2_BONES}
         self.urdf_joint_angles_rad = {}
         self.urdf_joint_widgets_list = {}
         self.urdf_use_degree = True
@@ -633,7 +648,7 @@ class RetargetStudio(QWidget):
         mode_lay = QHBoxLayout()
         mode_lay.setContentsMargins(0, 0, 0, 0)
         self.mode_btns = {}
-        for i, (txt, key) in enumerate([("Bone", "bone"), ("URDF", "urdf"), ("NPZ", "npz")]):
+        for i, (txt, key) in enumerate([("Bone", "bone"), ("URDF", "urdf"), ("V2Bone", "v2bone"), ("NPZ", "npz")]):
             btn = QPushButton(txt)
             btn.setCheckable(True)
             btn.setChecked(i == 1)
@@ -693,11 +708,29 @@ class RetargetStudio(QWidget):
         urdf_w.setLayout(urdf_w_lay)
         self.mode_stack.addWidget(urdf_w)      # index 1
 
+        # ── V2Bone 模式：直接控制 self_rig_v2 皮肤骨骼，方便适配映射 ──
+        v2_w = QWidget()
+        v2_w_lay = QVBoxLayout()
+        v2_w_lay.setContentsMargins(0, 0, 0, 0)
+        tip = QLabel("直接转动 self_rig_v2 骨骼 → set_pose(骨骼, armature)，据此对 retarget_map_self_rig_v2.yaml 的 axis/sign")
+        tip.setWordWrap(True)
+        tip.setStyleSheet("font-size: 11px; color: #888;")
+        v2_w_lay.addWidget(tip)
+        self.v2_bone_list = QListWidget()
+        for name, _ in V2_BONES:
+            self.v2_bone_list.addItem(name)
+        self.v2_bone_list.currentRowChanged.connect(self._on_v2_bone_selected)
+        v2_w_lay.addWidget(self.v2_bone_list, 1)
+        self.v2_bone_joint_widget = BoneJointWidget(V2_BONES[0][0], V2_BONES[0][1], self._on_v2_bone_axis_change)
+        v2_w_lay.addWidget(self.v2_bone_joint_widget)
+        v2_w.setLayout(v2_w_lay)
+        self.mode_stack.addWidget(v2_w)        # index 2
+
         # ── NPZ 模式 ──
         self.npz_panel = NPZPanel(self._on_play_state, lambda v: None)
         self.npz_panel._on_load = self._npz_load
         self.npz_panel._browse_fn = self._npz_browse
-        self.mode_stack.addWidget(self.npz_panel)  # index 2
+        self.mode_stack.addWidget(self.npz_panel)  # index 3
 
         self._switch_mode("urdf")
         list_layout.addWidget(self.mode_stack, 1)
@@ -835,12 +868,33 @@ class RetargetStudio(QWidget):
             cont_lay = QVBoxLayout()
             cont_lay.setContentsMargins(8, 0, 0, 0)
             cont_lay.setSpacing(2)
-            for name in names:
+            def make_widget(name):
                 lower, upper = joint_limit(name)
                 w = URDFJointWidget(name, lower, upper, self._on_urdf_joint_change,
                                     lambda n, c: None, use_degree=True, sync_checked=False)
                 self.urdf_joint_widgets_list[name] = w
-                cont_lay.addWidget(w)
+                return w
+
+            # 左右同关节并排：list up left_* / right_*，按后缀配对
+            lefts = {n[5:]: n for n in names if n.startswith("left_")}
+            rights = {n[6:]: n for n in names if n.startswith("right_")}
+            paired = set()
+            for suffix in list(lefts.keys()):
+                ls, rs = lefts.get(suffix), rights.get(suffix)
+                row = QHBoxLayout()
+                row.setContentsMargins(0, 0, 0, 0)
+                row.setSpacing(10)
+                row.addWidget(make_widget(ls), 1)
+                paired.add(ls)
+                if rs:
+                    row.addWidget(make_widget(rs), 1)
+                    paired.add(rs)
+                cont_lay.addLayout(row)
+            # 无左右配对的（如 head_*）单独整行
+            for name in names:
+                if name in paired:
+                    continue
+                cont_lay.addWidget(make_widget(name))
             cont.setLayout(cont_lay)
             layout.addWidget(cont)
 
@@ -852,7 +906,7 @@ class RetargetStudio(QWidget):
 
     # ---------- 模式切换 ----------
     def _switch_mode(self, key):
-        order = {"bone": 0, "urdf": 1, "npz": 2}
+        order = {"bone": 0, "urdf": 1, "v2bone": 2, "npz": 3}
         self.mode_stack.setCurrentIndex(order[key])
         for k, b in self.mode_btns.items():
             b.setChecked(k == key)
@@ -902,6 +956,21 @@ class RetargetStudio(QWidget):
         angles[AXIS_INDEX[axis]] = val
         self.bone_angles[bone] = angles
         self._push_skin_pose()
+
+    # ---------- self_rig_v2 骨骼直接控制（适配用）----------
+    def _on_v2_bone_selected(self, row):
+        if row < 0:
+            return
+        name, limit = V2_BONES[row]
+        self.v2_bone_joint_widget.set_bone_name(name)
+        self.v2_bone_joint_widget.set_angles(self.v2_bone_angles.get(name, [0, 0, 0]))
+
+    def _on_v2_bone_axis_change(self, bone, axis, val):
+        angles = self.v2_bone_angles.get(bone, [0, 0, 0])
+        angles[AXIS_INDEX[axis]] = val
+        self.v2_bone_angles[bone] = angles
+        if self.client.connected:
+            self.client.set_pose(dict(self.v2_bone_angles), armature=SELF_RIG_V2_ARMATURE)
 
     # ---------- URDF 控制 ----------
     def _on_urdf_joint_change(self, name, angle_rad):

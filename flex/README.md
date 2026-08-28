@@ -1,0 +1,101 @@
+# flex/ — 皮卡丘“物理属性点云”柔性外皮实验
+
+> **目标**：摒弃计算量巨大的有限元(FEA)，用「物理属性点云」作柔性外皮的代理模型——
+> 在 MuJoCo 里算(弹、阻、摩擦)，在 three.js 里画(跟随骨骼蒙皮形变)。这套 `flex/` 是全部实验资产与工具。
+
+`flex/` 下的每段可独立跑通，没有硬耦合。下面是按用途分组的说明。
+
+---
+
+## 📁 文件总览
+
+### 1. 真蒙皮驱动查看器（推荐 · 点云能跟着骨骼走）
+
+沿骨骼蒙皮权重做加权 LBS，是当前最完整的一条链：
+
+| 文件 | 用途 |
+|---|---|
+| `make_selfrig_viewer.py` | 由 `selfrig_data.json` 生成自包含 `selfrig_viewer.html`(内嵌数据,双击即看) |
+| `selfrig_viewer.html` | **真蒙皮驱动查看器**：拖滑条转骨 → FK + 加权 LBS(`Σ w_b·(R_b·offset_b+P_b)`)→ 点云跟随；每骨一色、顶点色=按权重混合；支持 `?pose=1` 摆姿态验证 |
+| `extract_selfrig_weights.py` | **(Blender bpy 内跑)** 读 `assets/Obj/…/pikachu_skin_self_rig.fbx` 蒙皮网格，在三角面上按面积重采样 10000 点，重心坐标插值出每点 top-4 多骨权重 → 写 `selfrig_data.json` |
+| `selfrig_data.json` | 抽取结果：14 骨 + 层级 + 10000 点(Y-up) + 每点 top-4 权重 |
+
+**验证**（headless，数字不做眼）：rest 静止 movedY≈0；摆姿 `?pose=1` movedY≈466、渲染像素差异 8.8 万 — 点云确实随骨架形变上屏。
+
+### 2. 纯点云查看器（只展示、不驱动骨骼）
+
+| 文件 | 用途 |
+|---|---|
+| `make_pcd_viewer.py` | 读 ASCII PCD → 打包 base64 生成自包含 `pcd_viewer.html`，自动居中/缩放/高度着色 |
+| `pcd_viewer.html` | 纯点云查看器（蓝→红按高度上色,滚轮/夜景切换） |
+
+### 3. 早期骨骼驱动查看器（旧法 · 最近单骨，关节不混）
+
+| 文件 | 用途 |
+|---|---|
+| `make_pcd_js.py` | 把 PCL 点云降采样 + 按“最近骨”分配 → 生成 `pcd_data.js` |
+| `pcd_rig_viewer.html` + `pcd_data.js` | 最近骨 LBS 查看器（早期成果,已被真蒙皮替代） |
+| `glb_rig_viewer.html` | GLB 骨骼点云查看（早期实验） |
+
+### 4. MuJoCo 弹性碰撞实验（物理代理验证）
+
+| 文件 | 用途 |
+|---|---|
+| `elastic_collision.py` | 撞击球 vs 皮卡丘点云外皮，扫 solref 阻尼比，实测恢复系数 e、应变、能量 |
+| `build_report.py` | 由实测数据生成内嵌截图的 HTML 实验报告 |
+| `reports/` | `pika_elastic_report.html`(成品报告) + 各档截图 + 实测 json |
+
+### 5. 最小验证 MVP 与点云生成基础
+
+| 文件 | 用途 |
+|---|---|
+| `mvp_beam.py` + `models/beam_soft.xml` | 橡胶棒 + 柔性点云的最小 MuJoCo 验证 |
+| `pikachu_cloud.py` | 点云/骨架读取与分骨的核心库(load_pcd/load_skeleton/assign_bones/build_mjcf…) |
+| `mesh2pcd.sh` | 用真 PCL `pcl_mesh2pcd` 从 OBJ→PLY→PCD 光追采样 |
+| `models/` | pcd/xml/mjcf 资产(大 pcd/ply 已被 .gitignore) |
+
+---
+
+## 🚀 快速上手
+
+```bash
+# 看纯点云(不用驱动)
+python3 flex/make_pcd_viewer.py            # 生成 flex/pcd_viewer.html, 双击打开
+
+# 看真蒙皮驱动点云(推荐)—— 拖滑条, 点云随骨骼关节活动
+python3 flex/make_selfrig_viewer.py        # 生成 flex/selfrig_viewer.html
+#   浏览器开 selfrig_viewer.html?pose=1   可一键摆姿
+#   重新从 FBX 抽权重(需 Blender): 在 bpy 里跑 extract_selfrig_weights.py 的 full_run()
+
+# 跑弹性碰撞实验 + 生成报告
+conda run -n mocap python flex/elastic_collision.py --which B --dampratio 0.05
+conda run -n mocap python flex/build_report.py     # → flex/reports/pika_elastic_report.html
+```
+
+---
+
+## 📸 截图
+
+**真蒙皮查看器 · @静止姿态**（14 骨权重着色，点云贴合皮卡丘）
+![selfrig rest](docs_img/selfrig_rest.png)
+
+**真蒙皮查看器 · 摆姿势后**（屈膝/摆臂/转头 → 点云随骨骼 LBS 形变）
+![selfrig pose](docs_img/selfrig_pose.png)
+
+**纯点云查看器 · 高度着色**
+![pcd viewer](docs_img/pcd_viewer.png)
+
+---
+
+## 🧠 核心概念
+
+- **物理属性点云**：把高面数视觉蒙皮简化为一组带弹/阻/摩的**可碰撞点云**，附在刚体骨骼上，既物理交互、又驱动视觉变形。
+- **真蒙皮 vs 最近骨**：最近骨把每个点硬塞给一根骨，关节处生硬；真蒙皮读**顶点组**的多骨权重，点在关节用重心插值平滑过渡，跟随才自然——本目录推荐走第 1 组的真蒙皮链。
+- **LBS 公式**：`C = Σ_b w_b · (R_b·(p_rest − rest_b) + P_b)`，前端 FK 沿骨链累积旋转，再逐点加权混合。
+
+## ⚠️ 常见坑（来自实测）
+
+1. **three.js 更新点云必须** `geo.attributes.position.needsUpdate=true`（不能设到裸 Float32Array 上），否则数组变了但 GPU 不重传 → “骨架动、点云不动”。
+2. **从 FBX 选蒙皮网格**要用“顶点组名与骨架骨名重合度最高”判据，否则会误选场景里混入的其它 rig 网格（如 Rigify `body` 的 DEF-* 顶点组）导致权重塌成一个骨。
+3. Blender MCP 跨调用场景状态不稳定，抽取要一次 `full_run()` 导入+采样+写文件。
+4. 大文件（`*.pcd`/`*.ply`/`reports/*.png`/`*.png`）已 .gitignore，重跑脚本即复原；`docs_img/` 截图提交以进 README。

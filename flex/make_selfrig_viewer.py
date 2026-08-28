@@ -129,7 +129,7 @@ function fk(){
     for(let k=0;k<W;k++){ const [bi,wdi]=bw[i][k]; if(bi<0)continue; const t=tints[bi]; r+=wdi*t.r; g+=wdi*t.g; b+=wdi*t.b; }
     col[i*3]=r; col[i*3+1]=g; col[i*3+2]=b;
   }
-  col.needsUpdate=true;
+  geo.attributes.color.needsUpdate=true;
   // LBS 位置
   for(let i=0;i<N;i++){
     _a.set(PTS[i][0],PTS[i][1],PTS[i][2]);
@@ -139,11 +139,19 @@ function fk(){
       out.add(_v); }
     posAttr[i*3]=out.x; posAttr[i*3+1]=out.y; posAttr[i*3+2]=out.z;
   }
-  posAttr.needsUpdate=true;
+  geo.attributes.position.needsUpdate=true;
   const seg=[];
   for(let i=0;i<nb;i++){ const b=BONES[i]; if(b.parent>=0){ const p=boneWorld[b.parent], c=boneWorld[i];
     seg.push(p.x,p.y,p.z, c.x,c.y,c.z); } }
   boneSegs.geometry.setAttribute('position',new THREE.Float32BufferAttribute(seg,3));
+}
+function poseStats(){
+  // 相对 rest 每个点的位移(mm)统计: 判断 LBS 是否让点合理跟骨(左腿动、躯干静), 而非散架
+  let s=0,maxv=0,act=0; const bins=[0,0,0,0,0,0];
+  for(let i=0;i<N;i++){ const dx=posAttr[i*3]-PTS[i][0], dy=posAttr[i*3+1]-PTS[i][1], dz=posAttr[i*3+2]-PTS[i][2];
+    const m=Math.sqrt(dx*dx+dy*dy+dz*dz); s+=m; if(m>maxv)maxv=m; if(m>0.05)act++;
+    const b=Math.min(6-1,(m/0.1)|0); if(m>0.01)bins[b]++; }
+  return 'mean='+(s/N*1000|0)+'mm max='+(maxv*1000|0)+'mm act>5cm='+((act/N*1000)|0)+'‰';
 }
 function movedY(){ let s=0; for(let i=0;i<N;i++) s+=Math.abs(posAttr[i*3+1]-PTS[i][1]); return s; }
 const hud=document.getElementById('hud'), stat=document.getElementById('stat');
@@ -186,6 +194,9 @@ if(new URLSearchParams(location.search).has('pose')){
   document.querySelectorAll('#sliders input').forEach(i=>{ const nm=i.parentElement.querySelector('label').textContent;
     const id=BONES.findIndex(x=>x.name===nm); i.value=rotDeg[id]||0; i.nextElementSibling.textContent=(rotDeg[id]||0)+'°'; });
   refresh();
+  let st; try{ st=poseStats(); }catch(e){ st='STATERR '+e.message; }
+  document.title += ' | ' + st;
+  const sdiv=document.getElementById('stat'); if(sdiv) sdiv.textContent=st;
 }
 function resize(){ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   const w=document.getElementById('view').clientWidth, h=document.getElementById('view').clientHeight;

@@ -16,7 +16,7 @@ elastic_collision.py — 「皮卡丘点云外皮」弹性碰撞实验(阶段2)
 实验B  皮卡丘: 撞击球 vs 皮卡丘头部点云外皮   (测综合 e + 外皮应变)
 实验C  能量:   同 B, 看系统能量时间线、碰撞损耗率 1-e^2。
 
-用法; conda run -n mocap python flex/elastic_collision.py --which B --dampratio 0.15 --drop 0.5
+用法; conda run -n mocap python flex/sim/elastic_collision.py --which B --dampratio 0.15 --drop 0.5
 """
 import argparse
 import json

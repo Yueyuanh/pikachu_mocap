@@ -3,13 +3,21 @@
 > **目标**：摒弃计算量巨大的有限元(FEA)，用「物理属性点云」作柔性外皮的代理模型——
 > 在 MuJoCo 里算(弹、阻、摩擦)，在 three.js 里画(跟随骨骼蒙皮形变)。这套 `flex/` 是全部实验资产与工具。
 
-`flex/` 下的每段可独立跑通，没有硬耦合。下面是按用途分组的说明。
+按功能分 4 个子目录，各自独立可跑、没有硬耦合：
+
+```
+flex/
+  README.md          ← 本文档
+  docs_img/          ← 现成截图(进 README)
+  selfrig/           ← ①真蒙皮驱动点云(推荐, 点云跟骨)
+  pcd/               ← ②纯点云查看器(只展示)
+  rig_legacy/        ← ③早期最近骨驱动(已被 ①替代)
+  sim/               ← ④MuJoCo 物理实验 + 点云生成基础(共用 models/reports)
+```
 
 ---
 
-## 📁 文件总览
-
-### 1. 真蒙皮驱动查看器（推荐 · 点云能跟着骨骼走）
+## 📁 `selfrig/` — 真蒙皮驱动查看器（推荐 · 点云能跟着骨骼走）
 
 沿骨骼蒙皮权重做加权 LBS，是当前最完整的一条链：
 
@@ -22,37 +30,32 @@
 
 **验证**（headless，数字不做眼）：rest 静止 movedY≈0；摆姿 `?pose=1` movedY≈466、渲染像素差异 8.8 万 — 点云确实随骨架形变上屏。
 
-### 2. 纯点云查看器（只展示、不驱动骨骼）
+## 📁 `pcd/` — 纯点云查看器（只展示、不驱动骨骼）
 
 | 文件 | 用途 |
 |---|---|
-| `make_pcd_viewer.py` | 读 ASCII PCD → 打包 base64 生成自包含 `pcd_viewer.html`，自动居中/缩放/高度着色 |
+| `make_pcd_viewer.py` | 读 ASCII PCD → 打包 base64 生成自包含 `pcd_viewer.html`，自动居中/缩放/高度着色；默认读 `../sim/models/pikachu_skin.pcd` |
 | `pcd_viewer.html` | 纯点云查看器（蓝→红按高度上色,滚轮/夜景切换） |
 
-### 3. 早期骨骼驱动查看器（旧法 · 最近单骨，关节不混）
+## 📁 `rig_legacy/` — 早期骨骼驱动查看器（旧法 · 最近单骨，关节不混）
 
 | 文件 | 用途 |
 |---|---|
-| `make_pcd_js.py` | 把 PCL 点云降采样 + 按“最近骨”分配 → 生成 `pcd_data.js` |
+| `make_pcd_js.py` | 把 PCL 点云降采样 + 按“最近骨”分配 → 生成 `pcd_data.js`(读 `../sim/models` 的点) |
 | `pcd_rig_viewer.html` + `pcd_data.js` | 最近骨 LBS 查看器（早期成果,已被真蒙皮替代） |
 | `glb_rig_viewer.html` | GLB 骨骼点云查看（早期实验） |
 
-### 4. MuJoCo 弹性碰撞实验（物理代理验证）
+## 📁 `sim/` — MuJoCo 物理实验 + 点云生成共用地基
 
 | 文件 | 用途 |
 |---|---|
 | `elastic_collision.py` | 撞击球 vs 皮卡丘点云外皮，扫 solref 阻尼比，实测恢复系数 e、应变、能量 |
 | `build_report.py` | 由实测数据生成内嵌截图的 HTML 实验报告 |
-| `reports/` | `pika_elastic_report.html`(成品报告) + 各档截图 + 实测 json |
-
-### 5. 最小验证 MVP 与点云生成基础
-
-| 文件 | 用途 |
-|---|---|
 | `mvp_beam.py` + `models/beam_soft.xml` | 橡胶棒 + 柔性点云的最小 MuJoCo 验证 |
-| `pikachu_cloud.py` | 点云/骨架读取与分骨的核心库(load_pcd/load_skeleton/assign_bones/build_mjcf…) |
+| `pikachu_cloud.py` | 点云/骨架读取与分骨的核心库(load_pcd/load_skeleton/assign_bones/build_mjcf…)；`assets/` 经仓库根(上溯 3 层)定位 |
 | `mesh2pcd.sh` | 用真 PCL `pcl_mesh2pcd` 从 OBJ→PLY→PCD 光追采样 |
 | `models/` | pcd/xml/mjcf 资产(大 pcd/ply 已被 .gitignore) |
+| `reports/` | `pika_elastic_report.html`(成品报告) + 各档截图 + 实测 json |
 
 ---
 
@@ -60,16 +63,16 @@
 
 ```bash
 # 看纯点云(不用驱动)
-python3 flex/make_pcd_viewer.py            # 生成 flex/pcd_viewer.html, 双击打开
+python3 flex/pcd/make_pcd_viewer.py           # 生成 flex/pcd/pcd_viewer.html, 双击打开
 
 # 看真蒙皮驱动点云(推荐)—— 拖滑条, 点云随骨骼关节活动
-python3 flex/make_selfrig_viewer.py        # 生成 flex/selfrig_viewer.html
-#   浏览器开 selfrig_viewer.html?pose=1   可一键摆姿
+python3 flex/selfrig/make_selfrig_viewer.py   # 生成 flex/selfrig/selfrig_viewer.html
+#   浏览器开 …/selfrig_viewer.html?pose=1   可一键摆姿
 #   重新从 FBX 抽权重(需 Blender): 在 bpy 里跑 extract_selfrig_weights.py 的 full_run()
 
 # 跑弹性碰撞实验 + 生成报告
-conda run -n mocap python flex/elastic_collision.py --which B --dampratio 0.05
-conda run -n mocap python flex/build_report.py     # → flex/reports/pika_elastic_report.html
+conda run -n mocap python flex/sim/elastic_collision.py --which B --dampratio 0.05
+conda run -n mocap python flex/sim/build_report.py   # → flex/sim/reports/pika_elastic_report.html
 ```
 
 ---
@@ -90,7 +93,7 @@ conda run -n mocap python flex/build_report.py     # → flex/reports/pika_elast
 ## 🧠 核心概念
 
 - **物理属性点云**：把高面数视觉蒙皮简化为一组带弹/阻/摩的**可碰撞点云**，附在刚体骨骼上，既物理交互、又驱动视觉变形。
-- **真蒙皮 vs 最近骨**：最近骨把每个点硬塞给一根骨，关节处生硬；真蒙皮读**顶点组**的多骨权重，点在关节用重心插值平滑过渡，跟随才自然——本目录推荐走第 1 组的真蒙皮链。
+- **真蒙皮 vs 最近骨**：最近骨把每个点硬塞给一根骨，关节处生硬；真蒙皮读**顶点组**的多骨权重，点在关节用重心插值平滑过渡，跟随才自然——本目录推荐走 `selfrig/` 的真蒙皮链。
 - **LBS 公式**：`C = Σ_b w_b · (R_b·(p_rest − rest_b) + P_b)`，前端 FK 沿骨链累积旋转，再逐点加权混合。
 
 ## ⚠️ 常见坑（来自实测）

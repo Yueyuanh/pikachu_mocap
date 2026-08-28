@@ -8,7 +8,7 @@ make_pcd_viewer.py — 把 ASCII PCL 点云(.pcd)打包成自包含 three.js 查
   · 点 size 设小(固态), 按高度 高度着色(脚蓝→头橙)以免糊成一团;
   · 数据以 base64 的 Float32Array 内嵌, 天然紧凑, 双击 html 即看无需 server。
 
-用法: conda run -n mocap python flex/make_pcd_viewer.py [in.pcd] [--out out.html] [--size 0.008]
+用法: conda run -n mocap python flex/pcd/make_pcd_viewer.py [in.pcd] [--out out.html] [--size 0.008]
 """
 import argparse
 import base64
@@ -17,7 +17,7 @@ import os
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_IN = os.path.join(HERE, "models", "pikachu_skin.pcd")
+DEFAULT_IN = os.path.join(HERE, "..", "sim", "models", "pikachu_skin.pcd")
 DEFAULT_OUT = os.path.join(HERE, "pcd_viewer.html")
 
 

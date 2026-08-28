@@ -7,7 +7,7 @@ make_pcd_js.py — 为 three.js「带骨骼控制的点云模型」生成内嵌�
 用最近骨分配(bone assignment), 输出每骨 rest 坐标 + 层级(parent) + 每点所属骨,
 打包成浏览器可直接引用的 window.PCD_DATA, 供 pcd_rig_viewer.html 做 LBS 骨骼驱动。
 
-用法: conda run -n mocap python flex/make_pcd_js.py
+用法: conda run -n mocap python flex/rig_legacy/make_pcd_js.py
 """
 import os
 import sys
@@ -16,6 +16,7 @@ import json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(HERE, "..", "sim"))  # 引 sim/pikachu_cloud.py
 import trimesh
 from pikachu_cloud import GLB, load_pcd, load_skeleton, PER_BONE, SEED
 
@@ -62,7 +63,7 @@ def _fit_points_to_bones(P, bones, origin):
 def main():
     import sys
     from pikachu_cloud import assign_bones
-    P = load_pcd(os.path.join(HERE, "models", "pikachu_skin_real.pcd"))
+    P = load_pcd(os.path.join(HERE, "..", "sim", "models", "pikachu_skin_real.pcd"))
     glb = trimesh.load(GLB, force=None)
     bones = load_skeleton(glb)
     origin = bones["骨架"][:3, 3]

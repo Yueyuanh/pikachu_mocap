@@ -23,4 +23,4 @@ fi
 echo "[3/3] 生成本地点云+骨骼 MJCF (--pcd 走 PCL 点云)"
 conda run -n mocap python "$HERE/pikachu_cloud.py" --build --pcd "$HERE/models/pikachu_skin.pcd"
 
-echo "完成. 后续: conda run -n mocap python flex/pikachu_cloud.py --viewer --pcd flex/models/pikachu_skin.pcd"
+echo "完成. 后续: conda run -n mocap python sim/pikachu_cloud.py --viewer --pcd sim/models/pikachu_skin.pcd"

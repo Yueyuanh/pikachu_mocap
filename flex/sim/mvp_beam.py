@@ -10,9 +10,9 @@ mvp_beam.py — 「物理属性点云」柔性外皮 MVP（最小可行性验证
 「点云附着在 MuJoCo 刚体骨骼上，既能产生物理交互，又随骨骼运动驱动形变」的第一步。
 
 用法(在 mocap conda 环境):
-    python flex/mvp_beam.py                 # 离屏仿真:生成 xml、跑一段、存 2D 渲染 png、打印物理指标
-    python flex/mvp_beam.py --viewer        # 打开 MuJoCo 实时窗口，可拖拽交互
-    python flex/mvp_beam.py --steps 60      # 覆盖仿真步数(默认 40, 每步 1/240s≈0.167s 末段)
+    python flex/sim/mvp_beam.py                 # 离屏仿真:生成 xml、跑一段、存 2D 渲染 png、打印物理指标
+    python flex/sim/mvp_beam.py --viewer        # 打开 MuJoCo 实时窗口，可拖拽交互
+    python flex/sim/mvp_beam.py --steps 60      # 覆盖仿真步数(默认 40, 每步 1/240s≈0.167s 末段)
 """
 import argparse
 import os

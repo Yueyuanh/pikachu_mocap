@@ -12,9 +12,9 @@ pikachu_cloud.py — 把皮卡丘 OBJ 皮肤转为点云, 绑定到 GLB 骨架, 
        → 骨骼动, 其附着的点云跟着动; 骨架线用 mjRND_SKELETON 渲染可见
 
 用法 (mocap conda 环境):
-    python flex/pikachu_cloud.py --build            # 生成 models/pikachu_cloud.xml
-    python flex/pikachu_cloud.py --render           # 离屏渲染: 摆腿动画 + 骨架线, 存 png 序列/合成图
-    python flex/pikachu_cloud.py --viewer           # 打开 MuJoCo 实时窗口(右下 data 界面可拖 joint)
+    python flex/sim/pikachu_cloud.py --build            # 生成 models/pikachu_cloud.xml
+    python flex/sim/pikachu_cloud.py --render           # 离屏渲染: 摆腿动画 + 骨架线, 存 png 序列/合成图
+    python flex/sim/pikachu_cloud.py --viewer           # 打开 MuJoCo 实时窗口(右下 data 界面可拖 joint)
 """
 import argparse
 import os
@@ -22,7 +22,7 @@ import sys
 
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 仓库根
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 仓库根 (flex/sim → 上溯3层)
 GLB = os.path.join(ROOT, "assets", "Glb", "pikachu_skin_self_rig.glb")
 OBJ = os.path.join(ROOT, "assets", "Obj", "pikachu_skin_self_rig.obj")
 HERE = os.path.dirname(os.path.abspath(__file__))

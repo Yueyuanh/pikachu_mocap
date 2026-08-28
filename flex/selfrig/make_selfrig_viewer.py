@@ -9,7 +9,7 @@ make_selfrig_viewer.py — 由 selfrig_data.json 生成自包含 three.js 真蒙
   · 每骨一个基准色相, 顶点色 = 按权重混合该骨色 → 一眼看出蒙皮跟着骨架走。
 双击 html 即看, 数据内嵌; headless 可抓 title('movedY') 程序化验证。
 
-用法: conda run -n mocap python flex/make_selfrig_viewer.py
+用法: conda run -n mocap python flex/selfrig/make_selfrig_viewer.py
 """
 import json
 import os

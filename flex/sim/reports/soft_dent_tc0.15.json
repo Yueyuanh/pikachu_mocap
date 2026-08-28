@@ -1,0 +1,15 @@
+{
+  "n": 100,
+  "tc": 0.15,
+  "damp": 1.5,
+  "drop": 1.2,
+  "t_contact": 2.0060000000000002,
+  "peak_depth_m": 0.00570211064814001,
+  "depth_mm": 5.70211064814001,
+  "final_floor_m": 0.0026264528084955258,
+  "rigid_span_m": 1.248876,
+  "settled_span_m": 1.1364616012392283,
+  "squash_pct": 9.001245821104076,
+  "settle_velocity": 0.12680747599238737,
+  "converged": true
+}

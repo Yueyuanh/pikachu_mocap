@@ -13,6 +13,7 @@ flex/
   pcd/               ← ②纯点云查看器(只展示)
   rig_legacy/        ← ③早期最近骨驱动(已被 ①替代)
   sim/               ← ④MuJoCo 物理实验 + 点云生成基础(共用 models/reports)
+  docs/              ← ⑤软体方案选型 + 实验记录(见下「软体」小结)
 ```
 
 ---
@@ -55,7 +56,18 @@ flex/
 | `pikachu_cloud.py` | 点云/骨架读取与分骨的核心库(load_pcd/load_skeleton/assign_bones/build_mjcf…)；`assets/` 经仓库根(上溯 3 层)定位 |
 | `mesh2pcd.sh` | 用真 PCL `pcl_mesh2pcd` 从 OBJ→PLY→PCD 光追采样 |
 | `models/` | pcd/xml/mjcf 资产(大 pcd/ply 已被 .gitignore) |
-| `reports/` | `pika_elastic_report.html`(成品报告) + 各档截图 + 实测 json |
+| `reports/` | `pika_elastic_report.html`(成品报告) + 各档截图 + 实测 json + soft_dent 系列 |
+
+## 📁 `docs/` — 软体方案选型 + 实验记录
+
+| 文件 | 用途 |
+|---|---|
+| `FLEX_SOFTBODY.md` | 软体选型对比 + Part 2A(纯 MuJoCo 软 connect 弹性点云落地凹陷, 已收敛) + Part 2B(PyBullet 软网压痕, 已完成) 完整踩坑与收敛记录 |
+
+**小结**：本机 MuJoCo 无原生软体 → 走「壳点=自由质点 + 软 `<connect>` 拖向刚性内核」。
+关键两招：显式 `<joint type="free" damping=/>`（否则弹簧网络永不收敛）+ drop 要大于点云半高（否则出生爆炸）。
+成果记录：MuJoCo `n=100 tc=0.15 damp=1.5` → 落地压扁 9%、最深压入 5.7mm、末速 0.13 收敛（关键帧像素差 hover→rest 58%、peak→rest 5%）；
+PyBullet `soft_dent_pb.py` 8×8 软垫被球压出 **23.3mm 凹痕→回弹 12.4mm**。两队对照见文档。
 
 ---
 
@@ -73,6 +85,11 @@ python3 flex/selfrig/make_selfrig_viewer.py   # 生成 flex/selfrig/selfrig_view
 # 跑弹性碰撞实验 + 生成报告
 conda run -n mocap python flex/sim/elastic_collision.py --which B --dampratio 0.05
 conda run -n mocap python flex/sim/build_report.py   # → flex/sim/reports/pika_elastic_report.html
+
+# 软体落地凹陷(纯 MuJoCo 软 connect)→ 指标 json + hover/peak/rest 关键帧
+conda run -n mocap python flex/sim/soft_dent.py \
+  --n 100 --tc 0.15 --damp 1.5 --drop 1.2 --settle 1800 --steps 3000 --png soft_dent
+#   方案细节/踩坑/记录 → flex/docs/FLEX_SOFTBODY.md
 ```
 
 ---

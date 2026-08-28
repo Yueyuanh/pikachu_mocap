@@ -459,6 +459,9 @@ class NPZPanel(QWidget):
         super().__init__()
         self.on_play_state = on_play_state
         self.on_speed = on_speed
+        # 未加载 npz 前也要有初值，reset_all 里 set_frame(0)/set_total 前不崩
+        self._total = 0
+        self._fps = 30
         lay = QVBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
 
@@ -890,12 +893,19 @@ class RetargetStudio(QWidget):
     def _push_urdf_if_needed(self):
         """实时把当前 URDF 关节角推到所有 map 里的 Blender rig（是否生效由 Blender 面板勾选过滤）。"""
         if not (self.urdf_sync_toggle.isChecked() and self.client.connected):
+            # 诊断：区分「Drive Blender URDF 开关没开」与「addon 旧/未重启」
+            if self.client.connected and not self.urdf_sync_toggle.isChecked():
+                print("[URDF→Blender] 跳过：Drive Blender URDF 开关未勾选")
             return
         angles = self.urdf_joint_angles_rad
+        sent = []
         for a in self._urdf_armature_list():
             pose = self._build_pose_for_armature(a.get("joints", {}), angles)
             if pose:
                 self.client.set_urdf_pose(a.get("name", ""), pose)
+                sent.append(f"{a.get('name')}({len(pose)}骨)")
+        if sent:
+            print("[URDF→Blender] set_urdf_pose ->", ", ".join(sent))
 
     def _push_urdf_reset(self):
         """reset：强推所有 map 里的 Blender rig 到 rest pose（全关节 0 → 各轴 bias），

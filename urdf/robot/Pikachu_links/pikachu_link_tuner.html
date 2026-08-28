@@ -105,8 +105,8 @@ input{font:inherit;color:inherit}
   display:flex;align-items:stretch;gap:12px;padding:12px}
 .view2d-inner .cv-wrap{flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center}
 .view2d-inner .cv-wrap canvas{width:auto;height:auto;display:block;touch-action:none}
-/* 侧边：关键尺寸表（文字不放图纸上，避免遮挡主体） */
-.dimtable{flex:none;width:212px;align-self:center;border-collapse:collapse;font-family:"IBM Plex Mono",monospace}
+/* 参数表已改画进图纸(图纸右侧留参数栏)，DOM 表格隐藏避免重复 */
+.dimtable{display:none}
 .dimtable th,.dimtable td{border:1px solid var(--line);padding:4px 9px;font-size:11px;line-height:1.45}
 .dimtable th{color:var(--text-dim);font-weight:600;background:var(--panel);text-align:center}
 .dimtable td{color:var(--text);vertical-align:top}
@@ -626,33 +626,98 @@ function render2D(model){
   const W=cv.width,H=cv.height;
   const bg=themeVar('--panel','#151b26'), ink=themeVar('--text','#e8ecf4'),
         soft=themeVar('--text-dim','#9aa6b8'), lineC=themeVar('--line','#2b3445'), accent='#ff933a';
-  // ① 不透明背景 + 边框（不再透明）
+  const dpr=RENDER_RES;
+  const isFront=dimView==='front';
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   ctx.strokeStyle=lineC; ctx.lineWidth=1; ctx.strokeRect(7,7,W-14,H-14);
-  // ② 抬头说明
-  ctx.fillStyle=soft; ctx.font='600 '+(Math.round(12*RENDER_RES))+'px "IBM Plex Mono",monospace';
-  ctx.textAlign='left'; ctx.textBaseline='top';
-  ctx.fillText('Pikachu 关键尺寸示意 · '+(dimView==='front'?'正面(宽Y × 高Z)':'侧面(厚X × 高Z)')+' · 单位 mm',
-    Math.round(16*RENDER_RES), Math.round(12*RENDER_RES));
-  const isFront=dimView==='front';
-  const cx=W/2, cy=H/2;
-  const s=(Math.min(W,H)*0.46)/(2*Math.max(0.05,span3(tfs)));
-  // ③ 画每个链路 box（浅底勾勒身体轮廓）
-  for(const n in model.links){
-    const lk=model.links[n], tf=tfs[n]; if(!tf) continue;
+  ctx.textBaseline='top';
+  // ① 底部参数表区高度（表头 + 项数行 + 边距）；长一点没关系，横贯整张图
+  let n=0;
+  for(const D of KEYDIMS){ let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
+    if(a&&b){ const v=refDist(a,D.ad,b,D.bd); if(isFinite(v)&&v>=0.002) n++; } }
+  const rowH=Math.round(22*dpr), hdrH=Math.round(20*dpr);
+  const paramH=hdrH+n*rowH+Math.round(34*dpr);
+  const topH=H-paramH;
+  // ② 主图区与参数表的分隔线
+  ctx.strokeStyle=lineC; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(12,topH); ctx.lineTo(W-12,topH); ctx.stroke();
+  // ③ 抬头说明（主图区顶部）
+  ctx.fillStyle=soft; ctx.font='600 '+Math.round(12*dpr)+'px "IBM Plex Mono",monospace';
+  ctx.textAlign='left';
+  ctx.fillText('Pikachu 关键尺寸示意图 · '+(isFront?'正面(宽Y × 高Z)':'侧面(厚X × 高Z)')+' · 单位 mm',
+    Math.round(16*dpr), Math.round(12*dpr));
+  const span=Math.max(0.05,span3(tfs));
+  // ④ 主体居中略偏上（避开顶部标题）：放大系数 0.64
+  const cx=W/2;
+  const cy=Math.round(44*dpr+(topH-64*dpr)/2);
+  const s=(Math.min(W-24, topH-60*dpr)*0.64)/(2*span);
+  // ⑤ 画每个链路 box
+  for(const nm in model.links){
+    const lk=model.links[nm], tf=tfs[nm]; if(!tf) continue;
     const pts=boxCorners(lk,tf).map(p=>lf(p,isFront));
     const ax=Math.min(...pts.map(p=>p[0])), bx=Math.max(...pts.map(p=>p[0]));
     const ay=Math.min(...pts.map(p=>p[1])), by=Math.max(...pts.map(p=>p[1]));
     const col=parseColor(lk.color);
-    ctx.fillStyle=col.fill; ctx.strokeStyle=col.css; ctx.lineWidth=Math.max(1,1.2*RENDER_RES);
+    ctx.fillStyle=col.fill; ctx.strokeStyle=col.css; ctx.lineWidth=Math.max(1,1.2*dpr);
     ctx.fillRect(cx+ax*s, cy+ay*s, (bx-ax)*s, (by-ay)*s);
     ctx.strokeRect(cx+ax*s, cy+ay*s, (bx-ax)*s, (by-ay)*s);
   }
-  // ④ 关键尺寸标注：仅正面视图中绘制 5 条尺寸线（文字在右侧表格）
-  if(isFront) drawKeyDims(ctx,tfs,s,cx,cy,accent,RENDER_RES);
-  updateDimTable(tfs);
+  // ⑥ 关键尺寸标注：仅正面视图，标尺全部横平竖直（引线垂直/水平引出）
+  if(isFront) drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr);
+  // ⑦ 参数表画进图纸底部，横贯全宽，不遮挡主体
+  drawParamPanel(ctx,tfs,topH,ink,soft,accent,lineC,dpr);
+  updateDimTable(tfs);   // 仍填 DOM（已隐藏），保留数据一致性
 }
-// 侧边尺寸表：把 5 项轴线距离填进 dimRows，避免在图纸上写字挡主体
+// 面板标题下的示例参数行：把关键尺寸表画进图纸右侧参数栏。
+// 与 loadSrc 时解析出的 xacro property(比例/长度)不同，这里展示的是
+// 从实际几何测得的 5 项轴向距离（单位 mm），工程上可直接用来核对连杆长度。
+function drawParamPanel(ctx,tfs,topH,ink,soft,accent,lineC,dpr){
+  const W=ctx.canvas.width, H=ctx.canvas.height;
+  const x0=Math.round(16*dpr);
+  const rhs=W-Math.round(16*dpr);   // 值右对齐边界
+  const lhs=x0+Math.round(56*dpr);  // 中文名称左对齐起点（给编号留位）
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  // 栏标题
+  ctx.fillStyle=accent; ctx.font='600 '+Math.round(12*dpr)+'px "IBM Plex Mono",monospace';
+  ctx.fillText('关键尺寸 · 单位 mm', x0, topH+Math.round(10*dpr));
+  // 汇总行数
+  const rows=[];
+  for(const D of KEYDIMS){
+    let ca,cb; try{ca=D.a(tfs);cb=D.b(tfs);}catch(e){continue;}
+    if(!ca||!cb) continue;
+    const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
+    rows.push({no:D.no,zh:D.zh,val:Math.round(val*1000)});
+  }
+  // 表头
+  const hdrY=topH+Math.round(36*dpr);
+  ctx.font='600 '+Math.round(10*dpr)+'px "IBM Plex Mono",monospace';
+  ctx.fillStyle=soft;
+  ctx.textAlign='center'; ctx.fillText('#', x0+Math.round(20*dpr), hdrY);
+  ctx.textAlign='left';   ctx.fillText('测距', lhs, hdrY);
+  ctx.textAlign='right';  ctx.fillText('值',  rhs, hdrY);
+  ctx.strokeStyle=lineC; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x0, hdrY+Math.round(18*dpr));
+  ctx.lineTo(W-Math.round(16*dpr), hdrY+Math.round(18*dpr)); ctx.stroke();
+  // 数据行：每项一行横贯图纸宽，长一点没关系，不遮挡主体
+  const lh=Math.round(24*dpr); let y=hdrY+Math.round(30*dpr);
+  ctx.font='500 '+Math.round(11*dpr)+'px "IBM Plex Mono",monospace';
+  for(const r of rows){
+    // 编号
+    ctx.textAlign='center'; ctx.fillStyle=soft; ctx.fillText(r.no, x0+Math.round(20*dpr), y);
+    // 值(右对齐)
+    const vs=r.val+' mm'; ctx.textAlign='right'; ctx.fillStyle=accent; ctx.fillText(vs, rhs, y);
+    // 中文：整图宽足够，仍按右值边界截断作双保险
+    const vw=ctx.measureText(vs).width;
+    let zh=r.zh; const maxW=(rhs-vw)-lhs-Math.round(8*dpr);
+    while(zh.length>0 && ctx.measureText(zh).width>maxW) zh=zh.slice(0,-1);
+    if(zh!==r.zh) zh+='…';
+    ctx.textAlign='left'; ctx.fillStyle=ink; ctx.fillText(zh, lhs, y);
+    y+=lh;
+  }
+  ctx.textBaseline='top';
+}
+
+// 侧边尺寸表：把 5 项轴线距离填进 dimRows（已隐藏 DOM，仅保证数据一致性）
 function updateDimTable(tfs){
   const el=$('#dimRows'); if(!el) return;
   el.innerHTML='';
@@ -708,53 +773,84 @@ function refDist(a,ad,b,bd){
   if(bd) return len3(cross3(w,bd))/len3(bd);                            // 点 a 到轴 b
   return len3(w);                                                       // 点×点
 }
-function drawKeyDims(ctx,tfs,s,cx,cy,accent,dpr){
-  const drawn=[];
-  ctx.textBaseline='middle';
+// 关键尺寸标注——全部横平竖直。
+// 判定方向：投影两点水平差 ≥ 垂直差 → 水平尺寸线(引线竖直)；否则垂直尺寸线(引线水平)。
+// 尺寸线放到主体外包络(half)之外，多条同侧自动外推避让，数字随线、不落在主体上。
+function drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr){
+  const half=span*s;              // 主体包络半宽(像素)
+  const vUsed=[], hUsed=[];
   for(const D of KEYDIMS){
-    const ca=(()=>{try{return D.a(tfs);}catch(e){return null;}})();
-    const cb=(()=>{try{return D.b(tfs);}catch(e){return null;}})();
+    let ca,cb; try{ca=D.a(tfs);cb=D.b(tfs);}catch(e){continue;}
     if(!ca||!cb) continue;
     const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
     const pa=lf(ca,true), pb=lf(cb,true);   // 正面投影：[y,-z]
-    const x1=cx+pa[0]*s, y1=cy+pa[1]*s, x2=cx+pb[0]*s, y2=cy+pb[1]*s;
-    // 位移最靠近的线，避免尺寸线互相叠加
-    let off=16*dpr;
-    for(const d of drawn){ if(Math.hypot((d.x1+d.x2)/2-(x1+x2)/2,(d.y1+d.y2)/2-(y1+y2)/2) < 20*dpr) off+=18*dpr; }
-    drawn.push({x1,y1,x2,y2});
-    drawDimLine(ctx,x1,y1,x2,y2,D.no, Math.round(val*1000)+' mm', off, accent, dpr);
+    const ax=cx+pa[0]*s, ay=cy+pa[1]*s;
+    const bx=cx+pb[0]*s, by=cy+pb[1]*s;
+    const horiz = Math.abs(bx-ax) >= Math.abs(by-ay);
+    const label=Math.round(val*1000)+'mm';
+    if(horiz) drawDimH(ctx,ax,ay,bx,by,D.no,label,accent,dpr,cy,half,hUsed);
+    else      drawDimV(ctx,ax,ay,bx,by,D.no,label,accent,dpr,cx,half,vUsed);
   }
-  ctx.textBaseline='middle';
 }
-// 尺寸线：细线 + 箭头 + 编号；仅导出时额外把数值(dimDrawVals)画在线上，确保下载图也带数据。
-// 页面实时图保持干净无字，数值/说明都在右侧表格。
-function drawDimLine(ctx,x1,y1,x2,y2,tag,valText,off,accent,dpr){
-  const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy); if(L<1) return;
-  const ux=dx/L,uy=dy/L,nx=-uy,ny=ux;
-  const xa=x1+nx*off,ya=y1+ny*off,xb=x2+nx*off,yb=y2+ny*off;
-  // 端点引线（靠向尺寸线）
+
+// 水平尺寸线：固定 y 的横线，两端竖直引线蹭到测量点；数字在线上/下侧。
+function drawDimH(ctx,ax,ay,bx,by,tag,valText,accent,dpr,cy,half,hUsed){
+  const i=hUsed.length, sideN=((ay+by)/2 < cy) ? -1 : 1;   // 上(-1)/下(+1)
+  const gap=12*dpr+i*16*dpr;
+  const y = sideN<0 ? cy-half-gap : cy+half+gap;
+  hUsed.push(y);
+  const x0=Math.min(ax,bx), x1=Math.max(ax,bx), pad=10*dpr;
   ctx.strokeStyle='rgba(255,147,58,.40)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(xa,ya); ctx.moveTo(x2,y2); ctx.lineTo(xb,yb); ctx.stroke();
-  // 尺寸线
+  ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax,y);
+  ctx.moveTo(bx,by); ctx.lineTo(bx,y); ctx.stroke();
   ctx.strokeStyle=accent; ctx.lineWidth=1.3*dpr;
-  ctx.beginPath(); ctx.moveTo(xa,ya); ctx.lineTo(xb,yb); ctx.stroke();
-  // 箭头
-  const al=6*dpr; ctx.fillStyle=accent;
-  for(const t of [0,L]){
-    const px=xa+ux*t,py=ya+uy*t, bx=-ux*al,by=-uy*al;
-    ctx.beginPath();
-    ctx.moveTo(px,py);
-    ctx.lineTo(px-bx+(-uy)*-al, py-by+ ux*al);
-    ctx.lineTo(px-bx+(+uy)*-al, py-by- ux*al);
-    ctx.closePath(); ctx.fill();
-  }
-  // 编号（+导出时的数值）
-  const mx=(xa+xb)/2, my=(ya+yb)/2;
+  ctx.beginPath(); ctx.moveTo(x0-pad,y); ctx.lineTo(x1+pad,y); ctx.stroke();
+  marker(ctx,x0-pad,y,[1,0],accent,dpr);   // 左端箭头朝右
+  marker(ctx,x1+pad,y,[-1,0],accent,dpr);  // 右端箭头朝左
+  const txt=tag+' '+valText;
+  ctx.font='600 '+Math.round(11*dpr)+'px "IBM Plex Mono",monospace';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle=accent;
-  ctx.font='600 '+Math.round((dimDrawVals?13:11)*dpr)+'px "IBM Plex Mono",monospace';
-  ctx.fillText(dimDrawVals? (tag+' '+valText) : tag, mx, my);
+  const tw=ctx.measureText(txt).width;
+  const lx=(x0+x1)/2, ty = sideN<0 ? y-12*dpr : y+12*dpr;
+  ctx.fillStyle='rgba(23,28,36,.78)';
+  ctx.fillRect(lx-tw/2-4*dpr, ty-8*dpr, tw+8*dpr, 16*dpr);
+  ctx.fillStyle=accent; ctx.fillText(txt, lx, ty+1*dpr);
+}
+
+// 垂直尺寸线：固定 x 的竖线，两端水平引线；数字在线的左/右侧。
+function drawDimV(ctx,ax,ay,bx,by,tag,valText,accent,dpr,cx,half,vUsed){
+  const i=vUsed.length, sideN=((ax+bx)/2 < cx) ? -1 : 1;   // 左(-1)/右(+1)
+  const gap=12*dpr+i*16*dpr;
+  const x = sideN<0 ? cx-half-gap : cx+half+gap;
+  vUsed.push(x);
+  const y0=Math.min(ay,by), y1=Math.max(ay,by), pad=10*dpr;
+  ctx.strokeStyle='rgba(255,147,58,.40)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(x,ay);
+  ctx.moveTo(bx,by); ctx.lineTo(x,by); ctx.stroke();
+  ctx.strokeStyle=accent; ctx.lineWidth=1.3*dpr;
+  ctx.beginPath(); ctx.moveTo(x,y0-pad); ctx.lineTo(x,y1+pad); ctx.stroke();
+  marker(ctx,x,y0-pad,[0,1],accent,dpr);   // 上端箭头朝下
+  marker(ctx,x,y1+pad,[0,-1],accent,dpr);  // 下端箭头朝上
+  const txt=tag+' '+valText;
+  ctx.font='600 '+Math.round(11*dpr)+'px "IBM Plex Mono",monospace';
+  ctx.textAlign= sideN<0 ? 'right':'left';
   ctx.textBaseline='middle';
+  const tw=ctx.measureText(txt).width;
+  const ly=(y0+y1)/2, tx = x + sideN*10*dpr;
+  ctx.fillStyle='rgba(23,28,36,.78)';
+  ctx.fillRect(sideN<0? tx-tw-4*dpr : tx, ly-8*dpr, tw+8*dpr, 16*dpr);
+  ctx.fillStyle=accent; ctx.fillText(txt, tx, ly+1*dpr);
+}
+
+// 尺寸线端点箭头：尖端在 (x,y)，方向 dir=(1,0)/(0,1)/(-1,0)/(0,-1)。
+function marker(ctx,x,y,dir,accent,dpr){
+  const al=6*dpr; ctx.fillStyle=accent;
+  const ux=dir[0], uy=dir[1], nx=-uy, ny=ux;
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x-ux*al+nx*al, y-uy*al+ny*al);
+  ctx.lineTo(x-ux*al-nx*al, y-uy*al-ny*al);
+  ctx.closePath(); ctx.fill();
 }
 
 /* ================= 重绘统一 ================= */
@@ -764,8 +860,16 @@ function fitSquare(cv,pad){
   cv.style.width=side+'px'; cv.style.height=side+'px';
   cv.width=Math.round(side*RENDER_RES); cv.height=Math.round(side*RENDER_RES);
 }
+function fitRect(cv){
+  // 2D 图纸：占满父容器宽，高度按容器适应（内部左侧主图 + 右侧参数栏）
+  const p=cv.parentElement;
+  const w=Math.max(200,p.clientWidth), h=Math.max(140,p.clientHeight);
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+  cv.width=Math.round(w*RENDER_RES); cv.height=Math.round(h*RENDER_RES);
+}
 function setSize(){
-  fitSquare($('#canvas3d')); fitSquare($('#canvas2d'),4);   // 3D/2D 视窗居中成正方形
+  fitSquare($('#canvas3d'),4);       // 3D 保持正方形
+  fitRect($('#canvas2d'));           // 2D 走宽度优先的矩形
   if(Model) renderAll();
 }
 function renderAll(){
@@ -988,15 +1092,17 @@ function dl(name,data){
 function exportPNG(){
   const cv=$('#canvas2d');
   const SAVE={w:cv.width,h:cv.height,sw:cv.style.width,sh:cv.style.height};
-  const BIG=2880;             // 导出分辨率：2× 于前，部分对 JPEG/PNG 足够清晰
-  const _rr=RENDER_RES;       // 导出时调大字号/线宽比例，保证 2880 图上的数值可读
-  RENDER_RES=Math.max(6,Math.round(BIG/470));
-  cv.width=BIG; cv.height=BIG; cv.style.width='auto'; cv.style.height='auto';
+  const r0=RENDER_RES;
+  const TARGET_H=2880;        // 目标导出高度，宽度按当前宽高比放大
+  const k=TARGET_H/(SAVE.h||1);
+  RENDER_RES=Math.max(6,Math.round(r0*k));
+  cv.width=Math.max(4,Math.round(SAVE.w*k)); cv.height=Math.round(SAVE.h*k);
+  cv.style.width='auto'; cv.style.height='auto';
   dimDrawVals=true;           // 把每个尺寸的数值烧进图纸，导出图带数据
   render2D(Model);
   dimDrawVals=false;
   const url=cv.toDataURL('image/png');
-  RENDER_RES=_rr;
+  RENDER_RES=r0;
   // 恢复界面画布并重绘
   cv.width=SAVE.w; cv.height=SAVE.h; cv.style.width=SAVE.sw; cv.style.height=SAVE.sh;
   render2D(Model);
@@ -1075,9 +1181,69 @@ function buildLinksJson(){
   out.by_group=byGroup;
   return JSON.stringify(out,null,2);
 }
+/* ---------- 后端保存接口（优先·失败退回浏览器下载） ---------- */
+function blobToDataURL(blob){ return new Promise((res,rej)=>{const fr=new FileReader();
+  fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob);}); }
+// 根据参数表(关键连杆长度)生成可辨识文件名：pikachu_sample_links_t25_s70.urdf
+// 取 KEYDIMS 某项的图纸实测值(mm)；取不到返回 null
+function keydimVal(no){
+  if(!Model) return null;
+  const tfs=computeTFs(Model);
+  for(const D of KEYDIMS){
+    if(D.no!==no) continue;
+    let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
+    if(!a||!b) continue;
+    const v=refDist(a,D.ad,b,D.bd);
+    if(isFinite(v)&&v>=0.002) return Math.round(v*1000);
+  }
+  return null;
+}
+
+// 导出名：<原名>_B<躯干长①>_L<大腿长③>_l<小腿长④>，用图纸实测 mm 值
+function decorateName(){
+  const base=srcName();
+  const B=keydimVal('①'), L=keydimVal('③'), l=keydimVal('④');
+  let out=base;
+  if(B!==null) out+='_B'+B;
+  if(L!==null) out+='_L'+L;
+  if(l!==null) out+='_l'+l;
+  return out;
+}
+// 单文件保存到后端所在目录：文本走 content，png 走 base64；返回说明或 null(不可用)
+async function saveServer(filename, data, ext){
+  try{
+    let body;
+    if(ext==='png'){
+      const dl=await blobToDataURL(data);
+      body={filename, ext, b64:dl.split(',')[1]||''};
+    }else{
+      const content= data instanceof Blob? await data.text() : String(data);
+      body={filename, ext, content};
+    }
+    const r=await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>null);
+    if(r.ok&&j&&j.ok) return {msg:'已通过后端保存到 '+j.path};
+  }catch(e){}
+  return null;   // 后端不可用(如 file:// 打开)→ 返回 null 走原下载
+}
+// 批量保存：后端在根目录新建子文件夹 dirname 并写入多个文件
+async function exportDirServer(dirname, items){
+  try{
+    const files= items.map(it=> it.b64? {filename:it.filename,b64:it.b64} : {filename:it.filename,content:it.content});
+    const r=await fetch('/api/save_dir',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({dir:dirname, files})});
+    const j=await r.json().catch(()=>null);
+    if(r.ok&&j&&j.ok) return j;
+  }catch(e){}
+  return null;
+}
+
 $('#btnSaveX').addEventListener('click',async()=>{
-  const r=await fsSave(srcName()+'.xacro', buildXacroText(), 'xacro');
-  toast('已保存 Xacro · '+r);
+  const name=decorateName()+'.xacro', txt=buildXacroText();
+  const sv=await saveServer(name, txt, 'xacro');
+  if(sv){ toast('已保存 Xacro · '+sv.msg); return; }
+  const r=await fsSave(name, txt, 'xacro');
+  toast('已保存 Xacro(下载) · '+r);
 });
 $('#btnSaveURDF').addEventListener('click',async()=>{
   try{
@@ -1088,21 +1254,27 @@ $('#btnSaveURDF').addEventListener('click',async()=>{
       .replace(/^\s*<\?xml[^>]*\?>\s*/,'')
       .trim();
     const out='<?xml version="1.0" encoding="UTF-8"?>\n'+clean+'\n';
-    const r=await fsSave(srcName()+'.urdf', out, 'urdf');
+    const name=decorateName()+'.urdf';
+    const sv=await saveServer(name, out, 'urdf');
+    if(sv){ toast('已导出 URDF（含固定 / 限位 / effort）· '+sv.msg); return; }
+    const r=await fsSave(name, out, 'urdf');
     toast('已导出 URDF（含固定 / 限位 / effort）· '+r);
   }catch(e){ toast('导出 URDF 失败: '+e.message,true); }
 });
 $('#btnSave2D').addEventListener('click',async()=>{
   try{
     if(!Model) throw new Error('尚无模型');
-    const r=await fsSave(srcName()+'_2d.png', exportPNG(), 'png');
+    const name=decorateName()+'_2d.png';
+    const sv=await saveServer(name, exportPNG(), 'png');
+    if(sv){ toast('已导出 2D 图纸（PNG）· '+sv.msg); return; }
+    const r=await fsSave(name, exportPNG(), 'png');
     toast('已导出 2D 图纸（PNG）· '+r);
   }catch(e){ toast('导出 2D PNG 失败: '+e.message,true); }
 });
 $('#btnExportAll').addEventListener('click',async()=>{
   try{
     if(!Model) throw new Error('尚无模型');
-    const base=srcName();
+    const base=decorateName();
     // URDF（含固定/限位/effort，已清洗 xacro 残留与重复 xml 头）
     const {doc}=expand($('#src').value,Props);
     const urdf='<?xml version="1.0" encoding="UTF-8"?>\n'+
@@ -1111,13 +1283,23 @@ $('#btnExportAll').addEventListener('click',async()=>{
     const xacroT=buildXacroText();
     const jsonT=buildLinksJson();
     toast('正在渲染并导出 URDF + Xacro + PNG + JSON …');
-    const files=[
-      {name:base+'.urdf',     data:new Blob([urdf],{type:'application/xml'})},
-      {name:base+'.xacro',    data:new Blob([xacroT],{type:'application/xml'})},
+    // 后端建新文件夹一次写入全部（含几何 PNG）
+    const pngBlob=exportPNG();
+    const pngDL=await blobToDataURL(pngBlob);
+    const sv=await exportDirServer(base+'_export',[
+      {filename:base+'.urdf',      content:urdf},
+      {filename:base+'.xacro',     content:xacroT},
+      {filename:base+'_links.json',content:jsonT},
+      {filename:base+'_2d.png',    b64:pngDL.split(',')[1]||''}
+    ]);
+    if(sv){ toast('一键导出完成 · 后端写入 '+sv.dir+'/ 共 '+sv.count+' 个文件'); return; }
+    // 后端不可用 → 退回浏览器下载/选目录
+    const r=await fsExportAll([
+      {name:base+'.urdf',      data:new Blob([urdf],{type:'application/xml'})},
+      {name:base+'.xacro',     data:new Blob([xacroT],{type:'application/xml'})},
       {name:base+'_links.json',data:new Blob([jsonT],{type:'application/json'})},
-      {name:base+'_2d.png',   data:exportPNG()}
-    ];
-    const r=await fsExportAll(files);
+      {name:base+'_2d.png',    data:pngBlob}
+    ]);
     toast('一键导出完成 · '+r);
   }catch(e){ toast('一键导出失败: '+e.message,true); }
 });

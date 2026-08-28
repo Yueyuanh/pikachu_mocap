@@ -5,6 +5,8 @@
   · 层级、关节原点(xyz/rpy)、旋转轴 均严格对应 urdf/Pikachu_V025.urdf
   · 每个连杆用 <box> 表示，尺寸/偏移全部参数化，改顶部参数即可整体适配骨骼
   · 单位：米 (m)
+  · 本文件为 14dof 版：手臂只保留 pitch → roll 两段，去掉 yaw 与 elbow
+    （即 19dof 完整版去掉 arm_yaw / elbow 两对关节/连杆）
 
   与原始 URDF 的对应总表：
     base_link           → 躯干
@@ -13,13 +15,12 @@
     left/right_hip_yaw  →knee       原点沿 -z 偏移 thigh_length   （大腿）
     left/right_knee     →ankle      原点沿 -z 偏移 shank_length   （小腿）
     left/right_arm_pitch→roll       可动(revolute)，沿 y 偏移 arm_pitch_to_roll_y
-    left/right_arm_roll →yaw        可动(revolute)，沿 -z 偏移 arm_upper_z
-    left/right_arm_yaw  →elbow      可动(revolute)，沿 -z 偏移 arm_lower_z
+    left/right_arm_roll             下臂末端（14dof 版去掉 yaw/elbow）
     base_link → head_link           可动(revolute)，立于躯干顶 shoulder_height 之上
-    注：臂 pitch/roll/yaw/elbow 与 head 原本为 fixed，这里改成 revolute 以便驱动；
+    注：臂 pitch/roll 与 head 原本为 fixed，这里改成 revolute 以便驱动；
         限位由 arm_lim_* / head_lim_* 控制。
 ============================================================================ -->
-<robot name="pikachu_sample_links" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="pikachu_sample_14dof_links" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ============================================================ -->
   <!-- 【集中参数区】改这里即可整体调整 / 适配骨骼模型              -->
@@ -62,9 +63,7 @@
   <xacro:property name="arm_pitch_to_roll_y" value="0.049"/>
     <!-- 臂 pitch→roll 沿 y 偏移 -->
   <xacro:property name="arm_upper_z" value="0.051"/>
-    <!-- 臂 roll 段：沿 -z 偏移 / 长度 -->
-  <xacro:property name="arm_lower_z" value="0.021"/>
-    <!-- 臂 yaw 段：沿 -z 偏移 / 长度 -->
+    <!-- 臂 roll 段：沿 -z 偏移 / 长度（14dof 版为末端，已去掉 yaw/elbow） -->
   <xacro:property name="arm_thick_x" value="0.03"/>
   <xacro:property name="arm_width_y" value="0.03"/>
 
@@ -80,9 +79,9 @@
 
   <!-- ==== 手臂 / 头 关节限位（把 fixed 改成 revolute 后可驱动） ==== -->
   <xacro:property name="arm_lim_min" value="-1.57"/>
-    <!-- 臂 pitch/roll/yaw/elbow 的关节下限（弧度） -->
+    <!-- 臂 pitch/roll 的关节下限（弧度） -->
   <xacro:property name="arm_lim_max" value="1.57"/>
-    <!-- 臂 pitch/roll/yaw/elbow 的关节上限（弧度） -->
+    <!-- 臂 pitch/roll 的关节上限（弧度） -->
   <xacro:property name="head_lim_min" value="-0.8"/>
     <!-- 头关节下限（弧度） -->
   <xacro:property name="head_lim_max" value="0.8"/>
@@ -106,11 +105,7 @@
   <xacro:property name="mat_arm_pitch"     value="0.75 0.35 1.00 1"/>
     <!-- 臂段A(arm_pitch 肩)：紫 -->
   <xacro:property name="mat_arm_roll"      value="1.00 0.90 0.25 1"/>
-    <!-- 臂段B(arm_roll 上臂)：黄 -->
-  <xacro:property name="mat_arm_yaw"       value="0.30 0.85 0.80 1"/>
-    <!-- 臂段C(arm_yaw 下臂)：青 -->
-  <xacro:property name="mat_arm_elbow"     value="1.00 0.45 0.55 1"/>
-    <!-- 臂段D(elbow 手)：珊瑚 -->
+    <!-- 臂段B(arm_roll 上臂，14dof 末端)：黄 -->
 
   <!-- ============================================================ -->
   <!-- 材质定义（每段独立颜色，左右对称共用同一套）              -->
@@ -141,12 +136,6 @@
   </material>
   <material name="arm_roll">
     <color rgba="${mat_arm_roll}"/>
-  </material>
-  <material name="arm_yaw">
-    <color rgba="${mat_arm_yaw}"/>
-  </material>
-  <material name="arm_elbow">
-    <color rgba="${mat_arm_elbow}"/>
   </material>
 
   <!-- ============================================================ -->
@@ -243,7 +232,7 @@
   </xacro:macro>
 
   <!-- ============================================================ -->
-  <!-- 手臂宏：生成 pitch/roll/yaw/elbow 四个 link（全部 revolute 可动） -->
+  <!-- 手臂宏：只生成 pitch → roll 两个 link（14dof，全部 revolute 可动） -->
   <!-- ============================================================ -->
   <xacro:macro name="arm_links" params="side sn">
     <!-- arm_pitch_link：覆盖到 roll 的横向(y)段 -->
@@ -265,7 +254,7 @@
       <limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2.0" velocity="2"/>
     </joint>
 
-    <!-- arm_roll_link：上臂段（arm_upper_z） -->
+    <!-- arm_roll_link：下臂/末端段（arm_upper_z）——14dof 版已去掉 yaw/elbow -->
     <link name="${side}_arm_roll_link">
       <visual>
         <origin xyz="0 0 ${-arm_upper_z/2.0}" rpy="0 0 0"/>
@@ -273,44 +262,6 @@
           <box size="${arm_thick_x} ${arm_width_y} ${arm_upper_z}"/>
         </geometry>
         <material name="arm_roll"/>
-      </visual>
-    </link>
-
-    <joint name="${side}_arm_yaw_joint" type="revolute">
-      <origin xyz="0 0 ${-arm_upper_z}" rpy="0 0 0"/>
-      <parent link="${side}_arm_roll_link"/>
-      <child  link="${side}_arm_yaw_link"/>
-      <axis xyz="0 0 ${sn}"/>
-      <limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2.0" velocity="2"/>
-    </joint>
-
-    <!-- arm_yaw_link：下臂段（arm_lower_z） -->
-    <link name="${side}_arm_yaw_link">
-      <visual>
-        <origin xyz="0 0 ${-arm_lower_z/2.0}" rpy="0 0 0"/>
-        <geometry>
-          <box size="${arm_thick_x} ${arm_width_y} ${arm_lower_z}"/>
-        </geometry>
-        <material name="arm_yaw"/>
-      </visual>
-    </link>
-
-    <joint name="${side}_elbow_joint" type="revolute">
-      <origin xyz="0 0 ${-arm_lower_z}" rpy="0 -1.57 0"/>
-      <parent link="${side}_arm_yaw_link"/>
-      <child  link="${side}_elbow_link"/>
-      <axis xyz="0 ${-sn} 0"/>
-      <limit lower="${arm_lim_min}" upper="${arm_lim_max}" effort="2.0" velocity="2"/>
-    </joint>
-
-    <!-- elbow_link：手（末端） -->
-    <link name="${side}_elbow_link">
-      <visual>
-        <origin xyz="0 0 ${-arm_thick_x/2.0}" rpy="0 0 0"/>
-        <geometry>
-          <box size="${arm_thick_x} ${arm_width_y} ${arm_thick_x}"/>
-        </geometry>
-        <material name="arm_elbow"/>
       </visual>
     </link>
   </xacro:macro>

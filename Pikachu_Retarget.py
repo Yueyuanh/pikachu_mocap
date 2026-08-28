@@ -47,9 +47,15 @@ PORT = 9999
 URDF_DIR = os.path.join(BASE_DIR, "urdf")
 if URDF_DIR not in sys.path:
     sys.path.append(URDF_DIR)
+if BASE_DIR not in sys.path:  # 确保 retarget/ 包可导入（不管从哪启动）
+    sys.path.append(BASE_DIR)
 
-RETARGET_MAP_PATH = os.path.join(BASE_DIR, "retarget_map.yaml")
-BLENDER_URDF_MAP_PATH = os.path.join(BASE_DIR, "blender_urdf_map.yaml")
+RETARGET_CFG = os.path.join(BASE_DIR, "retarget", "config")
+RETARGET_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map.yaml")
+BLENDER_URDF_MAP_PATH = os.path.join(RETARGET_CFG, "blender_urdf_map.yaml")
+SELF_RIG_V2_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map_self_rig_v2.yaml")
+# 新增的自定义皮肤骨架目标（Blender 里的真实骨架名）——把 URDF 皮肤姿态也推给它
+SELF_RIG_V2_ARMATURE = "Pikacuh_skin_self_rig_v2"
 DEFAULT_URDF_PATH = os.path.join(
     BASE_DIR, "urdf", "robot", "Pikachu_V025", "urdf", "Pikachu_V025_flat_21dof.urdf"
 )
@@ -137,10 +143,13 @@ class BlenderClient:
         except Exception:
             self._handle_disconnect()
 
-    def set_pose(self, pose):
+    def set_pose(self, pose, armature=None):
         if not pose:
             return
-        self.send({"type": "set_pose", "pose": pose})
+        msg = {"type": "set_pose", "pose": pose}
+        if armature:
+            msg["armature"] = armature
+        self.send(msg)
 
     def set_urdf_pose(self, armature, pose):
         if not pose:
@@ -561,9 +570,11 @@ class RetargetStudio(QWidget):
         super().__init__()
 
         self.map_path = map_path or RETARGET_MAP_PATH
-        self.burdf_map_path = os.path.join(BASE_DIR, "blender_urdf_map.yaml")
+        self.burdf_map_path = BLENDER_URDF_MAP_PATH
         self.npz_dir = npz_dir or DEFAULT_NPZ_DIR
         self.rt_map = retarget_mod.load_retarget_map(self.map_path)
+        # 新增自定义皮肤骨架的独立映射（Pikacuh_skin_self_rig_v2）
+        self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
         self.burdf_map = self._load_burdf_map()
 
         self.bone_angles = {name: [0, 0, 0] for name, _ in DIRECT_BONES}
@@ -720,9 +731,10 @@ class RetargetStudio(QWidget):
         main_splitter = QSplitter(Qt.Horizontal)
         main_splitter.addWidget(left_splitter)
         main_splitter.addWidget(right_panel)
-        main_splitter.setStretchFactor(0, 1)
-        main_splitter.setStretchFactor(1, 2)
-        main_splitter.setSizes([560, 700])
+        # 右面板（URDF Meshcat 3D）默认只占 1/3，保持 splitter 可手动拖拽调整
+        main_splitter.setStretchFactor(0, 2)
+        main_splitter.setStretchFactor(1, 1)
+        main_splitter.setSizes([700, 350])
 
         main_layout.addWidget(main_splitter)
         self.setLayout(main_layout)
@@ -905,9 +917,29 @@ class RetargetStudio(QWidget):
     def _push_mapped_chains(self):
         bone_pose = self._current_skin_pose()
         self.retarget_panel.update_pose(bone_pose)
-        if self.sync_toggle.isChecked() and self.client.connected:
-            self.client.set_pose(bone_pose)
+        self._push_skins()
         self._push_urdf_if_needed()
+
+    def _skin_armatures(self):
+        """供 set_pose 驱动的皮肤骨架注册表：(armature_name, rt_map)。
+
+        每个骨架用各自的 retarget map 把 URDF 关节角写成该骨架的骨骼欧拉角。
+        rig = 原 Rigify 皮肤（默认 / 旧版 addon 也兜得住）；
+        其余为新增自定义皮肤骨架。
+        """
+        return [
+            ("rig", self.rt_map),
+            (SELF_RIG_V2_ARMATURE, self.rt_map_v2),
+        ]
+
+    def _push_skins(self):
+        """把当前 URDF 皮肤姿态推给所有注册的皮肤骨架（受 Sync to Blender 皮肤 开关限制）。"""
+        if not (self.sync_toggle.isChecked() and self.client.connected):
+            return
+        for arm_name, m in self._skin_armatures():
+            pose = self._current_skin_pose(m)
+            if pose:
+                self.client.set_pose(pose, armature=arm_name)
 
     def _urdf_armature_list(self):
         return BlenderUrdfPanel._armature_list(self.burdf_map)
@@ -965,10 +997,10 @@ class RetargetStudio(QWidget):
             if pose:
                 self.client.set_urdf_pose(a.get("name", ""), pose)
 
-    def _current_skin_pose(self):
+    def _current_skin_pose(self, rt_map=None):
         active = {n: self.urdf_joint_angles_rad.get(n, 0.0)
                   for n, w in self.urdf_joint_widgets_list.items() if w.sync_checkbox.isChecked()}
-        return retarget_mod.apply_retarget_rad(active, self.rt_map)
+        return retarget_mod.apply_retarget_rad(active, rt_map or self.rt_map)
 
     def _push_skin_pose(self):
         bone_pose = self.bone_angles  # 直接 FK 控制
@@ -1068,6 +1100,7 @@ class RetargetStudio(QWidget):
     def _reload_map(self):
         try:
             self.rt_map = retarget_mod.load_retarget_map(self.map_path)
+            self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
             self.retarget_panel.rebuild(self.rt_map)
             print("Retarget map reloaded")
         except Exception as e:
@@ -1098,11 +1131,14 @@ class RetargetStudio(QWidget):
             self.bone_angles[name] = [0, 0, 0]
         self.bone_joint_widget.set_angles([0, 0, 0])
 
-        # 上行零姿态给 Blender（皮肤 + blender-urdf）
+        # 上行零姿态给 Blender（所有皮肤骨架 + blender-urdf）
         bone_pose = self._current_skin_pose()
         self.retarget_panel.update_pose(bone_pose)
         if self.client.connected:
-            self.client.set_pose(bone_pose)
+            for arm_name, m in self._skin_armatures():
+                pose = self._current_skin_pose(m)
+                if pose:
+                    self.client.set_pose(pose, armature=arm_name)
             # reset 强推所有 map rig 到 rest，保持 meshcat 与勾选的 Blender URDF 一致
             self._push_urdf_reset()
         print("Reset all")

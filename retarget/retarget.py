@@ -112,7 +112,7 @@ if __name__ == "__main__":
     import sys
 
     here = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(here, "retarget_map.yaml")
+    path = os.path.join(here, "config", "retarget_map.yaml")
 
     if not os.path.exists(path):
         print(f"未找到映射文件: {path}")

@@ -138,11 +138,12 @@ def set_joint(bone_name, axis, angle):
     bpy.context.view_layer.update()
 
 
-def set_pose(pose):
+def set_pose(pose, armature_name=None):
     if not pose:
         return
 
-    arm = get_armature()
+    # 带 armature 名 → 驱动指定骨架（多皮肤支持）；否则沿用默认 get_armature()（rig）
+    arm = get_armature(armature_name) if armature_name else get_armature()
     if arm is None:
         _send_debug("Set pose failed: armature not found.")
         return
@@ -450,7 +451,7 @@ def handle_message(msg):
         elif data["type"] == "set_pose":
 
             pose = data.get("pose") or {}
-            set_pose(pose)
+            set_pose(pose, data.get("armature"))
 
         elif data["type"] == "request_pose":
 

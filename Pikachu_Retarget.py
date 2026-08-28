@@ -315,7 +315,9 @@ class BoneJointWidget(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         title = QLabel(f"Bone: {name}")
         title.setStyleSheet("font-size: 13px; font-weight: 600;")
-        lay.addWidget(title)
+        self.title = QLabel(f"Bone: {name}")
+        self.title.setStyleSheet("font-size: 13px; font-weight: 600;")
+        lay.addWidget(self.title)
         self.labels = {}
         for axis in ["x", "y", "z"]:
             row = QHBoxLayout()
@@ -335,6 +337,11 @@ class BoneJointWidget(QWidget):
             lay.addLayout(row)
             self.labels[axis] = (sl, lb)
         self.setLayout(lay)
+
+    def set_bone_name(self, name):
+        """选中列表中其它骨骼时更新标题（否则会一直显示首个骨骼名）。"""
+        self.name = name
+        self.title.setText(f"Bone: {name}")
 
     def _changed(self, axis, val):
         self.labels[axis][1].setText(str(val))
@@ -760,35 +767,76 @@ class RetargetStudio(QWidget):
         except Exception:
             return {}
 
-    # ---------- URDF 滑动条构建 ----------
+    # ---------- URDF 滑动条构建（按 hip → arm → head 分组，每组可折叠）----------
     def _build_urdf_widgets(self, layout):
-        ORDER = [
-            "head_yaw_joint", "head_pitch_joint", "head_roll_joint",
-            "left_arm_pitch_joint", "left_arm_roll_joint", "left_arm_yaw_joint", "left_elbow_ankle_joint",
-            "right_arm_pitch_joint", "right_arm_roll_joint", "right_arm_yaw_joint", "right_elbow_ankle_joint",
-            "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
-            "left_knee_joint", "left_ankle_joint",
-            "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
-            "right_knee_joint", "right_ankle_joint",
+        # 每组一个标题 + 关节列表 + 归属前缀（用于把未知关节兜进正确的组）
+        GROUPS = [
+            ("Hip", [
+                "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+                "left_knee_joint", "left_ankle_joint",
+                "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+                "right_knee_joint", "right_ankle_joint",
+            ], ("hip", "knee", "ankle")),
+            ("Arm", [
+                "left_arm_pitch_joint", "left_arm_roll_joint", "left_arm_yaw_joint",
+                "left_elbow_ankle_joint",
+                "right_arm_pitch_joint", "right_arm_roll_joint", "right_arm_yaw_joint",
+                "right_elbow_ankle_joint",
+            ], ("arm", "elbow", "shoulder")),
+            ("Head", [
+                "head_yaw_joint", "head_pitch_joint", "head_roll_joint",
+            ], ("head", "neck")),
         ]
-        if self.urdf_robot:
-            known = set(ORDER)
-            names = [n for n in ORDER if n in self.urdf_robot.joint_limits]
-            names += [n for n in self.urdf_robot.joint_names if n not in known]
-        else:
-            names = list(self.rt_map.keys())
-        for name in names:
+
+        def joint_limit(name):
             if self.urdf_robot and name in self.urdf_robot.joint_limits:
-                lower, upper = self.urdf_robot.joint_limits[name]
-            elif name in self.rt_map:
+                return self.urdf_robot.joint_limits[name]
+            if name in self.rt_map:
                 lo, hi = self.rt_map[name]["limit"]
-                lower, upper = math.radians(lo), math.radians(hi)
+                return math.radians(lo), math.radians(hi)
+            return -3.14, 3.14
+
+        for group_title, order, terms in GROUPS:
+            known = set(order)
+            if self.urdf_robot:
+                names = [n for n in order if n in self.urdf_robot.joint_limits]
+                names += [n for n in self.urdf_robot.joint_names
+                          if n not in known and any(n.startswith(t) for t in terms)]
             else:
-                lower, upper = -3.14, 3.14
-            w = URDFJointWidget(name, lower, upper, self._on_urdf_joint_change,
-                                lambda n, c: None, use_degree=True, sync_checked=False)
-            self.urdf_joint_widgets_list[name] = w
-            layout.addWidget(w)
+                names = [n for n in order if n in self.rt_map]
+                names += [n for n in self.rt_map
+                          if n not in known and any(n.startswith(t) for t in terms)]
+
+            # 折叠头：勾选=展开（↑/↓ 箭头 + 文字）
+            head = QToolButton()
+            head.setText(group_title)
+            head.setCheckable(True)
+            head.setChecked(True)
+            head.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            head.setArrowType(Qt.DownArrow)
+            head.setStyleSheet("QToolButton { font-size: 13px; font-weight: 700; "
+                               "border: none; padding: 3px 0; }")
+            layout.addWidget(head)
+
+            # 组内容：包一层 QWidget，折叠时整体隐藏
+            cont = QWidget()
+            cont_lay = QVBoxLayout()
+            cont_lay.setContentsMargins(8, 0, 0, 0)
+            cont_lay.setSpacing(2)
+            for name in names:
+                lower, upper = joint_limit(name)
+                w = URDFJointWidget(name, lower, upper, self._on_urdf_joint_change,
+                                    lambda n, c: None, use_degree=True, sync_checked=False)
+                self.urdf_joint_widgets_list[name] = w
+                cont_lay.addWidget(w)
+            cont.setLayout(cont_lay)
+            layout.addWidget(cont)
+
+            def _toggle(checked, cont=cont, head=head):
+                cont.setVisible(checked)
+                head.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
+            head.toggled.connect(_toggle)
+            layout.addSpacing(6)
 
     # ---------- 模式切换 ----------
     def _switch_mode(self, key):
@@ -834,7 +882,7 @@ class RetargetStudio(QWidget):
         if row < 0:
             return
         name, limit = DIRECT_BONES[row]
-        self.bone_joint_widget.name = name
+        self.bone_joint_widget.set_bone_name(name)
         self.bone_joint_widget.set_angles(self.bone_angles.get(name, [0, 0, 0]))
 
     def _on_bone_axis_change(self, bone, axis, val):

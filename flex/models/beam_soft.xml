@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mujoco model="beam_soft_mvp">
+  <option timestep="0.004" gravity="0 0 -9.81"/>
+  <visual><global elevation="-15" azimuth="130" offwidth="720" offheight="720"/></visual>
+  <worldbody>
+    <geom name="floor" type="plane" size="2 2 0.1" pos="0 0 0" rgba="0.45 0.50 0.55 1" friction="0.8"/>
+    <body name="beam" pos="0 0 0.6">
+      <freejoint/>
+      <geom name="core" type="capsule" fromto="0 0 0 0.5 0 0" size="0.03" rgba="0.10 0.55 0.90 0.55" />
+      <geom name="cloud_00" type="sphere" pos="0.0357143 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_01" type="sphere" pos="0.0357143 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_02" type="sphere" pos="0.0357143 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_03" type="sphere" pos="0.0357143 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_04" type="sphere" pos="0.0357143 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_05" type="sphere" pos="0.0357143 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_06" type="sphere" pos="0.107143 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_07" type="sphere" pos="0.107143 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_08" type="sphere" pos="0.107143 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_09" type="sphere" pos="0.107143 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_10" type="sphere" pos="0.107143 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_11" type="sphere" pos="0.107143 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_12" type="sphere" pos="0.178571 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_13" type="sphere" pos="0.178571 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_14" type="sphere" pos="0.178571 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_15" type="sphere" pos="0.178571 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_16" type="sphere" pos="0.178571 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_17" type="sphere" pos="0.178571 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_18" type="sphere" pos="0.25 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_19" type="sphere" pos="0.25 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_20" type="sphere" pos="0.25 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_21" type="sphere" pos="0.25 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_22" type="sphere" pos="0.25 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_23" type="sphere" pos="0.25 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_24" type="sphere" pos="0.321429 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_25" type="sphere" pos="0.321429 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_26" type="sphere" pos="0.321429 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_27" type="sphere" pos="0.321429 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_28" type="sphere" pos="0.321429 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_29" type="sphere" pos="0.321429 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_30" type="sphere" pos="0.392857 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_31" type="sphere" pos="0.392857 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_32" type="sphere" pos="0.392857 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_33" type="sphere" pos="0.392857 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_34" type="sphere" pos="0.392857 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_35" type="sphere" pos="0.392857 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_36" type="sphere" pos="0.464286 0.042 0" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_37" type="sphere" pos="0.464286 0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_38" type="sphere" pos="0.464286 -0.021 0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_39" type="sphere" pos="0.464286 -0.042 5.14352e-18" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_40" type="sphere" pos="0.464286 -0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+      <geom name="cloud_41" type="sphere" pos="0.464286 0.021 -0.0363731" size="0.012" rgba="1.00 0.42 0.10 0.9" friction="0.3" condim="1"/>
+    </body>
+    <camera name="main" pos="0.6 -0.7 0.8" xyaxes="0.9 0.5 0 -0.3 0.15 1"/>
+  </worldbody>
+</mujoco>

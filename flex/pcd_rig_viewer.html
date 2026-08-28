@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>皮卡丘点云 · 骨骼驱动（three.js LBS）</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font:14px/1.5 system-ui,"PingFang SC",sans-serif;color:#e8ecf4;background:#0f141d}
+  .wrap{display:flex;height:100%}
+  #view{flex:1;min-width:0;position:relative}
+  canvas{display:block}
+  .hud{position:absolute;top:10px;left:10px;background:rgba(15,20,29,.78);padding:6px 10px;border-radius:8px;font-size:12px;color:#9aa6b8;z-index:2;max-width:62%;line-height:1.6}
+  .tools{position:absolute;left:10px;bottom:10px;display:flex;gap:8px;z-index:2}
+  .tools button{background:#22304a;color:#dbe4f0;border:1px solid #35445f;padding:6px 10px;border-radius:7px;cursor:pointer;font-size:12px}
+  .tools button:hover{background:#33446a}
+  .panel{width:282px;flex:none;background:#151b26;border-left:1px solid #232c3b;overflow:auto;padding:14px}
+  .panel h1{font-size:15px;margin:4px 0 6px}
+  .tip{font-size:12px;color:#8b96a8;margin:0 0 12px;line-height:1.6}
+  .grp{margin-bottom:10px}
+  .grp>.t{font-weight:600;font-size:12px;color:#7fd0ff;margin:8px 0 4px}
+  .jnt{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .jnt label{width:96px;font-size:12px;color:#c7d0dd;flex:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .jnt input[type=range]{flex:1}
+  .jnt .deg{width:36px;text-align:right;font-size:11px;color:#8b96a8;font-variant-numeric:tabular-nums}
+  #stat{font-size:11px;color:#7ecd8c;white-space:pre-wrap;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="view">
+    <canvas id="gl"></canvas>
+    <div class="hud" id="hud">加载点云数据…</div>
+    <div class="tools">
+      <button onclick="toggleBone()">骨骼线: 开</button>
+      <button onclick="resetPose()">复位</button>
+      <button onclick="autoPose()">摆动</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h1>皮卡丘点云 · 骨骼驱动</h1>
+    <p class="tip">点云顶点各绑定“最近骨”。拖滑条旋转骨 → 沿骨链做正运动学(FK)累积旋转 → 每点 LBS(rest-offset 经骨世界旋转)随动。物理归 MuJoCo(elastic_collision.py)，这里“画+驱动”。</p>
+    <div id="stat"></div>
+    <div id="sliders"></div>
+  </div>
+</div>
+
+<script src="./pcd_data.js"></script>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+window.addEventListener('error',(e)=>{
+  document.title='ERR:L'+(e.lineno||'?')+':'+(e.colno||'?')+' '+String(e.message||'').slice(0,70);
+  const st=document.getElementById('stat');
+  if(st) st.innerHTML='<pre>'+String((e.error&&e.error.stack)||e.message)+'</pre>';
+});
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const DATA=window.PCD_DATA;
+if(!DATA){ document.title='ERR:no-data'; throw new Error('pcd_data.js 未加载'); }
+const P=DATA.pts, AS=DATA.assign, BONES=DATA.bones, N=P.length, nb=BONES.length;
+
+// ---- 场景 ----
+const scene=new THREE.Scene(); scene.background=new THREE.Color('#141924');
+const cam=new THREE.PerspectiveCamera(45,1,.01,100); cam.position.set(1.6,1.2,2.1);
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('gl'),antialias:true});
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+scene.add(new THREE.AmbientLight(0xffffff,0.9));
+const key=new THREE.DirectionalLight(0xffffff,1.5); key.position.set(2,3,3); scene.add(key);
+scene.add(new THREE.GridHelper(3,12,0x33405a,0x232b3d));
+const ctrl=new OrbitControls(cam,renderer.domElement); ctrl.target.set(0,0.8,0); ctrl.update();
+
+// ---- 骨骼 rest / 拓扑 ----
+const rest=[]; BONES.forEach(b=>rest[b.id]=new THREE.Vector3(b.pos[0],b.pos[1],b.pos[2]));
+const childRel=[]; BONES.forEach(b=>{
+  childRel[b.id]= b.parent>=0 ? rest[b.id].clone().sub(rest[b.parent]) : new THREE.Vector3();
+});
+const order=[]; (function(){
+  const root=BONES.find(b=>b.parent===-1).id, q=[root];
+  while(q.length){ const b=BONES[q.shift()]; if(order.includes(b))continue; order.push(b);
+    BONES.forEach(c=>{ if(c.parent===b.id && !order.includes(c)) q.push(c.id); }); }
+})();
+const rotDeg=new Float32Array(nb);
+const boneWorld=[], boneR=[];
+BONES.forEach(_=>{boneWorld.push(new THREE.Vector3()); boneR.push(null);});
+
+// ---- 点云几何 ----
+const geo=new THREE.BufferGeometry();
+const posAttr=new Float32Array(N*3); geo.setAttribute('position',new THREE.BufferAttribute(posAttr,3));
+const col=new Float32Array(N*3);
+for(let i=0;i<N;i++){ const b=AS[i]/nb;
+  col[i*3]=0.8+0.25*Math.sin(b*9); col[i*3+1]=0.55+0.35*Math.cos(b*6); col[i*3+2]=0.2; }
+geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+const pts=new THREE.Points(geo,new THREE.PointsMaterial({size:0.022,vertexColors:true}));
+scene.add(pts);
+const boneSegs=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffd76a}));
+scene.add(boneSegs);
+
+const DEG=Math.PI/180, _v=new THREE.Vector3();
+
+function fk(){
+  for(const b of order){
+    const id=b.id, pid=b.parent;
+    const Rl=new THREE.Matrix4().makeRotationX(rotDeg[id]*DEG);
+    boneR[id]= pid>=0 ? boneR[pid].clone().multiply(Rl) : Rl;
+    if(pid<0){ boneWorld[id].copy(rest[id]); }
+    else{ _v.copy(childRel[id]).applyMatrix4(boneR[pid]).add(boneWorld[pid]); boneWorld[id].copy(_v); }
+  }
+  const missing=[];
+  for(let i=0;i<N;i++){
+    const bid=AS[i];
+    if(!boneR[bid]){ missing.push(bid); if(missing.length<6)missing.push('noR'); continue; }
+    _v.copy(rest[bid]); _v.set(P[i][0]-_v.x, P[i][1]-_v.y, P[i][2]-_v.z);
+    _v.applyMatrix4(boneR[bid]).add(boneWorld[bid]);
+    posAttr[i*3]=_v.x; posAttr[i*3+1]=_v.y; posAttr[i*3+2]=_v.z;
+  }
+  if(missing.length) document.title='DBG nb='+nb+' ASmax='+Math.max(...AS)+' miss='+missing.join(',');
+  posAttr.needsUpdate=true;
+  const seg=[];
+  for(const b of order){ if(b.parent>=0){ const p=boneWorld[b.parent], c=boneWorld[b.id];
+    seg.push(p.x,p.y,p.z, c.x,c.y,c.z); } }
+  boneSegs.geometry.setAttribute('position',new THREE.Float32BufferAttribute(seg,3));
+}
+function movedY(){ let s=0; for(let i=0;i<N;i++) s+=posAttr[i*3+1]-P[i][1]; return s; }
+
+const hud=document.getElementById('hud'), stat=document.getElementById('stat');
+function refresh(){
+  fk();
+  document.title='pcd-bones='+nb+'-pts='+N+'-movedY='+movedY().toFixed(2);
+  hud.textContent='点云 '+N+' · 骨骼 '+nb+' · 拖滑条驱动骨 → 点云 LBS 随动';
+  stat.textContent='骨骼: '+BONES.map(b=>b.name).join(', ')+'\n每点绑定最近骨做线性混合蒙皮(LBS)。';
+}
+
+// ---- 滑条面板 ----
+const holder=document.getElementById('sliders');
+const groups={
+ '腿_L':['hip_L','hip_pitch_L','hip_knee_L','hip_ankle_L'],
+ '腿_R':['hip_R','hip_pitch_R','hip_knee_R','hip_ankle_R'],
+ '臂/头':['arm_L','arm_R','arm_pitch_L','arm_pitch_R','head']};
+for(const gname in groups){
+  const sec=document.createElement('div'); sec.className='grp';
+  sec.innerHTML='<div class="t">'+gname+'</div>';
+  for(const bn of groups[gname]){
+    const b=BONES.find(x=>x.name===bn);
+    if(!b){ const r=document.createElement('div'); r.className='jnt';
+      r.innerHTML='<label>'+bn+'</label><span style="color:#7a5">无</span>'; sec.appendChild(r); continue; }
+    const row=document.createElement('div'); row.className='jnt';
+    row.innerHTML='<label>'+bn+'</label><input type="range" min="-90" max="90" step="1" value="0"><span class="deg">0°</span>';
+    const rng=row.querySelector('input'), dg=row.querySelector('.deg');
+    rng.oninput=()=>{ rotDeg[b.id]=+rng.value; dg.textContent=rng.value+'°'; refresh(); };
+    sec.appendChild(row);
+  }
+  holder.appendChild(sec);
+}
+window.toggleBone=()=>{ boneSegs.visible=!boneSegs.visible;
+  document.querySelector('.tools button').textContent='骨骼线: '+(boneSegs.visible?'开':'关'); };
+window.resetPose=()=>{ rotDeg.fill(0);
+  document.querySelectorAll('#sliders input').forEach(i=>{ i.value=0; i.nextElementSibling.textContent='0°'; }); refresh(); };
+let _auto=null;
+window.autoPose=()=>{ if(_auto){clearInterval(_auto);_auto=null;resetPose();return;}
+  const raws=[...document.querySelectorAll('#sliders .jnt')]; let t=0;
+  _auto=setInterval(()=>{ t+=0.04;
+    for(const r of raws){ const nm=r.querySelector('label').textContent;
+      const b=BONES.find(x=>x.name===nm); if(!b)continue;
+      const v=Math.round(Math.sin(t*2+b.id)*50);
+      r.querySelector('input').value=v; r.querySelector('.deg').textContent=v+'°';
+      rotDeg[b.id]=v; } refresh();
+    if(t>6){clearInterval(_auto);_auto=null;} },30);
+  document.querySelector('.tools button').textContent='骨骼线: 开'; };
+
+// 测试姿态(?pose=1): 摆腿/臂验证点云随骨位移
+if(new URLSearchParams(location.search).has('pose')){
+  const setR=(nm,v)=>{ const b=BONES.find(x=>x.name===nm); if(b) rotDeg[b.id]=v; };
+  setR('hip_knee_L',48); setR('hip_pitch_L',22); setR('arm_pitch_R',38); setR('arm_R',20); setR('head',15);
+  refresh();
+}
+
+function resize(){ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  const w=document.getElementById('view').clientWidth, h=document.getElementById('view').clientHeight;
+  renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize',resize);
+function loop(){ requestAnimationFrame(loop); ctrl.update(); renderer.render(scene,cam); }
+resize(); refresh(); loop();
+</script>
+</body>
+</html>

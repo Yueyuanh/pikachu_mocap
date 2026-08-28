@@ -1,5 +1,5 @@
 # Python
-__pycache__/
+
 *.py[cod]
 
 # Blender 物理/模拟缓存与备份（blendcache_* 是本命中产物，.blend1 是上版本备份）
@@ -8,4 +8,10 @@ assets/blendcache_*/
 
 # 大二进制资产保留（.blend/.fbx/STL 需提交），仅忽略缓存/备份
 
-# 本地脚本
+# flex 弹性碰撞实验：大生成产物（重跑脚本可复原；报告已内嵌 base64 截图，无需提交原始 png）
+flex/models/*.pcd
+flex/models/*.ply
+flex/reports/*.png
+flex/_report_preview.png
+flex/MUJOCO_LOG.TXT
+flex/*.png

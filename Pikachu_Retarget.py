@@ -150,6 +150,147 @@ def npz_row_to_urdf(row):
     return out
 
 
+# ============================ npz base (root 位姿) 支持 ============================
+# npz root = body_pos_w[:,0]（世界位置）+ body_quat_w[:,0]（世界四元数, wxyz）。
+#   播 base: pos 取“相对首帧增量”(叠到角色原本位置)；rot 取“绝对 XYZ 欧拉(度)”。
+# 统一 XYZ 欧拉约定：meshcat euler_matrix('rxyz') 与 Blender rotation_mode='XYZ'
+#   都是 intrinsic XYZ（复合矩阵 R = Rz·Ry·Rx），故 meshcat / Blender 三方一致。
+UNIT_BASE_CFG = {"pos_scale": [1.0, 1.0, 1.0], "pos_dir": [1.0, 1.0, 1.0]}
+
+
+def _quat_wxyz_to_mat(q):
+    """wxyz 四元数 → 3x3 旋转矩阵（单位化）。"""
+    q = np.asarray(q, dtype=float)
+    n = np.linalg.norm(q)
+    if n < 1e-8:
+        return np.eye(3)
+    w, x, y, z = q / n
+    xx, yy, zz = x * x, y * y, z * z
+    xy, xz, yz = x * y, x * z, y * z
+    wx, wy, wz = w * x, w * y, w * z
+    return np.array([
+        [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
+        [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
+        [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)],
+    ])
+
+
+def _mat_to_euler_xyz_rad(R):
+    """旋转矩阵 → intrinsic XYZ 欧拉(rad)。R = Rz(γ)·Ry(β)·Rx(α)。"""
+    R = np.asarray(R, dtype=float)
+    beta = math.atan2(-R[2, 0], math.sqrt(R[0, 0] ** 2 + R[1, 0] ** 2))
+    if abs(abs(beta) - math.pi / 2.0) > 1e-6:
+        alpha = math.atan2(R[2, 1], R[2, 2])
+        gamma = math.atan2(R[1, 0], R[0, 0])
+    else:
+        # 万向锁：令 gamma=0，α 由 (R[0,1],R[0,2]) 求
+        alpha = math.atan2(R[0, 1], R[0, 2])
+        gamma = 0.0
+    return alpha, beta, gamma
+
+
+def quat_to_rpy_xyz_deg(q):
+    a, b, g = _mat_to_euler_xyz_rad(_quat_wxyz_to_mat(q))
+    return [math.degrees(a), math.degrees(b), math.degrees(g)]
+
+
+def npz_base_to(pos_t, quat_t, pos0, cfg=None):
+    """换算每帧 base 的「原始」值（不做轴置换/缩放，留给各 armature 按自身 cfg 应用）。
+    pos_t/pos0=[x,y,z](世界)，quat_t=[wxyz]。
+    返回 (pos_delta, rpy_deg)：pos_delta=相对首帧位移(m)，rpy=绝对 XYZ 欧拉(度)。
+    """
+    pos_delta = (np.asarray(pos_t, float) - np.asarray(pos0, float))
+    rpy_deg = quat_to_rpy_xyz_deg(quat_t)
+    return [float(v) for v in pos_delta], rpy_deg
+
+
+AXIS_IDX = {"x": 0, "y": 1, "z": 2}
+
+
+def _retarget_axes(v, rt):
+    """按 retarget(元素为源轴字母，如 [y,x,z]) 把 v=[x,y,z] 置换成目标 [x,y,z]。
+    out[目标x]=v[retarget[0]]，out[目标y]=v[retarget[1]]，out[目标z]=v[retarget[2]]。
+    retarget 缺失/非法则恒等。"""
+    if not rt or len(rt) != 3:
+        return list(v)
+    try:
+        idx = [AXIS_IDX[str(c).lower()] for c in rt]
+    except (KeyError, TypeError):
+        return list(v)
+    return [v[idx[0]], v[idx[1]], v[idx[2]]]
+
+
+def _base_pos_for_cfg(pos_delta, cfg):
+    """该 armature 应用 own base 配置后的 Blender 目标位置增量：
+    先按 pos_retarget 换轴，再逐轴 * pos_scale * pos_dir。"""
+    tmp = _retarget_axes(pos_delta, cfg.get("pos_retarget"))
+    scale = cfg.get("pos_scale", [1.0, 1.0, 1.0])
+    direc = cfg.get("pos_dir", [1.0, 1.0, 1.0])
+    return [tmp[i] * scale[i] * direc[i] for i in range(3)]
+
+
+def _blender_base_rpy(cfg, rpy_deg):
+    """npz 的绝对 rpy → Blender 目标 xyz 欧拉(度)：
+    先按 rot_retarget 换轴，再 rot_scale 逐轴重映射(+1/-1) + rot_offset 该模型默认安装朝向。
+    """
+    tmp = _retarget_axes(rpy_deg, cfg.get("rot_retarget"))
+    s = cfg.get("rot_scale", [1.0, 1.0, 1.0])
+    off = cfg.get("rot_offset", [0.0, 0.0, 0.0])
+    return [off[i] + s[i] * tmp[i] for i in range(3)]
+
+
+def _blender_rpy_direct(cfg, rpy_deg):
+    """手动滑块路径：滑块值即目标轴（不换轴），仅叠 rot_scale/rot_offset（安装朝向）。"""
+    s = cfg.get("rot_scale", [1.0, 1.0, 1.0])
+    off = cfg.get("rot_offset", [0.0, 0.0, 0.0])
+    return [off[i] + s[i] * rpy_deg[i] for i in range(3)]
+
+
+def _rot_offset(cfg):
+    """台词模型默认 rest 朝向（XYZ 欧拉，度）；reset 归位到它而非 0。"""
+    return list(cfg.get("rot_offset", [0.0, 0.0, 0.0]))
+
+
+def _load_base_cfg_from_file(path):
+    """读 yaml 顶层 base: 块；无则返回单位配置。"""
+    try:
+        import yaml
+        with open(path, "r", encoding="utf-8") as f:
+            meta = yaml.safe_load(f) or {}
+        return dict(meta.get("base") or UNIT_BASE_CFG)
+    except Exception:
+        return dict(UNIT_BASE_CFG)
+
+
+def _base_cfg_for_burdf(meta, name):
+    """从 blender_urdf_map.yaml 取某 armature 的 base 块；无则单位配置。
+
+    兼容两种写法：
+      - 旧式  base:  { pos_scale, pos_dir, rot_scale, rot_offset }
+      - 新式  base_pos {pos_retarget,pos_scale,pos_dir} + base_rot {rot_retarget,rot_scale,rot_offset}
+        因为每个模型安装朝向/方向轴可能不一致，用 base_pos/base_rot 分开定向；
+        pos_retarget/rot_retarget 为声明字段，实际逐轴方向靠 pos_dir/rot_scale(±1)。
+    返回统一 cfg：{pos_scale, pos_dir, rot_scale, rot_offset}（缺省单位）。
+    """
+    for a in (meta or {}).get("armatures") or []:
+        if a.get("name") != name:
+            continue
+        if a.get("base"):
+            return dict(a["base"])
+        if a.get("base_pos") or a.get("base_rot"):
+            bp = a.get("base_pos") or {}
+            br = a.get("base_rot") or {}
+            return {
+                "pos_retarget": bp.get("pos_retarget"),
+                "pos_scale": bp.get("pos_scale", [1.0, 1.0, 1.0]),
+                "pos_dir": bp.get("pos_dir", [1.0, 1.0, 1.0]),
+                "rot_retarget": br.get("rot_retarget"),
+                "rot_scale": br.get("rot_scale", [1.0, 1.0, 1.0]),
+                "rot_offset": br.get("rot_offset", [0.0, 0.0, 0.0]),
+            }
+    return dict(UNIT_BASE_CFG)
+
+
 # ============================ Socket 客户端 ============================
 
 class BlenderClient:
@@ -192,6 +333,14 @@ class BlenderClient:
         if not pose:
             return
         self.send({"type": "set_urdf_pose", "armature": armature, "pose": pose})
+
+    def set_base(self, armature, pos, rpy_deg):
+        """把 armature 对象根位姿设为 pos(增量,世界) + rpy(绝对 XYZ 欧拉,度)。"""
+        if pos is None and rpy_deg is None:
+            return
+        self.send({"type": "set_base", "armature": armature,
+                   "pos": list(pos) if pos is not None else [0.0, 0.0, 0.0],
+                   "rpy_deg": list(rpy_deg) if rpy_deg is not None else [0.0, 0.0, 0.0]})
 
     def request_bones(self):
         self.send({"type": "request_bones"})
@@ -599,10 +748,28 @@ class NPZPanel(QWidget):
         self.setLayout(lay)
 
     def refresh_files(self, paths):
+        """按文件夹分组填充 npz 下拉：每组先加一个不可选的「标题」项，再跟该目录的 .npz。
+        用 QComboBox 标准 addItem(text, data)，data 存完整路径，_load_selected 不变。"""
+        # 公共根：把每个 npz 所在目录相对根展开，根目录文件归 "(根)"
+        try:
+            base = os.path.commonpath([os.path.dirname(p) for p in paths])
+        except Exception:
+            base = ""
+        groups = {}
+        for p in paths:
+            d = os.path.dirname(p)
+            rel = os.path.relpath(d, base) if (base and d != base) else "(根)"
+            groups.setdefault(rel, []).append(p)
         self.file_combo.blockSignals(True)
         self.file_combo.clear()
-        for p in paths:
-            self.file_combo.addItem(p, p)
+        for g in sorted(groups):
+            self.file_combo.addItem(f"—— {g} ——", None)      # 标题：data=None，加载时跳过
+            idx = self.file_combo.count() - 1
+            it = self.file_combo.model().item(idx)
+            if it is not None:
+                it.setFlags(Qt.NoItemFlags)                   # 不可选中 / 不响应
+            for p in sorted(groups[g]):
+                self.file_combo.addItem(os.path.basename(p), p)
         self.file_combo.blockSignals(False)
 
     def set_total(self, total, fps):
@@ -661,11 +828,16 @@ class RetargetStudio(QWidget):
         self.v2_bone_angles = {name: [0, 0, 0] for name, _ in V2_BONES}
         # V2Bone 每根骨 x/y/z 各轴范围（聚合自 self_rig_v2.yaml limit；未映射的骨用 V2_BONES 兜底）
         self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
+        # npz 播 base 用的位置缩放/方向（来自 self_rig_v2.yaml 顶层 base 块）
+        self.base_cfg_v2 = _load_base_cfg_from_file(SELF_RIG_V2_MAP_PATH)
         self.urdf_joint_angles_rad = {}
         self.urdf_joint_widgets_list = {}
         self.urdf_use_degree = True
         self.npz_joints = None     # (T,14)
+        self.npz_base = None       # (body_pos_w, body_quat_w)（若有 base 数据）
+        self.npz_root0 = None      # 首帧 root pos（世界）
         self.npz_frame = 0
+        self._diag_base = 0
         self.playing = False
 
         self.client = BlenderClient(self.on_blender_message, self.on_connect_change)
@@ -701,12 +873,18 @@ class RetargetStudio(QWidget):
         # 全局开关
         self.sync_toggle = QCheckBox("Sync to Blender (皮肤)")
         self.sync_toggle.setChecked(False)
+        self.sync_toggle.toggled.connect(self._on_skin_toggle_all)
         list_layout.addWidget(self.sync_toggle)
 
         self.urdf_sync_toggle = QCheckBox("Drive Blender URDF")
         self.urdf_sync_toggle.setChecked(False)
         self.urdf_sync_toggle.toggled.connect(self._push_urdf_if_needed)
         list_layout.addWidget(self.urdf_sync_toggle)
+
+        # 是否把 npz 的 base(位置/旋转) 映射到 Blender（Blender 实时挪动角色较卡，默认关）
+        self.base_sync_toggle = QCheckBox("映射 Base (pos/rot → Blender)")
+        self.base_sync_toggle.setChecked(False)
+        list_layout.addWidget(self.base_sync_toggle)
 
         self.reset_btn = QPushButton("Reset All")
         self.reset_btn.clicked.connect(self.reset_all)
@@ -825,9 +1003,16 @@ class RetargetStudio(QWidget):
         left_splitter.setSizes([500, 260])
 
         viewer_widget = self.urdf_viewer if self.urdf_viewer else QLabel("No URDF viewer")
+        # meshcat 下方叠 Base 手动排查面板（pos/rot 滑块，直连 meshcat + Blender，方便定位）
+        base_panel = self._make_panel("Base 手动 (pos/rot 排查)", self._build_base_widget())
+        right_stack = QWidget()
+        _rv = QVBoxLayout(right_stack)
+        _rv.setContentsMargins(0, 0, 0, 0)
+        _rv.addWidget(viewer_widget, 1)
+        _rv.addWidget(base_panel)
         right_panel = self._make_panel(
             "URDF Meshcat 3D" if self.urdf_viewer else "URDF (unavailable)",
-            viewer_widget,
+            right_stack,
         )
 
         main_splitter = QSplitter(Qt.Horizontal)
@@ -1152,6 +1337,15 @@ class RetargetStudio(QWidget):
             w.sync_checkbox.blockSignals(True)
             w.sync_checkbox.setChecked(checked)
             w.sync_checkbox.blockSignals(False)
+
+    def _on_skin_toggle_all(self, checked):
+        """勾 Sync to Blender(皮肤) = 打开 Drive Blender URDF + 全选所有 urdf 关节（等值 select all）；
+        取消则同步取消所有 urdf 勾选并关掉 Drive Blender URDF。"""
+        self.urdf_sync_toggle.blockSignals(True)
+        self.urdf_sync_toggle.setChecked(bool(checked))
+        self.urdf_sync_toggle.blockSignals(False)
+        self._on_urdf_select_all(bool(checked))
+        self._push_urdf_if_needed()
         self._push_mapped_chains()
 
     def _set_urdf_mode(self, use_degree):
@@ -1188,6 +1382,16 @@ class RetargetStudio(QWidget):
                 print(f"   (列数 {joints.shape[1]} < 14，仅映射腿部子集)")
             fps = float(np.asarray(d["fps"]).reshape(-1)[0]) if "fps" in d else 30.0
             self.npz_joints = joints
+            self.npz_base = None
+            self.npz_root0 = None
+            # 读 root 位姿（body_pos_w/body_quat_w 第 0 个关节=root）。缺键则仅关节动、base 不动。
+            if "body_pos_w" in d and "body_quat_w" in d:
+                bp = np.asarray(d["body_pos_w"], dtype=float)
+                bq = np.asarray(d["body_quat_w"], dtype=float)
+                if bp.ndim >= 3 and bp.shape[1] >= 1 and bq.ndim >= 3:
+                    self.npz_base = (bp, bq)
+                    self.npz_root0 = bp[0, 0] if bp.shape[0] > 0 else None
+                    print(f"   base: root pos 帧数={bp.shape[0] * bp.shape[1]} 首帧={np.round(self.npz_root0, 3)}")
             self.npz_frame = 0
             self.npz_panel.set_total(len(joints), fps)
             self.npz_panel.set_frame(0)
@@ -1225,10 +1429,163 @@ class RetargetStudio(QWidget):
         for n, v in urdf.items():
             self.urdf_joint_angles_rad[n] = v
         self._push_mapped_chains()
+        # base（root 位姿）同步到 meshcat + Blender 所有角色
+        self._apply_npz_base()
         self.npz_frame += 1
         if self.npz_frame >= len(self.npz_joints):
             self.npz_frame = 0
         self.npz_panel.set_frame(self.npz_frame)
+
+    def _build_base_widget(self):
+        """Base 手动排查面板：pos X/Y/Z(cm) + rot X/Y/Z(°) 滑块 + 复位，直连 meshcat + Blender。"""
+        self._bs = {}   # key -> QSlider
+        self._bsl = {}  # key -> QLabel(值)
+        wid = QWidget()
+        lay = QVBoxLayout(wid)
+        lay.setContentsMargins(2, 2, 2, 2)
+        lay.setSpacing(2)
+
+        def slr(key, label, lo, hi, unit, tip):
+            h = QHBoxLayout()
+            h.addWidget(QLabel(label))
+            s = QSlider(Qt.Horizontal)
+            s.setRange(lo, hi)
+            s.setValue(0)
+            s.setToolTip(tip)
+            s.setFixedHeight(16)
+            s.valueChanged.connect(self._on_base_manual)
+            h.addWidget(s, 1)
+            v = QLabel(f"0 {unit}")
+            v.setFixedWidth(64)
+            h.addWidget(v)
+            lay.addLayout(h)
+            self._bs[key] = s
+            self._bsl[key] = v
+
+        slr("px", "pos X", -500, 500, "cm", "角色位置 X 增量(cm)")
+        slr("py", "pos Y", -500, 500, "cm", "角色位置 Y 增量(cm)")
+        slr("pz", "pos Z", -500, 500, "cm", "角色位置 Z 增量(cm)")
+        slr("rx", "rot X", -360, 360, "°", "角色绝对 XYZ 欧拉 X(°)")
+        slr("ry", "rot Y", -360, 360, "°", "角色绝对 XYZ 欧拉 Y(°)")
+        slr("rz", "rot Z", -360, 360, "°", "角色绝对 XYZ 欧拉 Z(°)")
+
+        rb = QPushButton("Reset base (置 0)")
+        rb.setFixedWidth(140)
+        rb.clicked.connect(self._reset_base_manual)
+        lay.addWidget(rb, 0, Qt.AlignLeft)
+        return wid
+
+    def _on_base_manual(self):
+        pos = [self._bs["px"].value() / 100.0,
+               self._bs["py"].value() / 100.0,
+               self._bs["pz"].value() / 100.0]
+        rpy = [self._bs["rx"].value(), self._bs["ry"].value(), self._bs["rz"].value()]
+        self._bsl["px"].setText(f"{pos[0]*100:.0f} cm")
+        self._bsl["py"].setText(f"{pos[1]*100:.0f} cm")
+        self._bsl["pz"].setText(f"{pos[2]*100:.0f} cm")
+        self._bsl["rx"].setText(f"{rpy[0]}°")
+        self._bsl["ry"].setText(f"{rpy[1]}°")
+        self._bsl["rz"].setText(f"{rpy[2]}°")
+        self._apply_base_to_all(pos, rpy)
+
+    def _reset_base_manual(self):
+        for k, s in self._bs.items():
+            s.setValue(0)
+        self._on_base_manual()
+
+    def _apply_npz_base(self):
+        """把当前帧 root 位姿同步到 meshcat（+可选 Blender 所有角色）。
+        同时让下方的 base 位置/角度滑块随动显示 npz 当前值（不触发手动回发）。"""
+        if not self.npz_base or self.npz_root0 is None:
+            return
+        bp, bq = self.npz_base
+        if self.npz_frame >= bp.shape[0]:
+            return
+        pos_delta, rpy_deg = npz_base_to(
+            bp[self.npz_frame, 0], bq[self.npz_frame, 0], self.npz_root0)
+        # 滑块 + meshcat 都播原始元数据（cm / °，不缩放）
+        self._sync_base_sliders(pos_delta, rpy_deg)
+        if self.urdf_viewer:
+            self.urdf_viewer.follow_robot(True)
+        self._apply_base_to_all(pos_delta, rpy_deg, remap=True)
+
+    def _sync_base_sliders(self, pos_delta, rpy_deg):
+        """播放 npz 时更新 base 手动面板的滑块/数值显示（cm 与 °）。
+        用 blockSignals 防止 setValue 触发 _on_base_manual 造成回环覆写。"""
+        for s in self._bs.values():
+            s.blockSignals(True)
+        vals = {
+            "px": int(round(pos_delta[0] * 100.0)), "py": int(round(pos_delta[1] * 100.0)),
+            "pz": int(round(pos_delta[2] * 100.0)),
+            "rx": int(round(rpy_deg[0])), "ry": int(round(rpy_deg[1])), "rz": int(round(rpy_deg[2])),
+        }
+        for k, v in vals.items():
+            s = self._bs.get(k)
+            if s is None:
+                continue
+            s.setValue(v)
+            lab = self._bsl.get(k)
+            if lab is not None:
+                unit = "cm" if k.startswith("p") else "°"
+                lab.setText(f"{v} {unit}")
+        for s in self._bs.values():
+            s.blockSignals(False)
+
+    def _skin_base_confs(self):
+        """皮肤骨架 (name, base_cfg)：rig 用单位配置，self_rig_v2 用其 yaml 顶层 base。"""
+        return [("rig", dict(UNIT_BASE_CFG)),
+                (SELF_RIG_V2_ARMATURE, self.base_cfg_v2 or dict(UNIT_BASE_CFG))]
+
+    def _burdf_base_confs(self):
+        confs = []
+        for a in self._urdf_armature_list():
+            name = a.get("name")
+            if name:
+                confs.append((name, _base_cfg_for_burdf(self.burdf_map, name)))
+        return confs
+
+    def _apply_base_to_all(self, pos, rpy, remap=False):
+        """把 base 位姿同步到 meshcat +（可选）Blender 所有角色。
+
+        meshcat 永远播「原始 base 元数据」（npz 相对首帧位移 + 绝对 rpy），不做任何缩放/轴置换。
+        只有 Blender 各 armature 才按各自 cfg 重映射（pos_retarget/pos_scale/pos_dir /
+        rot_retarget/rot_scale/rot_offset）：remap=True(npx) 完整重映射；remap=False(手动) 仅叠 rot_offset。
+        "映射 Base" 勾选才推给 Blender。"""
+        if self.urdf_viewer:
+            self.urdf_viewer.set_base_transform(pos, rpy)
+        if not self.base_sync_toggle.isChecked():
+            return
+        if not self.client.connected:
+            return
+        for arm_name, cfg in self._skin_base_confs():
+            if remap:
+                bp_ = _base_pos_for_cfg(pos, cfg)
+                br_ = _blender_base_rpy(cfg, rpy)
+                if arm_name == SELF_RIG_V2_ARMATURE and self._diag_base % 20 == 0:
+                    print(f"  [base→skin] f{self.npz_frame}: pos={[round(v,3) for v in bp_]} "
+                          f"rpy={[round(v,1) for v in br_]}  pos_rt={cfg.get('pos_retarget')}")
+                self._diag_base += 1
+                self.client.set_base(arm_name, bp_, br_)
+            else:
+                self.client.set_base(arm_name, pos, _blender_rpy_direct(cfg, rpy))
+        for name, cfg in self._burdf_base_confs():
+            if remap:
+                self.client.set_base(name, _base_pos_for_cfg(pos, cfg), _blender_base_rpy(cfg, rpy))
+            else:
+                self.client.set_base(name, pos, _blender_rpy_direct(cfg, rpy))
+
+    def _reset_base(self):
+        """播完/重置：meshcat 归 0；Blender 各角色 pos 归 0、旋转回到默认安装朝向(rot_offset)。
+        reset 是显式复位，不受"映射 Base"开关限制。面板滑块一并归 0。"""
+        self._sync_base_sliders([0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        if self.urdf_viewer:
+            self.urdf_viewer.set_base_transform([0, 0, 0], [0, 0, 0])
+            self.urdf_viewer.follow_robot(False)
+        if self.client.connected:
+            for arm_name, cfg in self._skin_base_confs():
+                self.client.set_base(arm_name, [0, 0, 0], _rot_offset(cfg))
+            for name, cfg in self._burdf_base_confs():
+                self.client.set_base(name, [0, 0, 0], _rot_offset(cfg))
 
     def play_btn_pause(self):
         self.playing = False
@@ -1241,17 +1598,24 @@ class RetargetStudio(QWidget):
             self.rt_map = retarget_mod.load_retarget_map(self.map_path)
             self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
             self.retarget_panel.set_maps({"rig": self.rt_map, "self_rig_v2": self.rt_map_v2})
-            # 同步 V2Bone 滑杆逐轴范围（随 self_rig_v2.yaml limit 更新，未映射骨用 V2_BONES 兜底）
-            self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
+            self._reload_skin_base()
             if hasattr(self, "v2_bone_list") and self.v2_bone_list.currentRow() >= 0:
                 self._on_v2_bone_selected(self.v2_bone_list.currentRow())
             print("Retarget map reloaded")
         except Exception as e:
             print("Reload map failed:", e)
 
+    def _reload_skin_base(self):
+        """统一重读 self_rig_v2.yaml（皮肤 base 配置 + V2Bone 逐轴限位）。
+        Retarget 与 Burdf 两个面板的 Reload 都调用，保证皮肤 base 改动即时生效。"""
+        self.base_cfg_v2 = _load_base_cfg_from_file(SELF_RIG_V2_MAP_PATH)
+        self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
+        print("  skin(base) cfg =", self.base_cfg_v2)
+
     def _reload_burdf_map(self):
         self.burdf_map = self._load_burdf_map()
         self.burdf_panel.rebuild(self.burdf_map)
+        self._reload_skin_base()
         print("Blender URDF map reloaded")
 
     def reset_all(self):
@@ -1284,6 +1648,9 @@ class RetargetStudio(QWidget):
                     self.client.set_pose(pose, armature=arm_name)
             # reset 强推所有 map rig 到 rest，保持 meshcat 与勾选的 Blender URDF 一致
             self._push_urdf_reset()
+
+        # base 归位（角色回原位置 / 朝向）
+        self._reset_base()
         print("Reset all")
 
     def closeEvent(self, event):

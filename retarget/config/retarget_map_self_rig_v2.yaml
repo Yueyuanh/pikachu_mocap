@@ -22,6 +22,19 @@
 
 version: 1
 
+# ── base（角色整体位姿）── npz 播 base 时同步 root 的位移与朝向
+# pos_scale: 逐轴位置缩放；pos_dir: 逐轴方向/翻转（常取 ±1），两者逐轴相乘后作用在
+#            “相对首帧的位移增量”上（角色在原本位置上小幅移动）。
+# rot_scale: npz rpy(XYZ 欧拉,度) 重映射到各轴：+1 同向 / -1 翻转；rot_offset: 该骨架默认安装
+#            朝向（XYZ 欧拉,度），reset 归位到它。Blender 目标欧拉 = rot_offset + rot_scale*rpy。
+base:
+  pos_retarget: [y,x,z]
+  pos_scale: [2.0, 2.0, 2.0]
+  pos_dir:   [1.0, -1.0, 1.0]
+  rot_retarget: [y,x,z]
+  rot_scale: [1.0, 1.0, 1.0]
+  rot_offset: [0.0, 0.0, 0.0]
+
 retarget:
 
   # ── 头部 ────────────────────────────────────────────────────────────────

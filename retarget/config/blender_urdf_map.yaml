@@ -19,8 +19,10 @@ enabled: true
 
 armatures:
 
-  # ── A. 原版 10-dof 腿模型（19 骨）：仅腿 10 关节可动，臂是 .fixed、无 head ──
+  # ── A. 原版 10-dof 腿模型（19 骨）：仅腿 10 关节可动，臂是 .fixed、无 head ── 
   - name: "Pikachu_V025"
+    base_pos: { pos_retarget : [y,x,z],pos_scale: [2.0, 2.0, 2.0], pos_dir: [1.0, -1.0, 1.0]}
+    base_rot: { rot_retarget : [x,y,z],rot_scale: [1.0, 1.0, 1.0], rot_offset: [0.0, 0.0, -90.0] } 
     joints:
       left_hip_pitch_joint:   { bone: left_hip_pitch_joint.revolute.bone,  axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
       left_hip_roll_joint:    { bone: left_hip_roll_joint.revolute.bone,   axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
@@ -49,6 +51,8 @@ armatures:
   # （arm_roll 在 Qt 侧 npz 路径已做 ±90° 对正；这里按骨长轴直驱）
   # head：本骨架只有 head_joint.revolute.bone 单骨（轴+Y），无法表示 3dof 头 → 按“缺则省略”不映射。
   - name: "pikachu_sample_links"
+    base_pos: { pos_retarget : [y,x,z],pos_scale: [2.0, 2.0, 2.0], pos_dir: [1.0, -1.0, 1.0]}
+    base_rot: { rot_retarget : [x,y,z],rot_scale: [1.0, 1.0, 1.0], rot_offset: [0.0, 0.0, -90.0] } 
     joints:
       left_hip_pitch_joint:   { bone: left_hip_pitch_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [0.0, 140.0] }
       left_hip_roll_joint:    { bone: left_hip_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
@@ -76,6 +80,8 @@ armatures:
 
 
   - name: "pikachu_sample_links_v2.1"
+    base_pos: { pos_retarget: [y,x,z], pos_scale: [2.0, 2.0, 2.0], pos_dir: [1.0, -1.0, 1.0] }
+    base_rot: { rot_retarget: [x,y,z], rot_scale: [1.0, 1.0, 1.0], rot_offset: [0.0, 0.0, -90.0] }
     joints:
       left_hip_pitch_joint:   { bone: left_hip_pitch_joint.revolute.bone,   axis: y, sign:  -1, bias: 0.0, limit: [0.0, 140.0] }
       left_hip_roll_joint:    { bone: left_hip_roll_joint.revolute.bone,    axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }

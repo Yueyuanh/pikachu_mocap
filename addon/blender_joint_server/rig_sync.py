@@ -135,7 +135,6 @@ def set_joint(bone_name, axis, angle):
         e.z = angle
 
     bone.rotation_euler = e
-    bpy.context.view_layer.update()
 
 
 def set_pose(pose, armature_name=None):
@@ -148,10 +147,9 @@ def set_pose(pose, armature_name=None):
         _send_debug("Set pose failed: armature not found.")
         return
 
-    if not ensure_pose_mode(arm):
-        _send_debug("Set pose failed: cannot enter pose mode.")
-        return
-
+    # 纯数据写入：pose.bones.rotation_euler 在任何模式都可写，无需进入 pose mode /
+    # 抢占 active 物体。去掉 ensure_pose_mode() 以免实时驱动时状态栏
+    # 「Armature: rig / Active Bone」在多个骨架间来回闪。
     for bone_name, angles in pose.items():
         if not isinstance(angles, (list, tuple)) or len(angles) < 3:
             continue
@@ -164,8 +162,6 @@ def set_pose(pose, armature_name=None):
         e.y = radians(angles[1])
         e.z = radians(angles[2])
         bone.rotation_euler = e
-
-    bpy.context.view_layer.update()
 
 
 # ==========================
@@ -324,7 +320,6 @@ def set_urdf_joint(armature_name, bone_name, axis, angle_rad):
     elif axis == "z":
         e.z = angle_rad
     bone.rotation_euler = e
-    bpy.context.view_layer.update()
 
 
 def _is_urdf_target_enabled(name):
@@ -351,9 +346,12 @@ def set_urdf_pose(armature_name, pose):
         return
     try:
         arm = get_armature(armature_name)
-        ensure_pose_mode(arm)
     except Exception as e:
         _send_debug(f"set_urdf_pose error: {e}")
+        return
+    # pose.bones.rotation_euler 为纯数据写入，不需 pose mode / 抢占 active（避免闪）
+    if arm is None:
+        _send_debug(f"set_urdf_pose: armature '{armature_name}' not found")
         return
     for bone_name, angles in (pose or {}).items():
         bone = arm.pose.bones.get(bone_name)
@@ -363,7 +361,61 @@ def set_urdf_pose(armature_name, pose):
         e = bone.rotation_euler
         e.x, e.y, e.z = angles[0], angles[1], angles[2]
         bone.rotation_euler = e
+
+
+# 记录每个 armature 对象首次收到的原始安装位置，pos 增量在其上叠加（reset pos=0 即回到原位置）
+_orig_loc = {}
+
+
+def set_base(armature_name, pos, rpy_deg):
+    """移动整个 armature 对象(Object)。
+
+    pos   = 相对原始安装位置的增量(世界)：目标 location = 原位置 + pos（首帧记得原位置）。
+    rpy   = 绝对 XYZ 欧拉(度)，直接覆盖 rotation_euler。
+    设 object.location/rotation_euler（非骨），整棵骨架随对象一起动，天然是世界位姿。
+    """
+    ob = bpy.data.objects.get(armature_name)
+    if ob is None:
+        _send_debug(f"set_base: 对象 '{armature_name}' 不存在（Qt 的角色名与 Blender 场景对象名对不上）")
+        return
+    if pos is None and rpy_deg is None:
+        return
+    if armature_name not in _orig_loc:
+        _orig_loc[armature_name] = tuple(ob.location)
+    if pos is not None:
+        base = _orig_loc[armature_name]
+        ob.location = (float(base[0]) + float(pos[0]),
+                       float(base[1]) + float(pos[1]),
+                       float(base[2]) + float(pos[2]))
+    if rpy_deg is not None:
+        ob.rotation_mode = 'XYZ'
+        ob.rotation_euler = (radians(float(rpy_deg[0])),
+                             radians(float(rpy_deg[1])),
+                             radians(float(rpy_deg[2])))
+
+
+def reset_blender(armature_name=None):
+    """一键 reset（与 Qt reset_all 一致）：所有角色骨骼回 rest、对象位置回原始安装位置、旋转绝对归 0。
+
+    armature_name=None 时重置场景里全部 ARMATURE；指定则只重置该对象。
+    """
+    if armature_name:
+        names = [armature_name]
+    else:
+        names = [ob.name for ob in bpy.data.objects if ob.type == 'ARMATURE']
+    for nm in names:
+        ob = bpy.data.objects.get(nm)
+        if ob is None or ob.type != 'ARMATURE':
+            continue
+        if not ensure_pose_mode(ob):
+            continue
+        for pb in ob.pose.bones:
+            pb.rotation_mode = 'XYZ'
+            pb.rotation_euler = (0.0, 0.0, 0.0)
+        # 位置回原(增量0) + 旋转绝对归 0
+        set_base(nm, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
     bpy.context.view_layer.update()
+    _send_debug("Reset all armatures to rest + origin")
 
 
 # ==========================
@@ -502,6 +554,16 @@ def handle_message(msg):
 
             set_urdf_pose(data.get("armature", ""), data.get("pose") or {})
 
+        elif data["type"] == "set_base":
+
+            set_base(data.get("armature", ""),
+                     data.get("pos"),
+                     data.get("rpy_deg"))
+
+        elif data["type"] == "reset":
+
+            reset_blender(data.get("armature") or None)
+
     except Exception as e:
 
         print("Message error:", e)
@@ -514,14 +576,23 @@ def handle_message(msg):
 
 def blender_loop():
 
+    changed = False
     while not server.msg_queue.empty():
 
         msg = server.msg_queue.get()
 
         handle_message(msg)
+        changed = True
+
+    # 统一刷新：每帧最多一次 view_layer.update()（各 set_* 不再各自调用，
+    # 每帧只触发一次重算绑定网格，显著降低 Qt 实时驱动时 Blender 的卡顿）
+    if changed:
+        bpy.context.view_layer.update()
 
     if server.state_dirty:
         server.state_dirty = False
+        if not changed:
+            bpy.context.view_layer.update()
         _tag_redraw()
 
     return 0.02

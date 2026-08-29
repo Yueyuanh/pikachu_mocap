@@ -89,6 +89,32 @@ def check_urdf_target_bones(arm):
 
 
 # ==========================
+# 演示模式（隐藏骨骼与游标）
+# ==========================
+
+def _apply_demo_overlay(on):
+    """on=True: 演示模式，隐藏所有 3D 视口的游标与骨骼；on=False: 恢复显示。"""
+    show = not on
+    try:
+        wm = bpy.context.window_manager
+        if wm is None:
+            return
+        for win in wm.windows:
+            for area in win.screen.areas:
+                if area.type == 'VIEW_3D':
+                    for sp in area.spaces:
+                        if sp.type == 'VIEW_3D':
+                            sp.overlay.show_cursor = show
+                            sp.overlay.show_bones = show
+    except Exception:
+        pass
+
+
+def _demo_mode_update(self, context):
+    _apply_demo_overlay(self.skserver_demo_mode)
+
+
+# ==========================
 # Log helpers
 # ==========================
 
@@ -141,6 +167,20 @@ class SKSERVER_OT_stop(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class SKSERVER_OT_reset(bpy.types.Operator):
+    """一键 reset（同 Qt reset_all）：所有角色骨骼回 rest、对象位置回原始安装位置、旋转绝对归 0。"""
+
+    bl_idname = "skserver.reset_all"
+    bl_label = "Reset All"
+    bl_description = "骨骼回 rest + 位置回原始安装点 + 旋转归 0（与 Qt 的 reset 一致）"
+
+    def execute(self, context):
+
+        rig_sync.reset_blender()
+
+        return {'FINISHED'}
+
+
 # ==========================
 # Panel
 # ==========================
@@ -159,8 +199,15 @@ class SKSERVER_PT_panel(bpy.types.Panel):
 
         layout = self.layout
 
+        # 演示模式：开→隐藏骨骼与游标；关→恢复显示
+        layout.prop(context.scene, "skserver_demo_mode", text="演示模式", toggle=True)
+        if context.scene.skserver_demo_mode:
+            layout.label(text="→ 骨骼与游标已隐藏", icon="HIDE_OFF")
+        layout.separator()
+
         layout.operator("skserver.start")
         layout.operator("skserver.stop")
+        layout.operator("skserver.reset_all")
 
         layout.separator()
 
@@ -224,25 +271,30 @@ class SKSERVER_PT_panel(bpy.types.Panel):
                 layout.label(text=f"  ... and {len(missing)-10} more")
 
         layout.separator()
-        layout.label(text="Logs:")
-        logs = _ensure_server_logs()[-8:]
-        if not logs:
-            layout.label(text="(no logs)")
-        for line in logs:
-            layout.label(text=str(line)[:80])
+        layout.prop(context.scene, "skserver_show_logs", text="Logs", toggle=True,
+                    icon="DISCLOSURE_TRI_RIGHT")
+        if context.scene.skserver_show_logs:
+            logs = _ensure_server_logs()[-8:]
+            if not logs:
+                layout.label(text="(no logs)")
+            for line in logs:
+                layout.label(text=str(line)[:80])
 
         layout.separator()
-        layout.label(text="Paths:")
-        layout.label(text=f"Addon: {os.path.abspath(__file__)[:80]}")
-        if hasattr(server, "__file__"):
-            layout.label(text=f"Server: {os.path.abspath(server.__file__)[:80]}")
-        if hasattr(rig_sync, "__file__"):
-            layout.label(text=f"RigSync: {os.path.abspath(rig_sync.__file__)[:80]}")
+        layout.prop(context.scene, "skserver_show_paths", text="Paths", toggle=True,
+                    icon="DISCLOSURE_TRI_RIGHT")
+        if context.scene.skserver_show_paths:
+            layout.label(text=f"Addon: {os.path.abspath(__file__)[:80]}")
+            if hasattr(server, "__file__"):
+                layout.label(text=f"Server: {os.path.abspath(server.__file__)[:80]}")
+            if hasattr(rig_sync, "__file__"):
+                layout.label(text=f"RigSync: {os.path.abspath(rig_sync.__file__)[:80]}")
 
 
 classes = [
     SKSERVER_OT_start,
     SKSERVER_OT_stop,
+    SKSERVER_OT_reset,
     SKSERVER_PT_panel
 ]
 
@@ -253,6 +305,13 @@ def register():
         bpy.utils.register_class(c)
     bpy.utils.register_class(SKSERVER_URDFTarget)
     bpy.types.Scene.skserver_urdf_targets = bpy.props.CollectionProperty(type=SKSERVER_URDFTarget)
+    bpy.types.Scene.skserver_demo_mode = bpy.props.BoolProperty(
+        name="演示模式", default=False, update=_demo_mode_update)
+    # 折叠区（默认隐藏）：Logs / Paths
+    bpy.types.Scene.skserver_show_logs = bpy.props.BoolProperty(
+        name="Logs", default=False)
+    bpy.types.Scene.skserver_show_paths = bpy.props.BoolProperty(
+        name="Paths", default=False)
 
     # 自动注册消息处理循环，保证 request_*/set_urdf_* 等双向命令能被处理
     if not bpy.app.timers.is_registered(rig_sync.blender_loop):
@@ -268,6 +327,12 @@ def register():
 
 def unregister():
 
+    if hasattr(bpy.types.Scene, "skserver_demo_mode"):
+        del bpy.types.Scene.skserver_demo_mode
+    if hasattr(bpy.types.Scene, "skserver_show_logs"):
+        del bpy.types.Scene.skserver_show_logs
+    if hasattr(bpy.types.Scene, "skserver_show_paths"):
+        del bpy.types.Scene.skserver_show_paths
     bpy.utils.unregister_class(SKSERVER_URDFTarget)
     for c in classes:
         bpy.utils.unregister_class(c)

@@ -53,6 +53,8 @@ flex/
 | `elastic_collision.py` | 撞击球 vs 皮卡丘点云外皮，扫 solref 阻尼比，实测恢复系数 e、应变、能量 |
 | `build_report.py` | 由实测数据生成内嵌截图的 HTML 实验报告 |
 | `mvp_beam.py` + `models/beam_soft.xml` | 橡胶棒 + 柔性点云的最小 MuJoCo 验证 |
+| `soft_dent.py` / `soft_dent_pb.py` | 软体落地凹陷离屏数值实验(MuJoCo 软 connect 点云 / PyBullet 软网压痕) |
+| `soft_dent_live.py` / `soft_dent_pb_live.py` | **实时弹窗交互版**(MuJoCo viewer / PyBullet GUI)；`--check` 无窗口自检 |
 | `pikachu_cloud.py` | 点云/骨架读取与分骨的核心库(load_pcd/load_skeleton/assign_bones/build_mjcf…)；`assets/` 经仓库根(上溯 3 层)定位 |
 | `mesh2pcd.sh` | 用真 PCL `pcl_mesh2pcd` 从 OBJ→PLY→PCD 光追采样 |
 | `models/` | pcd/xml/mjcf 资产(大 pcd/ply 已被 .gitignore) |
@@ -89,6 +91,10 @@ conda run -n mocap python flex/sim/build_report.py   # → flex/sim/reports/pika
 # 软体落地凹陷(纯 MuJoCo 软 connect)→ 指标 json + hover/peak/rest 关键帧
 conda run -n mocap python flex/sim/soft_dent.py \
   --n 100 --tc 0.15 --damp 1.5 --drop 1.2 --settle 1800 --steps 3000 --png soft_dent
+
+# 想实时盯着看(交互窗口): MuJoCo 弹性点云 / PyBullet 球砸软垫, --check 免显示器自检
+conda run -n mocap python flex/sim/soft_dent_live.py --n 100 --tc 0.15 --damp 1.5
+conda run -n mocap python flex/sim/soft_dent_pb_live.py --radius 0.35 --drop 1.2
 #   方案细节/踩坑/记录 → flex/docs/FLEX_SOFTBODY.md
 ```
 

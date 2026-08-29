@@ -108,6 +108,20 @@ PyBullet soft body 有两条路：
 conda run -n mocap python flex/sim/soft_dent_pb.py --nx 8 --ny 8 --radius 0.35 --drop 1.2
 ```
 
+## 实时可视化（交互窗口，非离屏）
+
+上面 A/B 是离屏数值实验，另有配套**弹窗实时看**的交互版（需本地显示器 `DISPLAY`；本机已确认 `DISPLAY=:0` 且 muojoc/viewer+PySide6+glfw 齐全）：
+
+```bash
+# A. MuJoCo 实时: 弹性点云落地→压陷→回弹(右键拖看任意角度)
+conda run -n mocap python flex/sim/soft_dent_live.py --n 100 --tc 0.15 --damp 1.5
+#    操作: 空格=暂停  R=重置回落(反复看凹陷)  关窗退出
+# B. PyBullet 实时: 球砸软垫→凹坑→回弹
+conda run -n mocap python flex/sim/soft_dent_pb_live.py --radius 0.35 --drop 1.2
+#    操作: 拖动视角  R=重建重放  空格=暂停  右上⛶=暂停物理
+# 无显示器自检(不弹窗): 两个脚本都加 --check
+```
+
 ### 对比小结
 
 | | A. MuJoCo 软 connect 点云 | B. PyBullet loadSoftBody 软网 |

@@ -53,21 +53,21 @@ retarget:
     axis: x
     sign: -1
     bias: 0.0
-    limit: [-60.0, 180.0]
+    limit: [-180.0, 180.0]
 
   left_arm_roll_joint:
     bone: arm_pitch_L
     axis: z
     sign: 1
     bias: 0.0
-    limit: [0.0, 90.0]
+    limit: [-180.0, 180.0]
 
   left_arm_yaw_joint:
     bone: arm_pitch_L
     axis: y
     sign: 1
     bias: 0.0
-    limit: [-90.0, 90.0]
+    limit: [-180.0, 180.0]
 
 
   # left_elbow_ankle_joint:
@@ -83,21 +83,21 @@ retarget:
     axis: x
     sign: -1
     bias: 0.0
-    limit: [-60.0, 180.0]
+    limit: [-180.0, 180.0]
 
   right_arm_roll_joint:
     bone: arm_pitch_R
     axis: z
     sign: 1
     bias: 0.0
-    limit: [0.0, 90.0]
+    limit: [-180.0, 180.0]
 
   right_arm_yaw_joint:
     bone: arm_pitch_R
     axis: y
     sign: 1
     bias: 0.0
-    limit: [-90.0, 90.0]
+    limit: [-180.0, 180.0]
 
   # right_elbow_ankle_joint:
   #   bone: arm_pitch_R

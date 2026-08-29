@@ -93,6 +93,29 @@ V2_BONES = [
     ("hip_pitch_R", (-120, 120)), ("hip_knee_R", (-120, 120)), ("hip_ankle_R", (-90, 90)),
 ]
 
+def v2_bone_limits_from_map(rt_map_v2, bones):
+    """把 self_rig_v2.yaml 的逐关节 limit 聚合到每根骨各轴；yaml 未覆盖的骨/轴用 bones 兜底。
+
+    返回 {bone: {"x":(lo,hi), "y":.., "z":..}}；骨骼同名同轴多关节取最宽并集。
+    """
+    lims = {name: {"x": None, "y": None, "z": None} for name, _ in bones}
+    fallback = {name: lim for name, lim in bones}
+    for cfg in (rt_map_v2 or {}).values():
+        b = cfg.get("bone")
+        ax = cfg.get("axis")
+        if not b or ax not in ("x", "y", "z"):
+            continue
+        lo, hi = float(cfg["limit"][0]), float(cfg["limit"][1])
+        d = lims.setdefault(b, {"x": None, "y": None, "z": None})
+        prev = d[ax]
+        d[ax] = (min(lo, prev[0]) if prev else lo, max(hi, prev[1]) if prev else hi)
+    out = {}
+    for b in lims:
+        fb = fallback.get(b, (-90.0, 90.0))
+        out[b] = {ax: (lims[b][ax] if lims[b][ax] is not None else fb) for ax in ("x", "y", "z")}
+    return out
+
+
 # NPZ 关节 dof 列序（= twin_server.py 的 PIKACHU_JOINT_NAMES，14 列）→ 对应 URDF 关节名
 NPZ_COLUMNS_TO_URDF = [
     ("left_hip_pitch_joint", False), ("left_hip_roll_joint", False), ("left_hip_yaw_joint", False),
@@ -331,15 +354,16 @@ class URDFJointWidget(QWidget):
 class BoneJointWidget(QWidget):
     """单根 FK 骨的三轴滑动条（直接控制 Pikachu 骨骼）。"""
 
-    def __init__(self, name, limit, on_change):
+    def __init__(self, name, limits, on_change):
+        """三轴滑动条, x/y/z 各轴独立 limit（limits = {"x":(lo,hi),"y":..,"z":..}）。
+        兼容旧式单 (lo,hi) 元组：三轴共用该范围。"""
         super().__init__()
+        if not isinstance(limits, dict):
+            limits = {axis: limits for axis in ("x", "y", "z")}
         self.name = name
         self.on_change = on_change
-        lo, hi = limit
         lay = QVBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
-        title = QLabel(f"Bone: {name}")
-        title.setStyleSheet("font-size: 13px; font-weight: 600;")
         self.title = QLabel(f"Bone: {name}")
         self.title.setStyleSheet("font-size: 13px; font-weight: 600;")
         lay.addWidget(self.title)
@@ -351,6 +375,7 @@ class BoneJointWidget(QWidget):
             lab.setFixedWidth(20)
             row.addWidget(lab)
             sl = QSlider(Qt.Horizontal)
+            lo, hi = limits.get(axis, (-90, 90))
             sl.setRange(int(lo), int(hi))
             sl.setValue(0)
             sl.valueChanged.connect(lambda v, ax=axis: self._changed(ax, v))
@@ -362,6 +387,15 @@ class BoneJointWidget(QWidget):
             lay.addLayout(row)
             self.labels[axis] = (sl, lb)
         self.setLayout(lay)
+
+    def set_limits(self, limits):
+        """切换骨骼时更新三轴各自范围（limit 来自 self_rig_v2.yaml 聚合/兜底）。"""
+        for axis, (sl, lb) in self.labels.items():
+            lo, hi = limits.get(axis, (-90, 90))
+            sl.blockSignals(True)
+            sl.setRange(int(lo), int(hi))
+            lb.setText(str(sl.value()))
+            sl.blockSignals(False)
 
     def set_bone_name(self, name):
         """选中列表中其它骨骼时更新标题（否则会一直显示首个骨骼名）。"""
@@ -384,17 +418,23 @@ class BoneJointWidget(QWidget):
 
 class RetargetPanel(QWidget):
 
-    def __init__(self, rt_map, on_reload):
+    def __init__(self, rt_maps, on_reload):
+        """rt_maps: {"rig": retarget_map, "self_rig_v2": retarget_map_self_rig_v2} 等多张映射，
+        顶部下拉切换显示哪一张。"""
         super().__init__()
-        self.rt_map = rt_map
+        self._rt_maps = dict(rt_maps) or {}
         self.on_reload = on_reload
+        self.rt_map = self._current_map()
         lay = QVBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
         header = QHBoxLayout()
         title = QLabel("Retarget Map (URDF→Skin)")
         title.setStyleSheet("font-size: 13px; font-weight: 600;")
         header.addWidget(title)
-        header.addStretch(1)
+        self.map_combo = QComboBox()
+        self._fill_map_combo()
+        self.map_combo.currentIndexChanged.connect(self._rebuild_from_combo)
+        header.addWidget(self.map_combo)
         reload_btn = QPushButton("Reload")
         reload_btn.setFixedWidth(70)
         reload_btn.clicked.connect(lambda: self.on_reload())
@@ -412,7 +452,31 @@ class RetargetPanel(QWidget):
         self.pose_label.setWordWrap(True)
         lay.addWidget(self.pose_label)
         self.setLayout(lay)
-        self.rebuild(rt_map)
+        self.rebuild(self.rt_map)
+
+    def _fill_map_combo(self):
+        self.map_combo.clear()
+        for key in self._rt_maps:
+            self.map_combo.addItem(key, key)
+
+    def _current_map(self):
+        key = self.map_combo.currentData() if hasattr(self, "map_combo") else None
+        return self._rt_maps.get(key) if key else (next(iter(self._rt_maps.values()), None))
+
+    def _rebuild_from_combo(self):
+        self.rt_map = self._current_map()
+        self.rebuild(self.rt_map)
+
+    def set_maps(self, rt_maps):
+        """Reload 后刷新映射数据，保留当前下拉选择。"""
+        self._rt_maps = dict(rt_maps) or {}
+        cur = self.map_combo.currentData()
+        self.map_combo.blockSignals(True)
+        self._fill_map_combo()
+        if cur in self._rt_maps:
+            self.map_combo.setCurrentIndex([k for k in self._rt_maps].index(cur))
+        self.map_combo.blockSignals(False)
+        self._rebuild_from_combo()
 
     def rebuild(self, rt_map):
         self.rt_map = rt_map
@@ -595,6 +659,8 @@ class RetargetStudio(QWidget):
 
         self.bone_angles = {name: [0, 0, 0] for name, _ in DIRECT_BONES}
         self.v2_bone_angles = {name: [0, 0, 0] for name, _ in V2_BONES}
+        # V2Bone 每根骨 x/y/z 各轴范围（聚合自 self_rig_v2.yaml limit；未映射的骨用 V2_BONES 兜底）
+        self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
         self.urdf_joint_angles_rad = {}
         self.urdf_joint_widgets_list = {}
         self.urdf_use_degree = True
@@ -723,7 +789,7 @@ class RetargetStudio(QWidget):
             self.v2_bone_list.addItem(name)
         self.v2_bone_list.currentRowChanged.connect(self._on_v2_bone_selected)
         v2_w_lay.addWidget(self.v2_bone_list, 1)
-        self.v2_bone_joint_widget = BoneJointWidget(V2_BONES[0][0], V2_BONES[0][1], self._on_v2_bone_axis_change)
+        self.v2_bone_joint_widget = BoneJointWidget(V2_BONES[0][0], self.v2_bone_limits[V2_BONES[0][0]], self._on_v2_bone_axis_change)
         v2_w_lay.addWidget(self.v2_bone_joint_widget)
         v2_w.setLayout(v2_w_lay)
         self.mode_stack.addWidget(v2_w)        # index 2
@@ -740,7 +806,8 @@ class RetargetStudio(QWidget):
         list_panel.setLayout(list_layout)
 
         # 底部面板：重定向 + Blender URDF 映射
-        self.retarget_panel = RetargetPanel(self.rt_map, self._reload_map)
+        self.retarget_panel = RetargetPanel(
+            {"rig": self.rt_map, "self_rig_v2": self.rt_map_v2}, self._reload_map)
         self.burdf_panel = BlenderUrdfPanel(self.burdf_map, self._reload_burdf_map)
 
         bottom = QWidget()
@@ -965,6 +1032,7 @@ class RetargetStudio(QWidget):
             return
         name, limit = V2_BONES[row]
         self.v2_bone_joint_widget.set_bone_name(name)
+        self.v2_bone_joint_widget.set_limits(self.v2_bone_limits.get(name, {"x": limit, "y": limit, "z": limit}))
         self.v2_bone_joint_widget.set_angles(self.v2_bone_angles.get(name, [0, 0, 0]))
 
     def _on_v2_bone_axis_change(self, bone, axis, val):
@@ -1172,7 +1240,11 @@ class RetargetStudio(QWidget):
         try:
             self.rt_map = retarget_mod.load_retarget_map(self.map_path)
             self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
-            self.retarget_panel.rebuild(self.rt_map)
+            self.retarget_panel.set_maps({"rig": self.rt_map, "self_rig_v2": self.rt_map_v2})
+            # 同步 V2Bone 滑杆逐轴范围（随 self_rig_v2.yaml limit 更新，未映射骨用 V2_BONES 兜底）
+            self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
+            if hasattr(self, "v2_bone_list") and self.v2_bone_list.currentRow() >= 0:
+                self._on_v2_bone_selected(self.v2_bone_list.currentRow())
             print("Retarget map reloaded")
         except Exception as e:
             print("Reload map failed:", e)

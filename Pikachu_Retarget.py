@@ -57,7 +57,9 @@ SELF_RIG_V2_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map_self_rig_v2.yaml
 # 新增的自定义皮肤骨架目标（Blender 里的真实骨架名）——把 URDF 皮肤姿态也推给它
 SELF_RIG_V2_ARMATURE = "Pikacuh_skin_self_rig_v2"
 DEFAULT_URDF_PATH = os.path.join(
-    BASE_DIR, "urdf", "robot", "Pikachu_V025", "urdf","Pikachu_V025_flat_14dof.urdf"
+    # BASE_DIR, "urdf", "robot", "Pikachu_V025", "urdf","Pikachu_V025_flat_14dof.urdf"
+    BASE_DIR, "urdf", "robot", "Pikachu_V025", "urdf","Pikachu_V025_flat_21dof.urdf"
+
 )
 DEFAULT_NPZ_DIR = (
     "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/src/mjlab/mocap/npz"
@@ -116,11 +118,11 @@ def npz_row_to_urdf(row):
         if col >= len(row):
             break
         v = float(row[col])
-        if is_arm_roll:
-            if col == IDX_RIGHT_ARM_ROLL:
-                v = math.pi / 2.0 - v
-            elif col == IDX_LEFT_ARM_ROLL:
-                v = -math.pi / 2.0 - v
+        # if is_arm_roll:
+        #     if col == IDX_RIGHT_ARM_ROLL:
+        #         v = math.pi / 2.0 - v
+        #     elif col == IDX_LEFT_ARM_ROLL:
+        #         v = -math.pi / 2.0 - v
         out[urdf_name] = v
     return out
 

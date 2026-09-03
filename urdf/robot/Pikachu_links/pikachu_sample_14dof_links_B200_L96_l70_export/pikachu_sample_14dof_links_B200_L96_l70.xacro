@@ -1,0 +1,437 @@
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pikachu_sample_14dof_links">
+
+  <!-- ============================================================ -->
+  <!-- 【集中参数区】改这里即可整体调整 / 适配骨骼模型              -->
+  <!-- ============================================================ -->
+
+  <!-- ==== 躯干 / 肩 ==== -->
+  
+    <!-- 骨盆半宽：躯干中轴线 → 髋 pitch 关节的横向(y)距离，左右腿共用 -->
+  
+    <!-- 肩高：髋 pitch 平面 → 臂 pitch 关节的 z 抬升（也是躯干盒高度） -->
+  
+    <!-- 躯干盒 x(前后) 厚度 -->
+  <!-- 躯干盒 y(左右) 宽度已绑定 pelvis_half_width*2：随骨盆联动，
+       避免调整髋半宽时躯干不跟着加宽、两侧腿像架空一样 -->
+
+  <!-- ==== 腿：骨盆横向/侧段（左右方向，一般不调） ==== -->
+  
+    <!-- hip_pitch→hip_roll 关节沿 y 偏移 -->
+  
+    <!-- hip_roll→hip_yaw 关节沿 -z 偏移（骨盆下沿） -->
+
+  <!-- ==== 【腿纵向骨长】适配骨骼时重点调这两项 ==== -->
+  
+    <!-- 大腿：hip_yaw→knee 关节 沿 -z 偏移（也是该段 box 的长度） -->
+  
+    <!-- 小腿：knee→ankle 关节 沿 -z 偏移（也是该段 box 的长度） -->
+
+  <!-- ==== 腿截面尺寸 ==== -->
+  
+    <!-- 腿 box 的 x(前后) 厚 -->
+  
+    <!-- 腿 box 的 y(内外) 厚 -->
+
+  <!-- ==== 脚 ==== -->
+  
+  
+  
+
+  <!-- ==== 臂（fixed，不会动，只做占位） ==== -->
+  
+    <!-- 臂 pitch→roll 沿 y 偏移 -->
+  
+    <!-- 臂 roll 段：沿 -z 偏移 / 长度（14dof 版为末端，已去掉 yaw/elbow） -->
+  
+  
+
+  <!-- ==== 头（原始 URDF 没有，适配骨骼时按需调整） ==== -->
+  
+    <!-- 头 x(前后) 尺寸 -->
+  
+    <!-- 头 y(左右) 尺寸 -->
+  
+    <!-- 头 z(上下) 尺寸 -->
+  
+    <!-- 头底部 相对躯干顶(z=shoulder_height) 的额外抬升，>=0 -->
+
+  <!-- ==== 手臂 / 头 关节限位（把 fixed 改成 revolute 后可驱动） ==== -->
+  
+    <!-- 臂 pitch/roll 的关节下限（弧度） -->
+  
+    <!-- 臂 pitch/roll 的关节上限（弧度） -->
+  
+    <!-- 头关节下限（弧度） -->
+  
+    <!-- 头关节上限（弧度） -->
+
+  <!-- ==== 材质（仅便于视觉区分；相邻关节用不同色，左右对称） ==== -->
+  
+    <!-- 躯干：淡蓝灰 -->
+  
+    <!-- 头：亮黄 -->
+  
+    <!-- 腿段A(hip_pitch)：品红 -->
+  
+    <!-- 腿段B(hip_roll)：橙 -->
+  
+    <!-- 腿段C(hip_yaw 大腿)：蓝 -->
+  
+    <!-- 腿段D(knee 小腿)：绿 -->
+  
+    <!-- 腿段E(ankle 脚)：深灰蓝 -->
+  
+    <!-- 臂段A(arm_pitch 肩)：紫 -->
+  
+    <!-- 臂段B(arm_roll 上臂，14dof 末端)：黄 -->
+
+  <!-- ============================================================ -->
+  <!-- 材质定义（每段独立颜色，左右对称共用同一套）              -->
+  <!-- ============================================================ -->
+  <material name="torso_blue">
+    <color rgba="0.55 0.60 0.75 1"/>
+  </material>
+  <material name="head_yellow">
+    <color rgba="0.98 0.85 0.30 1"/>
+  </material>
+  <material name="leg_hip_pitch">
+    <color rgba="0.90 0.35 0.80 1"/>
+  </material>
+  <material name="leg_hip_roll">
+    <color rgba="1.00 0.60 0.20 1"/>
+  </material>
+  <material name="leg_hip_yaw">
+    <color rgba="0.35 0.55 1.00 1"/>
+  </material>
+  <material name="leg_knee">
+    <color rgba="0.30 0.80 0.35 1"/>
+  </material>
+  <material name="leg_ankle">
+    <color rgba="0.25 0.28 0.35 1"/>
+  </material>
+  <material name="arm_pitch">
+    <color rgba="0.75 0.35 1.00 1"/>
+  </material>
+  <material name="arm_roll">
+    <color rgba="1.00 0.90 0.25 1"/>
+  </material>
+
+  <!-- ============================================================ -->
+  <!-- 腿部宏：生成 pitch/roll/yaw/knee/ankle 五个 link             -->
+  <!--   side: left | right     sn:  1 | -1（y 方向符号）      -->
+  <!-- ============================================================ -->
+  
+
+  <!-- ============================================================ -->
+  <!-- 手臂宏：只生成 pitch → roll 两个 link（14dof，全部 revolute 可动） -->
+  <!-- ============================================================ -->
+  
+
+  <!-- ============================================================ -->
+  <!-- base_link：躯干（含 4 个与躯干相连的 base 关节）           -->
+  <!-- ============================================================ -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1948 0.2"/>
+      </geometry>
+      <material name="torso_blue"/>
+    </visual>
+  <inertial><origin xyz="0.000000000 0.000000000 0.100000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="5.84400"/><inertia ixx="0.037960" iyy="0.024350" izz="0.023350" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+  <!-- 头部：base_link → head_link（固定，立在躯干顶上） -->
+  <joint name="head_joint" type="revolute">
+    <origin xyz="0 0 0.26" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="head_link"/>
+    <!-- 默认绕 y 轴＝点头；若想左右转头，把 axis 改成 "0 0 1" -->
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.8" upper="0.8" effort="2.0" velocity="2"/>
+  </joint>
+  <link name="head_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.09 0.11 0.12"/>
+      </geometry>
+      <material name="head_yellow"/>
+    </visual>
+  <inertial><origin xyz="0.000000000 0.000000000 0.000000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="1.78200"/><inertia ixx="0.003935" iyy="0.003341" izz="0.003000" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+  <!-- 髋 pitch：型→left_hip_pitch_link / right_hip_pitch_link -->
+  <joint name="left_hip_pitch_joint" type="revolute">
+    <origin xyz="0 0.0974 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="left_hip_pitch_link"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="0" upper="2.44" effort="12.5" velocity="2"/>
+  </joint>
+  <joint name="right_hip_pitch_joint" type="revolute">
+    <origin xyz="0 -0.0974 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="right_hip_pitch_link"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="0" upper="2.44" effort="12.5" velocity="2"/>
+  </joint>
+
+  <!-- 臂 pitch：型→left/right_arm_pitch_link（固定，抬升 shoulder_height） -->
+  <joint name="left_arm_pitch_joint" type="revolute">
+    <origin xyz="0 0.0974 0.2" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="left_arm_pitch_link"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.57" upper="1.57" effort="2.0" velocity="2"/>
+  </joint>
+  <joint name="right_arm_pitch_joint" type="revolute">
+    <origin xyz="0 -0.0974 0.2" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="right_arm_pitch_link"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="-1.57" upper="1.57" effort="2.0" velocity="2"/>
+  </joint>
+
+  <!-- ============================================================ -->
+  <!-- 组装：左腿 / 右腿 / 左臂 / 右臂                           -->
+  <!-- ============================================================ -->
+  
+    <!-- hip_pitch_link：覆盖到 roll 的横向(y)段 -->
+    <link name="left_hip_pitch_link">
+      <visual>
+        <origin xyz="0 0.01775 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.0355 0.025"/>
+        </geometry>
+        <material name="leg_hip_pitch"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.017750000 0.000000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.05325"/><inertia ixx="0.000008" iyy="0.000010" izz="0.000013" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="left_hip_roll_joint" type="revolute">
+      <origin xyz="0 0.0355 0" rpy="0 0 0"/>
+      <parent link="left_hip_pitch_link"/>
+      <child link="left_hip_roll_link"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-0.09" upper="0.26" effort="9.0" velocity="1"/>
+    </joint>
+
+    <!-- hip_roll_link：覆盖到 yaw 的 -z 骨盆段 -->
+    <link name="left_hip_roll_link">
+      <visual>
+        <origin xyz="0 0 -0.023" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.025 0.046"/>
+        </geometry>
+        <material name="leg_hip_roll"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.023000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.06900"/><inertia ixx="0.000016" iyy="0.000021" izz="0.000013" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="left_hip_yaw_joint" type="revolute">
+      <origin xyz="0 0 -0.046" rpy="0 0 0"/>
+      <parent link="left_hip_roll_link"/>
+      <child link="left_hip_yaw_link"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-0.09" upper="0.26" effort="9.0" velocity="1"/>
+    </joint>
+
+    <!-- hip_yaw_link：大腿段（thigh_length） -->
+    <link name="left_hip_yaw_link">
+      <visual>
+        <origin xyz="0 0 -0.02505" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.025 0.0501"/>
+        </geometry>
+        <material name="leg_hip_yaw"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.025050000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.07515"/><inertia ixx="0.000020" iyy="0.000026" izz="0.000014" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="left_knee_joint" type="revolute">
+      <origin xyz="0 0 -0.0501" rpy="0 0 0"/>
+      <parent link="left_hip_yaw_link"/>
+      <child link="left_knee_link"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="0" upper="1.57" effort="12.5" velocity="3"/>
+    </joint>
+
+    <!-- knee_link：小腿段（shank_length） -->
+    <link name="left_knee_link">
+      <visual>
+        <origin xyz="0 0 -0.035" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.025 0.07"/>
+        </geometry>
+        <material name="leg_knee"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.035000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.10500"/><inertia ixx="0.000048" iyy="0.000057" izz="0.000019" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="left_ankle_joint" type="revolute">
+      <origin xyz="0 0 -0.07" rpy="0 0 0"/>
+      <parent link="left_knee_link"/>
+      <child link="left_ankle_link"/>
+      <axis xyz="0 -1 0"/>
+      <limit lower="-0.52" upper="1.05" effort="9.0" velocity="2"/>
+    </joint>
+
+    <!-- ankle_link：脚掌（末端） -->
+    <link name="left_ankle_link">
+      <visual>
+        <origin xyz="0.013333333333333334 0 -0.01" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.08 0.05 0.02"/>
+        </geometry>
+        <material name="leg_ankle"/>
+      </visual>
+    <inertial><origin xyz="0.013333333 0.000000000 -0.010000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.12000"/><inertia ixx="0.000029" iyy="0.000068" izz="0.000089" ixy="0" ixz="0" iyz="0"/></inertial></link>
+  
+  
+    <!-- hip_pitch_link：覆盖到 roll 的横向(y)段 -->
+    <link name="right_hip_pitch_link">
+      <visual>
+        <origin xyz="0 -0.01775 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.0355 0.025"/>
+        </geometry>
+        <material name="leg_hip_pitch"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 -0.017750000 0.000000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.05325"/><inertia ixx="0.000008" iyy="0.000010" izz="0.000013" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="right_hip_roll_joint" type="revolute">
+      <origin xyz="0 -0.0355 0" rpy="0 0 0"/>
+      <parent link="right_hip_pitch_link"/>
+      <child link="right_hip_roll_link"/>
+      <axis xyz="-1 0 0"/>
+      <limit lower="-0.09" upper="0.26" effort="9.0" velocity="1"/>
+    </joint>
+
+    <!-- hip_roll_link：覆盖到 yaw 的 -z 骨盆段 -->
+    <link name="right_hip_roll_link">
+      <visual>
+        <origin xyz="0 0 -0.023" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.025 0.046"/>
+        </geometry>
+        <material name="leg_hip_roll"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.023000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.06900"/><inertia ixx="0.000016" iyy="0.000021" izz="0.000013" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="right_hip_yaw_joint" type="revolute">
+      <origin xyz="0 0 -0.046" rpy="0 0 0"/>
+      <parent link="right_hip_roll_link"/>
+      <child link="right_hip_yaw_link"/>
+      <axis xyz="0 0 -1"/>
+      <limit lower="-0.09" upper="0.26" effort="9.0" velocity="1"/>
+    </joint>
+
+    <!-- hip_yaw_link：大腿段（thigh_length） -->
+    <link name="right_hip_yaw_link">
+      <visual>
+        <origin xyz="0 0 -0.02505" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.025 0.0501"/>
+        </geometry>
+        <material name="leg_hip_yaw"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.025050000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.07515"/><inertia ixx="0.000020" iyy="0.000026" izz="0.000014" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="right_knee_joint" type="revolute">
+      <origin xyz="0 0 -0.0501" rpy="0 0 0"/>
+      <parent link="right_hip_yaw_link"/>
+      <child link="right_knee_link"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="0" upper="1.57" effort="12.5" velocity="3"/>
+    </joint>
+
+    <!-- knee_link：小腿段（shank_length） -->
+    <link name="right_knee_link">
+      <visual>
+        <origin xyz="0 0 -0.035" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.04 0.025 0.07"/>
+        </geometry>
+        <material name="leg_knee"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.035000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.10500"/><inertia ixx="0.000048" iyy="0.000057" izz="0.000019" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="right_ankle_joint" type="revolute">
+      <origin xyz="0 0 -0.07" rpy="0 0 0"/>
+      <parent link="right_knee_link"/>
+      <child link="right_ankle_link"/>
+      <axis xyz="0 -1 0"/>
+      <limit lower="-0.52" upper="1.05" effort="9.0" velocity="2"/>
+    </joint>
+
+    <!-- ankle_link：脚掌（末端） -->
+    <link name="right_ankle_link">
+      <visual>
+        <origin xyz="0.013333333333333334 0 -0.01" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.08 0.05 0.02"/>
+        </geometry>
+        <material name="leg_ankle"/>
+      </visual>
+    <inertial><origin xyz="0.013333333 0.000000000 -0.010000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.12000"/><inertia ixx="0.000029" iyy="0.000068" izz="0.000089" ixy="0" ixz="0" iyz="0"/></inertial></link>
+  
+
+  
+    <!-- arm_pitch_link：覆盖到 roll 的横向(y)段 -->
+    <link name="left_arm_pitch_link">
+      <visual>
+        <origin xyz="0 0.0341 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.0399 0.0682 0.0333"/>
+        </geometry>
+        <material name="arm_pitch"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.034100000 0.000000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.13592"/><inertia ixx="0.000065" iyy="0.000031" izz="0.000071" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="left_arm_roll_joint" type="revolute">
+      <origin xyz="0 0.0682 0" rpy="0 0 0"/>
+      <parent link="left_arm_pitch_link"/>
+      <child link="left_arm_roll_link"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-1.57" upper="1.57" effort="2.0" velocity="2"/>
+    </joint>
+
+    <!-- arm_roll_link：下臂/末端段（arm_upper_z）——14dof 版已去掉 yaw/elbow -->
+    <link name="left_arm_roll_link">
+      <visual>
+        <origin xyz="0 0 -0.0459" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.0399 0.0333 0.0918"/>
+        </geometry>
+        <material name="arm_roll"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.045900000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.18296"/><inertia ixx="0.000145" iyy="0.000153" izz="0.000041" ixy="0" ixz="0" iyz="0"/></inertial></link>
+  
+  
+    <!-- arm_pitch_link：覆盖到 roll 的横向(y)段 -->
+    <link name="right_arm_pitch_link">
+      <visual>
+        <origin xyz="0 -0.0341 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.0399 0.0682 0.0333"/>
+        </geometry>
+        <material name="arm_pitch"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 -0.034100000 0.000000000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.13592"/><inertia ixx="0.000065" iyy="0.000031" izz="0.000071" ixy="0" ixz="0" iyz="0"/></inertial></link>
+
+    <joint name="right_arm_roll_joint" type="revolute">
+      <origin xyz="0 -0.0682 0" rpy="0 0 0"/>
+      <parent link="right_arm_pitch_link"/>
+      <child link="right_arm_roll_link"/>
+      <axis xyz="-1 0 0"/>
+      <limit lower="-1.57" upper="1.57" effort="2.0" velocity="2"/>
+    </joint>
+
+    <!-- arm_roll_link：下臂/末端段（arm_upper_z）——14dof 版已去掉 yaw/elbow -->
+    <link name="right_arm_roll_link">
+      <visual>
+        <origin xyz="0 0 -0.0459" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.0399 0.0333 0.0918"/>
+        </geometry>
+        <material name="arm_roll"/>
+      </visual>
+    <inertial><origin xyz="0.000000000 0.000000000 -0.045900000" rpy="0.000000000 0.000000000 0.000000000"/><mass value="0.18296"/><inertia ixx="0.000145" iyy="0.000153" izz="0.000041" ixy="0" ixz="0" iyz="0"/></inertial></link>
+  
+
+</robot>

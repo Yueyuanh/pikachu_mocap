@@ -116,16 +116,50 @@ input{font:inherit;color:inherit}
 .footcell .export{margin-top:12px}
 .footcell .src{margin-top:12px}
 .tiny{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);margin:8px 2px 0;line-height:1.5}
-.tabs{position:absolute;top:10px;right:12px;display:flex;gap:4px}
+.tabs{position:absolute;top:10px;right:12px;display:flex;gap:4px;z-index:4}
 .tabs button{border:1px solid var(--line);background:var(--panel);color:var(--text-dim);
   padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer}
 .tabs button.on{background:var(--accent);color:#1a1208;border-color:var(--accent);font-weight:600}
+/* 参考图：整层叠加在 2D 图纸上，随视角切换 front/side 图片；可拖动/滚轮缩放/调透明度对比。
+   位置与倍率用 transform 维护(transform-origin 仿 left:50% top:50% 中心)，透明度独立 opacity */
+.refimg{position:absolute;left:50%;top:50%;width:60%;height:auto;
+  transform:translate(-50%,-50%) scale(1);transform-origin:center;
+  opacity:.45;cursor:grab;user-select:none;z-index:1;transition:opacity .12s}
+.refimg.dragging{cursor:grabbing}
+.refimg.hidden{opacity:0;visibility:hidden}
+.refctl{position:absolute;top:8px;left:12px;z-index:5;display:flex;align-items:center;gap:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-size:11px;
+  color:var(--text-dim);font-family:"IBM Plex Mono",monospace;flex-wrap:wrap}
+.refctl label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;white-space:nowrap}
+.refctl input[type=checkbox]{accent-color:var(--accent);margin:0;cursor:pointer}
+.refctl input[type=range]{width:110px;accent-color:var(--accent);cursor:pointer}
+.refctl .refval{color:var(--accent);font-weight:600;min-width:30px;text-align:right}
+.refctl .refreset{border:1px solid var(--line);background:var(--panel);color:var(--text-dim);
+  padding:1px 7px;border-radius:5px;font-size:10.5px;cursor:pointer}
+.refctl .refreset:hover{color:var(--text);border-color:var(--accent)}
+.refhint{position:absolute;left:12px;bottom:8px;z-index:5;font-size:10px;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;pointer-events:none}
 /* 3D 视图右上角：正/侧/底 视角预设（独立于 2D 的 .tabs，避免共用点击处理） */
 .sat3d{position:absolute;top:10px;right:12px;display:flex;gap:4px;z-index:3}
 .sat3d button{border:1px solid var(--line);background:var(--panel);color:var(--text-dim);
   padding:3px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:"IBM Plex Mono",monospace}
 .sat3d button:hover{color:var(--text)}
 .sat3d button.on{background:var(--accent);color:#1a1208;border-color:var(--accent);font-weight:600}
+.v3ctl{display:flex;align-items:center;gap:10px;padding:5px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.v3ctl .chk{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-dim);cursor:pointer}
+.v3ctl .chk input{accent-color:var(--accent)}
+.v3ctl .comread{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);margin-left:auto;text-align:right;white-space:nowrap}
+.inert-head{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);padding:2px 0 6px}
+.inert-head input[type=number]{width:64px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 4px;color:var(--text)}
+#inert .grpbox{padding:6px 10px;display:flex;flex-direction:column}
+.inrow{border:1px solid var(--line);border-radius:7px;padding:5px 8px;margin:0 0 5px;background:var(--panel3,var(--panel2))}
+.inrow .inname{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--text);display:flex;justify-content:space-between;margin-bottom:4px}
+.inrow .inname i{font-style:normal;color:var(--muted);font-weight:400}
+.inrow .invals{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.inrow .invals label{display:flex;flex-direction:column;font-size:8.5px;color:var(--muted)}
+.inrow .invals input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:2px 3px;font-size:9.5px;color:var(--text)}
+.inrow .invals input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.inrow .invals i{font-style:normal;color:var(--text-dim);font-size:9px}
 
 /* ---------- 参数面板 ---------- */
 .grptitle{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;
@@ -239,12 +273,23 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
       <div id="groups"></div>
       <div class="seclabel">关节 · 固定 / 限位 / effort</div>
       <div id="joints"></div>
+      <div class="seclabel">惯量 / 质心 <span class="dim">kg · kg·m²</span></div>
+      <div class="inert-head">
+        密度 <input type="number" id="inertDensity" value="1500" min="10" step="10" title="全局密度 kg/m³；单 link 留空=按几何×密度自动算">
+        <span>kg/m³</span>
+      </div>
+      <div id="inert"></div>
       <div class="legend" id="legend" style="margin-top:8px"></div>
     </div>
   </aside>
 
   <section class="v3cell" id="view3d">
     <div class="cell-head">3D 模型 <span class="dim">拖动旋转 · 滚轮缩放</span></div>
+    <div class="v3ctl">
+      <label class="chk"><input type="checkbox" id="cInert" checked>质心 / 惯量</label>
+      <label class="chk"><input type="checkbox" id="cCom" checked>落足重心</label>
+      <span class="comread" id="comread"></span>
+    </div>
     <div class="viewport">
       <canvas id="canvas3d"></canvas>
       <div class="sat3d">
@@ -265,9 +310,11 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
       <div class="erow">
         <button class="btn" id="btnSaveX" title="把当前参数写回并另存为 .xacro">保存 Xacro</button>
         <button class="btn" id="btnSaveURDF" title="按当前参数生成纯几何 .urdf 并写入已选目录">导出 URDF</button>
+        <button class="btn" id="btnSaveMJCF" title="一键把当前 xacro 转为适用于 muJoCo 的 MJCF(xml) 并写入已选目录">导出 MJCF</button>
       </div>
       <button class="btn uw" id="btnSave2D" title="导出带 mm 尺寸标注的 2D 图纸为 PNG">导出 2D 图纸 (PNG)</button>
-      <button class="btn uw primary" id="btnExportAll" title="一次性导出 URDF + Xacro + 2D PNG + 连杆长度JSON，写入所选目录">一键导出全部 · URDF / Xacro / PNG / JSON</button>
+      <button class="btn uw primary" id="btnExportAll" title="一次性导出 URDF + Xacro + MJCF + 2D PNG + 连杆长度JSON，写入所选目录">一键导出全部 · URDF / Xacro / MJCF / PNG / JSON</button>
+      <p class="tiny">MJCF 导出在后端完成：xacro 展开 + 按 box 自动算惯量 + MuJoCo 编译，需用 mocap 环境启动 server。</p>
       <p class="tiny">导出会写入你方框里选的文件夹（推荐 urdf/robot/Pikachu_links）；不支持时退回下载。</p>
     </div>
     <div class="src">
@@ -286,6 +333,19 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
     <div class="cell-head">简化示意图 <span class="dim mm" id="dimUnit2">mm 尺寸</span></div>
     <div class="view2d-inner">
       <div class="cv-wrap">
+        <img id="refImg" class="refimg" alt="参考图(正面)" title="拖动移动 · 滚轮缩放 · 透明度见左上" draggable="false"/>
+        <div class="refctl">
+          <label title="隐藏/显示参考图">
+            <input type="checkbox" id="refToggle" checked/> 参考图
+          </label>
+          <label title="参考图透明度">
+            透明度
+            <input type="range" id="refAlpha" min="1" max="100" value="45"/>
+            <span class="refval" id="refVal">45%</span>
+          </label>
+          <button class="refreset" id="refReset" title="重置位置与大小">重置</button>
+        </div>
+        <span class="refhint">参考图：拖动移动 · 滚轮缩放 · 勾选隐藏</span>
         <canvas id="canvas2d"></canvas>
         <div class="tabs">
           <button id="tbFront" class="on" data-v="front">正面</button>
@@ -571,8 +631,10 @@ function proj3D(w, cam){
 }
 function render3D(model, mode){
   const tfs=computeTFs(model);
+  const fh=fixedClinkSet();   // 锁定关节的 child link 不渲染
   const robots=[];
   for(const n in model.links){
+    if(fh[n]) continue;
     const lk=model.links[n]; const tf=tfs[n]; if(!tf) continue;
     const wcp=boxCorners(lk,tf);
     const parts=[];
@@ -598,6 +660,63 @@ function render3D(model, mode){
     }
     ctx3.globalAlpha=1;
   }
+  drawInertiaAndCOM(model, tfs, s, cx, cy, mode);
+}
+function P3(w,s,cx,cy,mode){const p=proj3D(w,mode);return [p[0]*s+cx, p[1]*s+cy];}
+function drawInertiaAndCOM(model,tfs,s,cx,cy,mode){
+  const showInert=$('#cInert').checked, showCom=$('#cCom').checked;
+  if(!showInert&&!showCom) return;
+  // 每 link 质心圆 + 惯量主轴(回转半径)
+  if(showInert){
+    let maxM=0; for(const n in model.links) maxM=Math.max(maxM,linkInert(n).mass);
+    const base=(maxM>0?0.05:0.05)*span3(tfs)*s;
+    const axCol=['#e0533d','#3fb950','#4aa3ff'];  // X,Y,Z 主轴
+    for(const n in model.links){
+      const lk=model.links[n], tf=tfs[n]; if(!tf) continue;
+      const it=linkInert(n), c=linkCOM(tf,lk);
+      if(!(it.mass>0)) continue;               // 质量须为正（面板误填 0/负则跳过该 link）
+      const Pc=P3(c,s,cx,cy,mode);
+      const half=Math.min(...lk.size)/2*s;                    // 质心半径上限=body box 半宽
+      const rel=maxM>0?it.mass/maxM:0;
+      const rad=Math.min(half*0.9, base*Math.max(0.15,rel));
+      ctx3.fillStyle='rgba(255,255,255,.06)'; ctx3.strokeStyle=parseColor(lk.color).css; ctx3.lineWidth=1.2;
+      ctx3.beginPath(); ctx3.arc(...Pc, Math.max(1.2,Math.min(rad,half)), 0, 2*Math.PI); ctx3.fill(); ctx3.stroke();
+      // 惯量主轴：长度∝回转半径 sqrt(I/m)，三轴着色
+      const rgx=Math.sqrt(Math.max(0,it.ixx/it.mass||0)), rgy=Math.sqrt(Math.max(0,it.iyy/it.mass||0)), rgz=Math.sqrt(Math.max(0,it.izz/it.mass||0));
+      const axes=[[rgx,0,0],[0,rgy,0],[0,0,rgz]];
+      ctx3.lineWidth=1.6;
+      for(let i=0;i<3;i++){
+        const w=matVec(tf.R, axes[i]);
+        const tip=[c[0]+w[0]*3, c[1]+w[1]*3, c[2]+w[2]*3];
+        const Pt=P3(tip,s,cx,cy,mode);
+        ctx3.strokeStyle=axCol[i]; ctx3.globalAlpha=.55;
+        ctx3.beginPath(); ctx3.moveTo(...Pc); ctx3.lineTo(...Pt); ctx3.stroke();
+      }
+      // 惯量椭球：以 X/Z 回转半径为半轴的屏幕椭圆
+      const ex=P3([c[0]+rgx*3,c[1],c[2]],s,cx,cy,mode)[0]-Pc[0];
+      const ez=P3([c[0],c[1],c[2]+rgz*3],s,cx,cy,mode)[1]-Pc[1];
+      ctx3.strokeStyle='rgba(255,255,255,.35)'; ctx3.globalAlpha=.4; ctx3.lineWidth=1;
+      ctx3.beginPath(); ctx3.ellipse(Pc[0],Pc[1],Math.abs(ex),Math.abs(ez),0,0,2*Math.PI); ctx3.stroke();
+      ctx3.globalAlpha=1;
+    }
+  }
+  // 总体质心 → 落足重心（垂直投影到脚掌最低平面）
+  if(showCom){
+    const {com,footZ}=systemCOM(tfs);
+    const pc=P3(com,s,cx,cy,mode);
+    const land=[com[0],com[1],footZ]; const pl=P3(land,s,cx,cy,mode);
+    ctx3.setLineDash([4,3]); ctx3.strokeStyle='#e6613d'; ctx3.lineWidth=1.3; ctx3.globalAlpha=.7;
+    ctx3.beginPath(); ctx3.moveTo(...pc); ctx3.lineTo(...pl); ctx3.stroke(); ctx3.setLineDash([]); ctx3.globalAlpha=1;
+    ctx3.fillStyle='#e23b2e';
+    ctx3.font='900 '+Math.max(13,Math.round(s/22))+'px sans-serif'; ctx3.textAlign='center'; ctx3.textBaseline='middle';
+    ctx3.fillText('★', pc[0], pc[1]-2);
+    ctx3.strokeStyle='#ff7b1c'; ctx3.lineWidth=2; ctx3.fillStyle='rgba(255,255,255,.9)';
+    ctx3.beginPath();
+    ctx3.moveTo(pl[0],pl[1]-6); ctx3.lineTo(pl[0]+6,pl[1]); ctx3.lineTo(pl[0],pl[1]+6); ctx3.lineTo(pl[0]-6,pl[1]);
+    ctx3.closePath(); ctx3.stroke();
+    ctx3.fillStyle='#ff7b1c'; ctx3.font='600 '+Math.max(11,Math.round(s/26))+'px "IBM Plex Mono",monospace';
+    ctx3.fillText('落足 ('+mm(com[0]).replace('0.0','0')+' , '+mm(com[1])+')mm', pl[0], pl[1]+12);
+  }
 }
 function cent(pts){return pts.reduce((a,p)=>[a[0]+p[0]/pts.length,a[1]+p[1]/pts.length,a[2]+p[2]/pts.length],[0,0,0]);}
 function span3(tfs){let mx=0;for(const n in tfs){for(const p of tfs[n].pos)mx=Math.max(mx,Math.abs(p));}return mx;}
@@ -621,6 +740,7 @@ let dimView='front';
 function themeVar(n,d){const v=getComputedStyle(document.documentElement).getPropertyValue(n).trim();return v||d;}
 function render2D(model){
   const tfs=computeTFs(model);
+  const fh=fixedClinkSet();   // 锁定关节的 child link 不渲染
   const cv=$('#canvas2d'),ctx=cv.getContext('2d');
   if(ctx.setTransform) ctx.setTransform(1,0,0,1,0,0);
   const W=cv.width,H=cv.height;
@@ -635,8 +755,11 @@ function render2D(model){
   let n=0;
   for(const D of KEYDIMS){ let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
     if(a&&b){ const v=refDist(a,D.ad,b,D.bd); if(isFinite(v)&&v>=0.002) n++; } }
-  const rowH=Math.round(22*dpr), hdrH=Math.round(20*dpr);
-  const paramH=hdrH+n*rowH+Math.round(34*dpr);
+  // 参数表实际布局：标题在 topH+10、表头 topH+36、首数据行 topH+66、每行 lh=24(见
+  // drawParamPanel)。过去 paramH 只按 hdrH+n*rowH+34 算，5 行时会比真实占用少 ~20px，
+  // 导致最后一行(第⑤项)被画布底部裁掉。这里改用与绘制一致的行高/偏移，留足底部边距。
+  const lh=Math.round(24*dpr);
+  const paramH=Math.round(66*dpr) + n*lh + Math.round(16*dpr);
   const topH=H-paramH;
   // ② 主图区与参数表的分隔线
   ctx.strokeStyle=lineC; ctx.lineWidth=1;
@@ -649,10 +772,11 @@ function render2D(model){
   const span=Math.max(0.05,span3(tfs));
   // ④ 主体居中略偏上（避开顶部标题）：放大系数 0.64
   const cx=W/2;
-  const cy=Math.round(44*dpr+(topH-64*dpr)/2);
+  const cy=Math.round(58*dpr+(topH-64*dpr)/2);   // 顶部偏移 44→58，主体与标注整体下移，避开顶部标题
   const s=(Math.min(W-24, topH-60*dpr)*0.64)/(2*span);
   // ⑤ 画每个链路 box
   for(const nm in model.links){
+    if(fh[nm]) continue;
     const lk=model.links[nm], tf=tfs[nm]; if(!tf) continue;
     const pts=boxCorners(lk,tf).map(p=>lf(p,isFront));
     const ax=Math.min(...pts.map(p=>p[0])), bx=Math.max(...pts.map(p=>p[0]));
@@ -877,8 +1001,38 @@ function renderAll(){
   const mode={rx:Rx,ry:Ry};
   render3D(Model,mode);
   render2D(Model);
+  updateComReadout();
 }
 let Model=null, Props={};
+let DENSITY=1500;               // 全局密度 kg/m³（默认与后端 mjcf_convert 一致）
+let Inert={};                   // per-link 惯量覆盖：{<link>:{mass,ixx,iyy,izz}}，缺省字段=按几何×密度自动
+
+/* ---- 惯量 / 质心 计算（与后端同公式：Mujoco box 惯量按全尺寸半轴，质心=visual origin） ---- */
+function linkAutoInert(lk){            // lk.size=[sx,sy,sz] 单位米(全尺寸)
+  const sx=lk.size[0], sy=lk.size[1], sz=lk.size[2];
+  const m=DENSITY*sx*sy*sz;
+  const ixx=m/12*(sy*sy+sz*sz);        // 绕 X：用到 Y、Z 尺寸
+  const iyy=m/12*(sx*sx+sz*sz);        // 绕 Y
+  const izz=m/12*(sx*sx+sy*sy);        // 绕 Z
+  return {mass:m, ixx, iyy, izz};
+}
+function linkInert(name){
+  const lk=Model&&Model.links[name]; if(!lk) return {mass:0,ixx:0,iyy:0,izz:0};
+  const o=Inert[name], a=linkAutoInert(lk);
+  const pick=(k)=>(o&&o[k]!=null&&isFinite(+o[k]))?+o[k]:a[k];
+  return {mass:pick('mass'), ixx:pick('ixx'), iyy:pick('iyy'), izz:pick('izz')};
+}
+function linkCOM(tf, lk){ return add(tf.pos, matVec(tf.R, lk.origin)); } // 质心=visual origin(即 inertial origin)
+function systemCOM(tfs){              // 总体质心 + 总质量 + 脚掌平面(最低 box 角点 world z)
+  let SX=0,SY=0,SZ=0,M=0, footZ=Infinity;
+  for(const n in Model.links){
+    const lk=Model.links[n], tf=tfs[n]; if(!tf) continue;
+    const it=linkInert(n), c=linkCOM(tf,lk);
+    M+=it.mass; SX+=it.mass*c[0]; SY+=it.mass*c[1]; SZ+=it.mass*c[2];
+    for(const p of boxCorners(lk,tf)) if(p[2]<footZ) footZ=p[2];
+  }
+  return {com: M>0?[SX/M,SY/M,SZ/M]:[0,0,0], totalMass:M, footZ: isFinite(footZ)?footZ:0};
+}
 
 /* ================= 参数控制 ================= */
 const GROUPS=[
@@ -939,6 +1093,13 @@ function buildControls(params){
 
 /* ================= 关节：固定 / 限位 / effort ================= */
 var JointConf={};   // {name:{fixed,lower,upper,effort}}
+// 被"固定(锁定)"的关节 → 其 child link 名集合；渲染时隐藏、导出时删除
+function fixedClinkSet(){
+  const m={}; if(!Model) return m;
+  for(const j of Model.joints) if(JointConf[j.name]&&JointConf[j.name].fixed) m[j.child]=1;
+  return m;
+}
+function anyFixed(){ for(const c of Object.values(JointConf)) if(c&&c.fixed) return true; return false; }
 function jointGroup(name){
   if(name==='head_joint'||name.endsWith('_head_joint'))return '0·头';
   if(name.includes('_hip_'))return '1·髋';
@@ -971,7 +1132,7 @@ function buildJointControls(model){
       row.innerHTML=`
         <div class="jtop">
           <span class="jname" title="${j.name}">${short}</span>
-          <label class="fix"><input type="checkbox" data-j="${j.name}" ${fixed?'checked':''}> <i>固定</i></label>
+          <label class="fix"><input type="checkbox" data-j="${j.name}" ${fixed?'checked':''}> <i>锁定(隐藏·不导出)</i></label>
         </div>
         <div class="jlim">
           <span>min<input type="number" class="num" value="${(+lo).toFixed(3)}" data-j="${j.name}" data-k="lower" step="0.05"></span>
@@ -980,6 +1141,7 @@ function buildJointControls(model){
         </div>`;
       row.querySelector('input[type=checkbox]').addEventListener('change',e=>{
         const c=JointConf[j.name]=JointConf[j.name]||{}; c.fixed=e.target.checked;
+        renderAll();    // 锁定→隐藏该 child link；取消→恢复显示
       });
       row.querySelectorAll('input[type=number]').forEach(inp=>{
         inp.addEventListener('change',e=>{
@@ -992,6 +1154,48 @@ function buildJointControls(model){
   }
 }
 
+/* ---- 惯量 / 质心 面板：每 link 质量 + ixx/iyy/izz 覆盖 ---- */
+function buildInertControls(){
+  const wrap=$('#inert'); if(!wrap) return;
+  wrap.innerHTML='';
+  if(!Model) return;
+  const keys=Object.keys(Model.links);
+  if(!keys.length){ wrap.innerHTML='<div class="none">(无 link)</div>'; return; }
+  for(const nm of keys){
+    const lk=Model.links[nm]; const it=linkInert(nm), auto=linkAutoInert(lk);
+    const row=document.createElement('div'); row.className='inrow';
+    const short=nm.replace(/_link$/,'').replace(/(left|right)_/,'');
+    const v=(w)=>{const x=Inert[nm]&&Inert[nm][w]; return (x!=null&&isFinite(+x))?+x:'';};
+    row.innerHTML=`
+      <div class="inname"><span title="${nm}">${short}</span><i>auto m=${auto.mass.toFixed(3)}kg</i></div>
+      <div class="invals">
+        <label>m/kg<i><input type="number" step="0.001" min="0" value="${v('mass')}" data-n="mass"></i>${it.mass.toFixed(3)}</label>
+        <label>ixx<i><input type="number" step="0.000001" min="0" value="${v('ixx')}" data-n="ixx"></i>${it.ixx.toFixed(6)}</label>
+        <label>iyy<i><input type="number" step="0.000001" min="0" value="${v('iyy')}" data-n="iyy"></i>${it.iyy.toFixed(6)}</label>
+        <label>izz<i><input type="number" step="0.000001" min="0" value="${v('izz')}" data-n="izz"></i>${it.izz.toFixed(6)}</label>
+      </div>`;
+    row.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('change',()=>{
+        const c=Inert[nm]=Inert[nm]||{};
+        if(inp.value==='') delete c[inp.dataset.n];
+        else c[inp.dataset.n]=+inp.value;
+        renderAll();                               // 仅重绘，不重建面板，保焦点
+      });
+    });
+    row.style.display='none';                       // 占位，避免空面板闪
+    wrap.appendChild(row);
+    row.style.display='';
+  }
+}
+function updateComReadout(){
+  const el=$('#comread'); if(!el) return;
+  if(!Model){ el.textContent=''; return; }
+  const {com,totalMass,footZ}=systemCOM(computeTFs(Model));
+  const g=mm(com[0]), h=mm(com[1]), z=mm(com[2]);
+  const lx=mm(com[0]), ly=mm(com[1]);
+  el.textContent=`Σm=${totalMass.toFixed(2)}kg  COM(${g},${h},${z}) 落足(${lx},${ly})mm@z=${mm(footZ)}`;
+}
+
 function rgbaToHex(r){const p=String(r).trim().split(/\s+/).map(Number);return '#'+[p[0],p[1],p[2]].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');}
 function hexToRgba(h){const n=parseInt(h.slice(1),16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255,1].map(v=>+v.toFixed(3)).join(' ');}
 function rebuildScene(){
@@ -1000,6 +1204,7 @@ function rebuildScene(){
     Model=parseRobot(doc);
     syncLegend();
     buildJointControls(Model);
+    buildInertControls();
     updateStats(); renderAll();
   }catch(e){ toast('解析出错: '+e.message,true); }
 }
@@ -1029,8 +1234,59 @@ window.addEventListener('pointerup',()=>dragging=false);
 cv3.addEventListener('wheel',e=>{e.preventDefault();zoom*=e.deltaY>0?0.92:1.08;zoom=Math.max(0.3,Math.min(6,zoom));renderAll();},{passive:false});
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on');dimView=b.dataset.v;renderAll();
+  b.classList.add('on');dimView=b.dataset.v;syncRefImg();renderAll();
 }));
+
+/* ---- 2D 参考图：视角切换 + 隐藏 + 透明度 + 拖动缩放 ---- */
+const REF_FILES={front:'reference/'+encodeURIComponent('正面.png'),side:'reference/'+encodeURIComponent('侧面.png')};
+const refState={tx:0,ty:0,k:1};   // translate(x,y) * scale(k)，以 left:50%/top:50% 中心为基
+function refImgEl(){return $('#refImg');}
+function refApply(){
+  const img=refImgEl();
+  img.style.transform='translate(-50%,-50%) translate('+refState.tx+'px,'+refState.ty+'px) scale('+refState.k+')';
+}
+function setRefAlpha(pct){
+  const img=refImgEl(); const shown=$('#refToggle').checked;
+  img.style.opacity=(shown?pct/100:0);
+  img.classList.toggle('hidden',!shown||pct<=0);
+}
+function syncRefImg(){
+  const img=refImgEl();
+  const src=REF_FILES[dimView]||REF_FILES.front;
+  if(img.getAttribute('src')!==src) img.setAttribute('src',src);
+  img.title=(dimView==='front'?'正面':'侧面')+' 参考图';
+  setRefAlpha(parseInt($('#refAlpha').value,10)||45);
+}
+// 拖动：按住图片移动它
+(function(){
+  const img=refImgEl(); let d0=null;
+  img.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.refctl,.tabs')) return;      // 控件不触发拖动
+    d0={x:e.clientX-refState.tx, y:e.clientY-refState.ty};
+    img.classList.add('dragging'); img.setPointerCapture(e.pointerId);
+  });
+  img.addEventListener('pointermove',e=>{
+    if(!d0) return;
+    refState.tx=e.clientX-d0.x; refState.ty=e.clientY-d0.y; refApply();
+  });
+  const up=()=>{d0=null; img.classList.remove('dragging');};
+  img.addEventListener('pointerup',up); img.addEventListener('pointercancel',up);
+  // 滚轮缩放（悬停在图片上）：0.85/1.15
+  img.addEventListener('wheel',e=>{
+    e.preventDefault();
+    refState.k=Math.max(0.1,Math.min(10,refState.k*(e.deltaY>0?0.85:1.15)));
+    refApply();
+  },{passive:false});
+})();
+$('#refReset').addEventListener('click',()=>{refState.tx=0;refState.ty=0;refState.k=1;refApply();});
+$('#refToggle').addEventListener('change',()=>setRefAlpha(parseInt($('#refAlpha').value,10)||45));
+const refRange=$('#refAlpha');
+refRange.addEventListener('input',()=>{
+  $('#refVal').textContent=(+refRange.value)+'%';
+  setRefAlpha(+refRange.value);
+});
+// 初始加载一次参考图（默认正面）
+syncRefImg();
 // 3D 视角预设：正视图 / 侧视图 / 底视图（正投影，相机视角固定为正交角）
 const PRESET_3D={vpFront:[Math.PI/2,Math.PI/2],vpSide:[Math.PI/2,0],vpBottom:[Math.PI,0]};
 document.querySelectorAll('.sat3d button').forEach(b=>b.addEventListener('click',()=>{
@@ -1054,6 +1310,9 @@ $('#btnApply').addEventListener('click',()=>loadSrc($('#src').value,'已解析 �
 $('#btnLoadSample').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已载入内置示例'));
 $('#btnReset').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已重置默认'));
 $('#btnTheme').addEventListener('click',()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';toast('已切换主题');});
+$('#inertDensity').addEventListener('change',e=>{ DENSITY=Math.max(10,+e.target.value||1500); buildInertControls(); renderAll(); });
+$('#cInert').addEventListener('change',()=>renderAll());
+$('#cCom').addEventListener('change',()=>renderAll());
 $('#fileInput').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader();
@@ -1101,6 +1360,23 @@ function exportPNG(){
   dimDrawVals=true;           // 把每个尺寸的数值烧进图纸，导出图带数据
   render2D(Model);
   dimDrawVals=false;
+  // 可选：参考图显示时，把当前参考图(透明度·位置·缩放)按导出分辨率一并合成进 PNG
+  const refShown=$('#refToggle').checked;
+  if(refShown){
+    const img=refImgEl(); const a=((+$('#refAlpha').value)||45)/100;
+    if(a>0 && img.getAttribute('src') && img.naturalWidth){
+      const rc=cv.getContext('2d');
+      const cssW=parseFloat(SAVE.sw)||1, cssH=parseFloat(SAVE.sh)||1; // 原始显示逻辑尺寸
+      const bw=cssW*0.6, bh=bw*img.naturalHeight/img.naturalWidth;
+      const W2=bw*refState.k, H2=bh*refState.k;   // 应用缩放
+      const x0=(cssW/2+refState.tx)-W2/2;         // 应用平移(中心)
+      const y0=(cssH/2+refState.ty)-H2/2;
+      const f=(cv.width)/cssW;                    // 逻辑坐标 → 导出像素
+      rc.save(); rc.globalAlpha=a;
+      try{ rc.drawImage(img, x0*f, y0*f, W2*f, H2*f); }catch(e){}
+      rc.restore();
+    }
+  }
   const url=cv.toDataURL('image/png');
   RENDER_RES=r0;
   // 恢复界面画布并重绘
@@ -1126,9 +1402,21 @@ async function fsExportAll(files){
   for(const f of files){ dl(f.name,f.data); await new Promise(r=>setTimeout(r,360)); }
   return '当前浏览器不支持选目录，已依次下载 '+files.length+' 个文件';
 }
-// 把记录好的关节固定/限位/effort 设置写进导出文档
+// 把记录好的关节固定/限位/effort 设置写进导出文档。
+// 锁定(=固定)的关节：界面隐藏 + 导出时连同 child link 一起删除(不出现)。
 function applyJointConf(doc){
   if(!Object.keys(JointConf).length) return doc;
+  let d=doc;
+  if(anyFixed()){
+    // 先删被锁定关节的 child link（须在删 joint 前，用其原始名匹配）
+    const finks=(()=>{const m={};if(Model)for(const j of Model.joints)if(JointConf[j.name]&&JointConf[j.name].fixed)m[j.child]=1;return m;})();
+    if(Object.keys(finks).length)
+      d=d.replace(/<link\b([^>]*?)name="([^"]+)"([^>]*)>[\s\S]*?<\/link>/g,(a,pre,nm,mid)=> finks[nm]? '' : a);
+    // 再删被锁定的 <joint> 本身
+    d=d.replace(/<joint\b([^>]*?)name="([^"]+)"([^>]*)>[\s\S]*?<\/joint>/g,(a,pre,nm,mid)=>
+      (JointConf[nm]&&JointConf[nm].fixed)? '' : a);
+    doc=d;
+  }
   return doc.replace(/<joint\b([^>]*?)type="([^"]+)"([^>]*)>([\s\S]*?)<\/joint>/g,(all,pre,type,mid,body)=>{
     const nm=(pre+mid).match(/name="([^"]+)/); const name=nm&&nm[1]; if(!name) return all;
     const c=JointConf[name]; if(!c) return all;
@@ -1136,13 +1424,7 @@ function applyJointConf(doc){
     const up=c.upper!==undefined?c.upper:((/upper="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||0);
     const ef=c.effort!==undefined?c.effort:((/effort="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||5);
     let t=type, b=body;
-    if(c.fixed){
-      t='fixed';
-      b=body
-        .replace(/<axis[^>]*\/>/,'')
-        .replace(/<limit[^>]*\/>/,'')
-        .replace(/\s*<velocity[^>]*\/>/g,'');
-    }else if(b.indexOf('<limit')<0){
+    if(b.indexOf('<limit')<0){
       b=b+'\n    <limit lower="'+lo+'" upper="'+up+'" effort="'+ef+'" />';
     }else if(c.lower!==undefined||c.upper!==undefined||c.effort!==undefined){
       b=b.replace(/<limit([^>]*)>/, '<limit$1').replace(/<limit([^>]*)\/>/, '<limit'+' lower="'+lo+'" upper="'+up+'" effort="'+ef+'" />');
@@ -1151,12 +1433,39 @@ function applyJointConf(doc){
   });
 }
 function buildXacroText(){
+  // 展开 + 惯量烧录后，再应用关节锁定/限位/effort（xacro 导出同样生效）
+  return applyJointConf(expandedDocWithInertials());
+}
+// 惯量写回（单一出处）：展开当前 xacro（→ 纯 URDF 字符串 doc），再解析成 DOM，
+// 给每个 link 追加 <inertial>（数值=面板当前惯量/质量，缺省=几何×密度自动），
+// 序列化回字符串。导出的 xacro / urdf / mjcf 因此自包含且反映逐-link 微调；
+// 后端 mjcf_convert 对已有 <inertial> 的 link 跳过再注入，故不会重复。
+function expandedDocWithInertials(){
   let t=$('#src').value;
   for(const k in Props){
     const re=new RegExp('(<xacro:property\\s+name="'+k+'"\\s+value=")[^"]*(")');
     t=t.replace(re,(m,a,b)=>a+String(Props[k])+b);
   }
-  return t;
+  const {doc}=expand(t,Props);          // 注意：doc 是展开后的纯 URDF 字符串
+  if(!Model) return doc;
+  const dom=new DOMParser().parseFromString(doc,'text/xml');
+  if(dom.querySelector('parsererror')) return doc;
+  const f3=v=>v.map(x=>Number(x).toFixed(9)).join(' ');
+  for(const lk of Array.from(dom.documentElement.getElementsByTagName('link'))){
+    const nm=lk.getAttribute('name');
+    const ml=Model.links[nm]; if(!ml) continue;
+    const it=linkInert(nm);
+    const inert=dom.createElement('inertial');
+    const og=dom.createElement('origin');
+    og.setAttribute('xyz', f3(ml.origin)); og.setAttribute('rpy', f3(ml.rpy));
+    const ms=dom.createElement('mass'); ms.setAttribute('value', it.mass.toFixed(5));
+    const ia=dom.createElement('inertia');
+    ia.setAttribute('ixx', it.ixx.toFixed(6)); ia.setAttribute('iyy', it.iyy.toFixed(6));
+    ia.setAttribute('izz', it.izz.toFixed(6)); ia.setAttribute('ixy','0'); ia.setAttribute('ixz','0'); ia.setAttribute('iyz','0');
+    inert.appendChild(og); inert.appendChild(ms); inert.appendChild(ia);
+    lk.appendChild(inert);
+  }
+  return new XMLSerializer().serializeToString(dom.documentElement);
 }
 // 连杆分类：按名字前缀归到身体部位
 const LINK_GROUPS=[
@@ -1247,7 +1556,7 @@ $('#btnSaveX').addEventListener('click',async()=>{
 });
 $('#btnSaveURDF').addEventListener('click',async()=>{
   try{
-    const {doc}=expand($('#src').value,Props);
+    const doc=expandedDocWithInertials();   // 已含惯量烧录
     // 去掉可能残留的命名空间声明，并规范头部：避免 xml 声明重复/前缀未绑定
     const clean=applyJointConf(doc)
       .replace(' xmlns:xacro="http://www.ros.org/wiki/xacro"','')
@@ -1260,6 +1569,44 @@ $('#btnSaveURDF').addEventListener('click',async()=>{
     const r=await fsSave(name, out, 'urdf');
     toast('已导出 URDF（含固定 / 限位 / effort）· '+r);
   }catch(e){ toast('导出 URDF 失败: '+e.message,true); }
+});
+/* 一键导出 MJCF：把当前(已调参)的 xacro 交给后端转成 muJoCo 可用的 xml。
+   转换在后端做(xacro 宏展开 + 按 box 自动算惯量 + MuJoCo 编译)，因此
+   必须通过 http 服务打开(非 file://)，且 server 需有 xacro+mujoco(mocap 环境)。
+   成功后把 <name>.xml(mjcf) 与 <name>.urdf 一并写入所选目录(后端优先 / 下载兜底)。 */
+$('#btnSaveMJCF').addEventListener('click',async()=>{
+  const base=decorateName();
+  toast('正在后端转换 xacro → MJCF(宏展开+算惯量+MuJoCo编译)…');
+  try{
+    const xacroT=buildXacroText();
+    const r=await fetch('/api/export_mjcf',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({xacro:xacroT, basename:base})});
+    const j=await r.json().catch(()=>null);
+    if(!r.ok||!j||!j.ok){
+      const err=(j&&j.error)||('HTTP '+r.status);
+      if(/mocap|缺失/.test(err)) toast('MJCF 导出需在后端(server)完成：请在 mocap 环境启动本服务后再试 · '+err,true);
+      else toast('导出 MJCF 失败: '+err,true);
+      return;
+    }
+    const name=(j.filename||base+'.xml');
+    const files=[
+      {filename:name,            content:j.mjcf},
+      {filename:base+'.urdf',    content:j.urdf}
+    ];
+    // 后端建 <name>_mjcf/ 一次写入
+    const sv=await exportDirServer(base+'_mjcf',files);
+    if(sv){
+      toast('已导出 MJCF('+j.nbody+' 体 / '+j.njnt+' 关节) · 后端写入 '+sv.dir+'/ 共 '+sv.count+' 个文件');
+      return;
+    }
+    // 后端不可用 → 退回浏览器下载
+    const dlr=await fsExportAll([
+      {name:name,         data:new Blob([j.mjcf],{type:'application/xml'})},
+      {name:base+'.urdf', data:new Blob([j.urdf],{type:'application/xml'})}
+    ]);
+    toast('已导出 MJCF('+j.nbody+' 体 / '+j.njnt+' 关节) · '+dlr);
+  }catch(e){ toast('导出 MJCF 失败: '+e.message,true); }
 });
 $('#btnSave2D').addEventListener('click',async()=>{
   try{
@@ -1275,32 +1622,47 @@ $('#btnExportAll').addEventListener('click',async()=>{
   try{
     if(!Model) throw new Error('尚无模型');
     const base=decorateName();
-    // URDF（含固定/限位/effort，已清洗 xacro 残留与重复 xml 头）
-    const {doc}=expand($('#src').value,Props);
+    // URDF（含固定/限位/effort + 惯量烧录，已清洗 xacro 残留与重复 xml 头）
+    const doc=expandedDocWithInertials();
     const urdf='<?xml version="1.0" encoding="UTF-8"?>\n'+
       applyJointConf(doc).replace(' xmlns:xacro="http://www.ros.org/wiki/xacro"','')
         .replace(/^\s*<\?xml[^>]*\?>\s*/,'').trim()+'\n';
     const xacroT=buildXacroText();
     const jsonT=buildLinksJson();
-    toast('正在渲染并导出 URDF + Xacro + PNG + JSON …');
-    // 后端建新文件夹一次写入全部（含几何 PNG）
+    toast('正在导出 URDF + Xacro + MJCF + PNG + JSON …');
+    // 取 MJCF：只能在后端做(xacro 宏展开+算惯量+MuJoCo 编译)。后端不可用 / 无
+    // xacro+mujoco 时会失败，此时跳过该项并在提示里点名。(base+'.xml' 命名与单独按钮一致)
+    let mjcf=null;
+    try{
+      const xr=await fetch('/api/export_mjcf',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({xacro:xacroT, basename:base})});
+      const xj=await xr.json().catch(()=>null);
+      if(xr.ok&&xj&&xj.ok) mjcf=xj;
+    }catch(e){}
+    const mjcfNote = mjcf ? '' : '(未含 MJCF：需用 mocap 环境启动 server 才能生成)';
+    // 后端建新文件夹一次写入全部（含几何 PNG 与 MJCF）
     const pngBlob=exportPNG();
     const pngDL=await blobToDataURL(pngBlob);
-    const sv=await exportDirServer(base+'_export',[
+    const files=[
       {filename:base+'.urdf',      content:urdf},
       {filename:base+'.xacro',     content:xacroT},
       {filename:base+'_links.json',content:jsonT},
       {filename:base+'_2d.png',    b64:pngDL.split(',')[1]||''}
-    ]);
-    if(sv){ toast('一键导出完成 · 后端写入 '+sv.dir+'/ 共 '+sv.count+' 个文件'); return; }
+    ];
+    if(mjcf) files.push({filename:(mjcf.filename||base+'.xml'), content:mjcf.mjcf});
+    const sv=await exportDirServer(base+'_export', files);
+    if(sv){ toast('一键导出完成 · 后端写入 '+sv.dir+'/ 共 '+sv.count+' 个文件 '+mjcfNote); return; }
     // 后端不可用 → 退回浏览器下载/选目录
-    const r=await fsExportAll([
+    const rfiles=[
       {name:base+'.urdf',      data:new Blob([urdf],{type:'application/xml'})},
       {name:base+'.xacro',     data:new Blob([xacroT],{type:'application/xml'})},
       {name:base+'_links.json',data:new Blob([jsonT],{type:'application/json'})},
       {name:base+'_2d.png',    data:pngBlob}
-    ]);
-    toast('一键导出完成 · '+r);
+    ];
+    if(mjcf) rfiles.push({name:(mjcf.filename||base+'.xml'), data:new Blob([mjcf.mjcf],{type:'application/xml'})});
+    const r=await fsExportAll(rfiles);
+    toast('一键导出完成 · '+r+' '+mjcfNote);
   }catch(e){ toast('一键导出失败: '+e.message,true); }
 });
 

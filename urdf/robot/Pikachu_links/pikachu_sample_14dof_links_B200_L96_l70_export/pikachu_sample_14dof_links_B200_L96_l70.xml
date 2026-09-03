@@ -1,0 +1,101 @@
+<mujoco model="pikachu_sample_14dof_links">
+  <compiler angle="radian" />
+
+  <worldbody>
+    <body name="base_link">
+      <inertial pos="0 0 0.1" mass="5.844" diaginertia="0.03796 0.02435 0.02335" />
+      <geom size="0.05 0.0974 0.1" pos="0 0 0.1" type="box" contype="1" conaffinity="1" group="0" rgba="0.55 0.6 0.75 1" density="1500.000000" />
+      <body name="head_link" pos="0 0 0.26">
+        <inertial pos="0 0 0" mass="1.782" diaginertia="0.003935 0.003341 0.003" />
+        <joint name="head_joint" range="-0.8 0.8" actuatorfrcrange="-2 2" axis="0 1 0" />
+        <geom size="0.045 0.055 0.06" type="box" contype="1" conaffinity="1" group="0" rgba="0.98 0.85 0.3 1" density="1500.000000" />
+      <geom size="0.045 0.055 0.06" type="box" contype="0" conaffinity="0" group="1" rgba="0.98 0.85 0.3 1" density="0" />
+      </body>
+      <body name="left_hip_pitch_link" pos="0 0.0974 0">
+        <inertial pos="0 0.01775 0" quat="0 0.707107 0 0.707107" mass="0.05325" diaginertia="1.3e-05 1e-05 8e-06" />
+        <joint name="left_hip_pitch_joint" range="0 2.44" actuatorfrcrange="-12.5 12.5" axis="0 -1 0" />
+        <geom size="0.02 0.01775 0.0125" pos="0 0.01775 0" type="box" contype="1" conaffinity="1" group="0" rgba="0.9 0.35 0.8 1" density="1500.000000" />
+        <body name="left_hip_roll_link" pos="0 0.0355 0">
+          <inertial pos="0 0 -0.023" quat="0.707107 0 0 0.707107" mass="0.069" diaginertia="2.1e-05 1.6e-05 1.3e-05" />
+          <joint name="left_hip_roll_joint" range="-0.09 0.26" actuatorfrcrange="-9 9" axis="1 0 0" />
+          <geom size="0.02 0.0125 0.023" pos="0 0 -0.023" type="box" contype="1" conaffinity="1" group="0" rgba="1 0.6 0.2 1" density="1500.000000" />
+          <body name="left_hip_yaw_link" pos="0 0 -0.046">
+            <inertial pos="0 0 -0.02505" quat="0.707107 0 0 0.707107" mass="0.07515" diaginertia="2.6e-05 2e-05 1.4e-05" />
+            <joint name="left_hip_yaw_joint" range="-0.09 0.26" actuatorfrcrange="-9 9" />
+            <geom size="0.02 0.0125 0.02505" pos="0 0 -0.02505" type="box" contype="1" conaffinity="1" group="0" rgba="0.35 0.55 1 1" density="1500.000000" />
+            <body name="left_knee_link" pos="0 0 -0.0501">
+              <inertial pos="0 0 -0.035" quat="0.707107 0 0 0.707107" mass="0.105" diaginertia="5.7e-05 4.8e-05 1.9e-05" />
+              <joint name="left_knee_joint" range="0 1.57" actuatorfrcrange="-12.5 12.5" axis="0 1 0" />
+              <geom size="0.02 0.0125 0.035" pos="0 0 -0.035" type="box" contype="1" conaffinity="1" group="0" rgba="0.3 0.8 0.35 1" density="1500.000000" />
+              <body name="left_ankle_link" pos="0 0 -0.07">
+                <inertial pos="0.0133333 0 -0.01" quat="0 0.707107 0 0.707107" mass="0.12" diaginertia="8.9e-05 6.8e-05 2.9e-05" />
+                <joint name="left_ankle_joint" range="-0.52 1.05" actuatorfrcrange="-9 9" axis="0 -1 0" />
+                <geom size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" type="box" contype="1" conaffinity="1" group="0" rgba="0.25 0.28 0.35 1" density="1500.000000" />
+              <geom size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" type="box" contype="0" conaffinity="0" group="1" rgba="0.25 0.28 0.35 1" density="0" />
+              </body>
+            <geom size="0.02 0.0125 0.035" pos="0 0 -0.035" type="box" contype="0" conaffinity="0" group="1" rgba="0.3 0.8 0.35 1" density="0" />
+              </body>
+          <geom size="0.02 0.0125 0.02505" pos="0 0 -0.02505" type="box" contype="0" conaffinity="0" group="1" rgba="0.35 0.55 1 1" density="0" />
+            </body>
+        <geom size="0.02 0.0125 0.023" pos="0 0 -0.023" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.6 0.2 1" density="0" />
+          </body>
+      <geom size="0.02 0.01775 0.0125" pos="0 0.01775 0" type="box" contype="0" conaffinity="0" group="1" rgba="0.9 0.35 0.8 1" density="0" />
+        </body>
+      <body name="right_hip_pitch_link" pos="0 -0.0974 0">
+        <inertial pos="0 -0.01775 0" quat="0 0.707107 0 0.707107" mass="0.05325" diaginertia="1.3e-05 1e-05 8e-06" />
+        <joint name="right_hip_pitch_joint" range="0 2.44" actuatorfrcrange="-12.5 12.5" axis="0 -1 0" />
+        <geom size="0.02 0.01775 0.0125" pos="0 -0.01775 0" type="box" contype="1" conaffinity="1" group="0" rgba="0.9 0.35 0.8 1" density="1500.000000" />
+        <body name="right_hip_roll_link" pos="0 -0.0355 0">
+          <inertial pos="0 0 -0.023" quat="0.707107 0 0 0.707107" mass="0.069" diaginertia="2.1e-05 1.6e-05 1.3e-05" />
+          <joint name="right_hip_roll_joint" range="-0.09 0.26" actuatorfrcrange="-9 9" axis="-1 0 0" />
+          <geom size="0.02 0.0125 0.023" pos="0 0 -0.023" type="box" contype="1" conaffinity="1" group="0" rgba="1 0.6 0.2 1" density="1500.000000" />
+          <body name="right_hip_yaw_link" pos="0 0 -0.046">
+            <inertial pos="0 0 -0.02505" quat="0.707107 0 0 0.707107" mass="0.07515" diaginertia="2.6e-05 2e-05 1.4e-05" />
+            <joint name="right_hip_yaw_joint" range="-0.09 0.26" actuatorfrcrange="-9 9" axis="0 0 -1" />
+            <geom size="0.02 0.0125 0.02505" pos="0 0 -0.02505" type="box" contype="1" conaffinity="1" group="0" rgba="0.35 0.55 1 1" density="1500.000000" />
+            <body name="right_knee_link" pos="0 0 -0.0501">
+              <inertial pos="0 0 -0.035" quat="0.707107 0 0 0.707107" mass="0.105" diaginertia="5.7e-05 4.8e-05 1.9e-05" />
+              <joint name="right_knee_joint" range="0 1.57" actuatorfrcrange="-12.5 12.5" axis="0 1 0" />
+              <geom size="0.02 0.0125 0.035" pos="0 0 -0.035" type="box" contype="1" conaffinity="1" group="0" rgba="0.3 0.8 0.35 1" density="1500.000000" />
+              <body name="right_ankle_link" pos="0 0 -0.07">
+                <inertial pos="0.0133333 0 -0.01" quat="0 0.707107 0 0.707107" mass="0.12" diaginertia="8.9e-05 6.8e-05 2.9e-05" />
+                <joint name="right_ankle_joint" range="-0.52 1.05" actuatorfrcrange="-9 9" axis="0 -1 0" />
+                <geom size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" type="box" contype="1" conaffinity="1" group="0" rgba="0.25 0.28 0.35 1" density="1500.000000" />
+              <geom size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" type="box" contype="0" conaffinity="0" group="1" rgba="0.25 0.28 0.35 1" density="0" />
+              </body>
+            <geom size="0.02 0.0125 0.035" pos="0 0 -0.035" type="box" contype="0" conaffinity="0" group="1" rgba="0.3 0.8 0.35 1" density="0" />
+              </body>
+          <geom size="0.02 0.0125 0.02505" pos="0 0 -0.02505" type="box" contype="0" conaffinity="0" group="1" rgba="0.35 0.55 1 1" density="0" />
+            </body>
+        <geom size="0.02 0.0125 0.023" pos="0 0 -0.023" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.6 0.2 1" density="0" />
+          </body>
+      <geom size="0.02 0.01775 0.0125" pos="0 -0.01775 0" type="box" contype="0" conaffinity="0" group="1" rgba="0.9 0.35 0.8 1" density="0" />
+        </body>
+      <body name="left_arm_pitch_link" pos="0 0.0974 0.2">
+        <inertial pos="0 0.0341 0" quat="0.5 0.5 -0.5 0.5" mass="0.13592" diaginertia="7.1e-05 6.5e-05 3.1e-05" />
+        <joint name="left_arm_pitch_joint" range="-1.57 1.57" actuatorfrcrange="-2 2" axis="0 -1 0" />
+        <geom size="0.01995 0.0341 0.01665" pos="0 0.0341 0" type="box" contype="1" conaffinity="1" group="0" rgba="0.75 0.35 1 1" density="1499.967544" />
+        <body name="left_arm_roll_link" pos="0 0.0682 0">
+          <inertial pos="0 0 -0.0459" quat="0.707107 0 0 0.707107" mass="0.18296" diaginertia="0.000153 0.000145 4.1e-05" />
+          <joint name="left_arm_roll_joint" range="-1.57 1.57" actuatorfrcrange="-2 2" axis="1 0 0" />
+          <geom size="0.01995 0.01665 0.0459" pos="0 0 -0.0459" type="box" contype="1" conaffinity="1" group="0" rgba="1 0.9 0.25 1" density="1500.017553" />
+        <geom size="0.01995 0.01665 0.0459" pos="0 0 -0.0459" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.9 0.25 1" density="0" />
+        </body>
+      <geom size="0.01995 0.0341 0.01665" pos="0 0.0341 0" type="box" contype="0" conaffinity="0" group="1" rgba="0.75 0.35 1 1" density="0" />
+        </body>
+      <body name="right_arm_pitch_link" pos="0 -0.0974 0.2">
+        <inertial pos="0 -0.0341 0" quat="0.5 0.5 -0.5 0.5" mass="0.13592" diaginertia="7.1e-05 6.5e-05 3.1e-05" />
+        <joint name="right_arm_pitch_joint" range="-1.57 1.57" actuatorfrcrange="-2 2" axis="0 -1 0" />
+        <geom size="0.01995 0.0341 0.01665" pos="0 -0.0341 0" type="box" contype="1" conaffinity="1" group="0" rgba="0.75 0.35 1 1" density="1499.967544" />
+        <body name="right_arm_roll_link" pos="0 -0.0682 0">
+          <inertial pos="0 0 -0.0459" quat="0.707107 0 0 0.707107" mass="0.18296" diaginertia="0.000153 0.000145 4.1e-05" />
+          <joint name="right_arm_roll_joint" range="-1.57 1.57" actuatorfrcrange="-2 2" axis="-1 0 0" />
+          <geom size="0.01995 0.01665 0.0459" pos="0 0 -0.0459" type="box" contype="1" conaffinity="1" group="0" rgba="1 0.9 0.25 1" density="1500.017553" />
+        <geom size="0.01995 0.01665 0.0459" pos="0 0 -0.0459" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.9 0.25 1" density="0" />
+        </body>
+      <geom size="0.01995 0.0341 0.01665" pos="0 -0.0341 0" type="box" contype="0" conaffinity="0" group="1" rgba="0.75 0.35 1 1" density="0" />
+        </body>
+    <geom size="0.05 0.0974 0.1" pos="0 0 0.1" type="box" contype="0" conaffinity="0" group="1" rgba="0.55 0.6 0.75 1" density="0" />
+      </body>
+  </worldbody>
+</mujoco>

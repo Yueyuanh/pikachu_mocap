@@ -83,26 +83,47 @@ class RobotViewer(QWidget):
 
         self.load_robot()
 
+    def _base_link_world_pos(self):
+        """返回 base_link 在世界里的显示位置（= 根节点缩放/抬高/位姿 × base_link FK）。
+
+        base_link 是 URDF 根链接；meshcat 把它的显示值 = robot 根节点变换(1.5×缩放+ground_offset+base)
+        再乘 base_link 的 FK。默认下即 (0,0,~0.24)，相机默认应该对准它而不是世界中心 (0,0,16 的地面点)。
+        """
+        try:
+            fk = self.robot.compute_fk()
+            bl = next((l for l in fk if l.name == 'base_link'), None)
+            Tbl = fk[bl] if bl is not None else np.eye(4)
+        except Exception:
+            Tbl = np.eye(4)
+        # 根节点变换（与 _update_robot_root 一致）：缩放 × 位姿(含 ground_offset) , 单位取到 4x4
+        pos = np.asarray(self._base_pos, float) + np.array([0.0, 0.0, self._ground_offset])
+        Troot = self._scale_matrix @ mt.translation_matrix(pos) @ _rpy_xyz_deg_to_mat4(*self._base_rpy)
+        return (Troot @ Tbl)[:3, 3]
+
     def _on_web_view_loaded(self, success):
-        """当meshcat网页加载完成后，设置默认相机视角"""
+        """当meshcat网页加载完成后，设置默认相机视角：对准 base_link 并抬高相机"""
         if success:
-            # 使用JavaScript调整OrbitControls的参数
-            # 这样可以保持meshcat的交互功能
-            js_code = """
-            // 等待一小段时间确保viewer和controls都已初始化
-            setTimeout(function() {
-                // 尝试获取viewer对象
-                if (typeof viewer !== 'undefined' && viewer && viewer.controls) {
-                    // 设置更近的初始距离
-                    viewer.controls.minDistance = 1.0;
-                    viewer.controls.maxDistance = 10.0;
-                    // 机器人被 _ground_offset(0.16) 抬高，相机注视点上移 0.16 与之平齐
-                    viewer.camera.position.set(0.5, 0.46, -0.3);
-                    viewer.camera.lookAt(0, 0.16, 0);
-                    viewer.controls.update();
-                }
-            }, 500);
-            """
+            # 计算 base_link 世界显示位置，抬高相机、注视到 base_link
+            t = self._base_link_world_pos()
+            eye_off = np.array([0.65, 0.6, 0.9])   # 相机眼位相对 base_link 的偏移（更远、更高）
+            ex, ey, ez = t + eye_off
+            tx, ty, tz = t
+            # 使用JavaScript调整OrbitControls的参数，保持meshcat交互
+            js_code = (
+                "// 等待一小段时间确保viewer和controls都已初始化\n"
+                "setTimeout(function() {\n"
+                "    // 尝试获取viewer对象\n"
+                "    if (typeof viewer !== 'undefined' && viewer && viewer.controls) {\n"
+                "        // 设置更近的初始距离\n"
+                "        viewer.controls.minDistance = 1.0;\n"
+                "        viewer.controls.maxDistance = 10.0;\n"
+                "        // 相机抬高并对准 base_link（而非世界中心的地面点）\n"
+                f"        viewer.camera.position.set({ex:.3f}, {ey:.3f}, {ez:.3f});\n"
+                f"        viewer.camera.lookAt({tx:.3f}, {ty:.3f}, {tz:.3f});\n"
+                "        viewer.controls.update();\n"
+                "    }\n"
+                "}, 500);\n"
+            )
             self.web_view.page().runJavaScript(js_code)
 
     def load_robot(self):

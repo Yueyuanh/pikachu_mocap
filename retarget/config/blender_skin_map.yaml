@@ -1,0 +1,167 @@
+# Pikachu URDF(V025) → Blender 皮肤骨架(自定义蒙皮 rig) 重定向映射 ====================
+#
+# 用途: Qt(Pikachu_Retarget.py)把当前 URDF 关节角(弧度)按每套皮肤骨架的 joints 映射,
+#        换算成该骨架骨骼欧拉角, 调 set_pose(pose, armature=<name>) 驱动 Blender 里的蒙皮。
+# 参考: blender_urdf_map.yaml 的 per-armature(带 name)结构 —— 想加新蒙皮骨架只需在此
+#        增一个 armatures 块(给出 name + joints + base), 无需改 Qt 代码。
+#
+#  公式:  sink_axis_angle_deg = joint_angle_rad*180/pi * sign + bias   (bias 单位度, 默认 0)
+#  随后按该骨该轴的 limit(度) 钳位, 写入 pose[bone][axis](度); 同一骨多轴累加。
+#
+# 骨架命名: name = Blender 场景里该 armature 的对象名。Qt 选它时推 set_pose(armature=name);
+#         Blender 端 set_pose 找不到该骨架会忽略, 未加载/被删的骨架不影响其他骨架。
+# source_fbx(可选): 离线时(未连 Blender)从该 FBX 读骨骼名填充骨列表; 连上 Blender 后
+#         request_scene 实时返回的真实骨架骨骼优先(见 Pikachu_Retarget.py _on_scene)。
+#
+# 注意: rig 是旧版主皮肤(映射见 retarget_map.yaml), 单骨多轴收 pitch/roll/yaw;
+#        self_rig_v2 / self_rig_v3 是用户改造的自绑蒙皮, 骨名/层级不同。
+# ============================================================================
+
+enabled: true
+
+armatures:
+
+  # ── rig: 原有主皮肤(retarget_map.yaml 同款), 保留 —— 供旧链路/无自定义皮肤时使用 ──
+  - name: "rig"
+    source_fbx: ""
+    base_pos: { pos_retarget: [y,x,z], pos_scale: [2.0, 2.0, 2.0], pos_dir: [1.0, -1.0, 1.0] }
+    base_rot: { rot_retarget: [x,y,z], rot_scale: [1.0, 1.0, 1.0], rot_offset: [0.0, 0.0, 0.0] }
+    joints:
+      head_yaw_joint:     { bone: head,         axis: y, sign:  1, bias: 0.0, limit: [-60.0, 60.0] }
+      head_pitch_joint:   { bone: head,         axis: x, sign: -1, bias: 0.0, limit: [-60.0, 60.0] }
+      head_roll_joint:    { bone: head,         axis: z, sign: -1, bias: 0.0, limit: [-60.0, 60.0] }
+      left_arm_pitch_joint:    { bone: upper_arm_fk.L, axis: y, sign: -1, bias: 0.0, limit: [-60.0, 180.0] }
+      left_arm_roll_joint:     { bone: upper_arm_fk.L, axis: x, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      left_arm_yaw_joint:      { bone: upper_arm_fk.L, axis: z, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      left_elbow_ankle_joint:  { bone: forearm_fk.L,   axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      right_arm_pitch_joint:   { bone: upper_arm_fk.R, axis: x, sign:  1, bias: 0.0, limit: [-60.0, 180.0] }
+      right_arm_roll_joint:    { bone: upper_arm_fk.R, axis: z, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      right_arm_yaw_joint:     { bone: upper_arm_fk.R, axis: y, sign:  1, bias: 0.0, limit: [-90.0, 90.0] }
+      right_elbow_ankle_joint: { bone: forearm_fk.R,   axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      left_hip_pitch_joint: { bone: hips,       axis: y, sign: -1, bias: 0.0, limit: [0.0, 140.0] }
+      left_hip_roll_joint:  { bone: hips,       axis: x, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_hip_yaw_joint:   { bone: hips,       axis: z, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_knee_joint:      { bone: foot_ik.L,  axis: x, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      left_ankle_joint:     { bone: foot_ik.L,  axis: y, sign: -1, bias: 0.0, limit: [-30.0, 60.0] }
+      right_hip_pitch_joint: { bone: hips,       axis: y, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      right_hip_roll_joint: { bone: hips,       axis: x, sign: -1, bias: 0.0, limit: [-5.0, 15.0] }
+      right_hip_yaw_joint:  { bone: hips,       axis: z, sign: -1, bias: 0.0, limit: [-5.0, 15.0] }
+      right_knee_joint:     { bone: foot_ik.R,  axis: x, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      right_ankle_joint:    { bone: foot_ik.R,  axis: y, sign:  1, bias: 0.0, limit: [-30.0, 60.0] }
+    # 直接操控用的骨骼清单(离线兜底; 连上 Blender 后按 scene 覆盖)
+    bones:
+      - head
+      - neck
+      - chest
+      - torso
+      - hips
+      - shoulder.L
+      - shoulder.R
+      - ear.L
+      - ear.R
+      - upper_arm_fk.L
+      - upper_arm_fk.R
+      - forearm_fk.L
+      - forearm_fk.R
+      - hand_fk.L
+      - hand_fk.R
+      - foot_ik.L
+      - foot_ik.R
+      - toe.L
+      - toe.R
+      - tail
+
+  # ── self_rig_v2: 用户改造蒙皮 v2(16 骨), joints 同 retarget_map_self_rig_v2.yaml ──
+  - name: "Pikacuh_skin_self_rig_v2"
+    source_fbx: ""
+    base_pos: { pos_retarget: [y,x,z], pos_scale: [2.0, 2.0, 2.0], pos_dir: [1.0, -1.0, 1.0] }
+    base_rot: { rot_retarget: [x,y,z], rot_scale: [1.0, 1.0, 1.0], rot_offset: [0.0, 0.0, 0.0] }
+    joints:
+      head_yaw_joint:     { bone: head,        axis: y, sign:  1, bias: 0.0, limit: [-60.0, 60.0] }
+      head_pitch_joint:   { bone: head,        axis: x, sign: -1, bias: 0.0, limit: [-60.0, 60.0] }
+      head_roll_joint:    { bone: head,        axis: z, sign: -1, bias: 0.0, limit: [-60.0, 60.0] }
+      left_arm_pitch_joint:    { bone: arm_pitch_L, axis: x, sign: -1, bias: 0.0, limit: [-180.0, 180.0] }
+      left_arm_roll_joint:     { bone: arm_pitch_L, axis: z, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      left_arm_yaw_joint:      { bone: arm_pitch_L, axis: y, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      right_arm_pitch_joint:   { bone: arm_pitch_R, axis: x, sign: -1, bias: 0.0, limit: [-180.0, 180.0] }
+      right_arm_roll_joint:    { bone: arm_pitch_R, axis: z, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      right_arm_yaw_joint:     { bone: arm_pitch_R, axis: y, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      left_hip_pitch_joint: { bone: hip_pitch_L, axis: x, sign:  1, bias: 0.0, limit: [-140.0, 0.0] }
+      left_hip_roll_joint:  { bone: hip_pitch_L, axis: z, sign: -1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_hip_yaw_joint:   { bone: hip_pitch_L, axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_knee_joint:      { bone: hip_knee_L,  axis: x, sign: -1, bias: 0.0, limit: [0.0, 90.0] }
+      left_ankle_joint:     { bone: hip_ankle_L, axis: x, sign: -1, bias: 0.0, limit: [-60.0, 30.0] }
+      right_hip_pitch_joint: { bone: hip_pitch_R, axis: x, sign: -1, bias: 0.0, limit: [-140.0, 0.0] }
+      right_hip_roll_joint: { bone: hip_pitch_R, axis: z, sign: -1, bias: 0.0, limit: [-5.0, 15.0] }
+      right_hip_yaw_joint:  { bone: hip_pitch_R, axis: y, sign:  1, bias: 0.0, limit: [-15.0, 5.0] }
+      right_knee_joint:     { bone: hip_knee_R,  axis: x, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      right_ankle_joint:    { bone: hip_ankle_R, axis: x, sign:  1, bias: 0.0, limit: [-60.0, 30.0] }
+    # 直接操控用的骨骼清单(未连 Blender 时兜底;连上后按 scene 覆盖)
+    bones:
+      - base_link
+      - head
+      - arm_L
+      - arm_pitch_L
+      - arm_R
+      - arm_pitch_R
+      - hip_L
+      - hip_pitch_L
+      - hip_knee_L
+      - hip_ankle_L
+      - hip_R
+      - hip_pitch_R
+      - hip_knee_R
+      - hip_ankle_R
+
+
+  # ── self_rig_v3: 用户当前在 Blender 打开的蒙皮(20 骨, 含 nest/tail/ear/arm_elbow)──
+  - name: "self_rig_v3"
+    # 离线骨源（可选）：self_rig_v4 与 v3 同属「自绑骨架」骨名体系（arm_pitch/knee_L 等）。
+    # 运行时优先 Blender scene(request_scene) 热加载，其次 skin map 的 bones，最后才试此 FBX。
+    source_fbx: "assets/FBX/pikachu_role_self_rig_v4.fbx"
+    base_pos: { pos_retarget: [y,x,z], pos_scale: [2.0, 2.0, 2.0], pos_dir: [1.0, -1.0, 1.0] }
+    base_rot: { rot_retarget: [x,y,z], rot_scale: [1.0, 1.0, 1.0], rot_offset: [0.0, 0.0, 0.0] }
+    joints:
+      head_yaw_joint:     { bone: head,        axis: y, sign:  1, bias: 0.0, limit: [-60.0, 60.0] }
+      head_pitch_joint:   { bone: head,        axis: x, sign: -1, bias: 0.0, limit: [-60.0, 60.0] }
+      head_roll_joint:    { bone: head,        axis: z, sign: -1, bias: 0.0, limit: [-60.0, 60.0] }
+      left_arm_pitch_joint:    { bone: arm_pitch_L, axis: x, sign: -1, bias: 0.0, limit: [-180.0, 180.0] }
+      left_arm_roll_joint:     { bone: arm_pitch_L, axis: z, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      left_arm_yaw_joint:      { bone: arm_pitch_L, axis: y, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      left_elbow_ankle_joint:  { bone: arm_elbow_L, axis: x, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      right_arm_pitch_joint:   { bone: arm_pitch_R, axis: x, sign: -1, bias: 0.0, limit: [-180.0, 180.0] }
+      right_arm_roll_joint:    { bone: arm_pitch_R, axis: z, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      right_arm_yaw_joint:     { bone: arm_pitch_R, axis: y, sign:  1, bias: 0.0, limit: [-180.0, 180.0] }
+      right_elbow_ankle_joint: { bone: arm_elbow_R, axis: x, sign:  1, bias: 0.0, limit: [0.0, 140.0] }
+      left_hip_pitch_joint: { bone: hip_pitch_L, axis: x, sign:  1, bias: 0.0, limit: [-140.0, 0.0] }
+      left_hip_roll_joint:  { bone: hip_pitch_L, axis: z, sign: -1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_hip_yaw_joint:   { bone: hip_pitch_L, axis: y, sign:  1, bias: 0.0, limit: [-5.0, 15.0] }
+      left_knee_joint:      { bone: knee_L,      axis: x, sign: -1, bias: 0.0, limit: [0.0, 90.0] }
+      left_ankle_joint:     { bone: ankle_L,     axis: x, sign: -1, bias: 0.0, limit: [-60.0, 30.0] }
+      right_hip_pitch_joint: { bone: hip_pitch_R, axis: x, sign: -1, bias: 0.0, limit: [-140.0, 0.0] }
+      right_hip_roll_joint: { bone: hip_pitch_R, axis: z, sign: -1, bias: 0.0, limit: [-5.0, 15.0] }
+      right_hip_yaw_joint:  { bone: hip_pitch_R, axis: y, sign:  1, bias: 0.0, limit: [-15.0, 5.0] }
+      right_knee_joint:     { bone: knee_R,      axis: x, sign:  1, bias: 0.0, limit: [0.0, 90.0] }
+      right_ankle_joint:    { bone: ankle_R,     axis: x, sign:  1, bias: 0.0, limit: [-60.0, 30.0] }
+    # 直接操控用的骨骼清单(离线兜底; 连上 Blender 后按 scene 覆盖)
+    bones:
+      - base
+      - arm_L
+      - arm_pitch_L
+      - arm_elbow_L
+      - nest
+      - tail
+      - arm_R
+      - arm_pitch_R
+      - arm_elbow_R
+      - head
+      - ear_L
+      - ear_R
+      - hip_L
+      - hip_pitch_L
+      - knee_L
+      - ankle_L
+      - hip_R
+      - hip_pitch_R
+      - knee_R
+      - ankle_R

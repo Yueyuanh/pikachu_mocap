@@ -1,0 +1,191 @@
+# ============================================================================
+# Pikachu URDF(V025) → Blender 「自定义自绑骨架」 self_rig_v3 重定向映射
+# ============================================================================
+# 用途：把单自由度 URDF 关节角，映射到 self_rig_v3 骨架里对应骨骼的本地旋转轴，
+#       通过 set_pose（带 armature 名 "self_rig_v3"）驱动这块自定义蒙皮。
+#
+#   公式:  sink_axis_angle = joint_angle(度) * sign + bias
+#   随后按 limit 钳位，写入 pose[bone][axis]，同一骨多个轴累加。
+#
+# 骨架层级（Blender 实测，20 骨）:
+#   base
+#     ├─ arm_L → arm_pitch_L → arm_elbow_L
+#     ├─ nest
+#     ├─ tail
+#     └─ arm_R → arm_pitch_R → arm_elbow_R
+#   head → ear_L / ear_R
+#   hip_L → hip_pitch_L → knee_L → ankle_L
+#   hip_R → hip_pitch_R → knee_R → ankle_R
+#
+# 注意：本文件为「向后兼容保留」的单骨架映射。Qt 运行（Pikachu_Retarget.py）优先从
+#       blender_skin_map.yaml 的 per-armature 块读取（含 name + base + bones + joints），
+#       这里的内容与皮肤 map 的 self_rig_v3 块保持一致；此单骨架文件仅供独立引用/备份。
+# 轴/符号依据沿 v2 语义给出初值；实测某骨反向时改对应行 sign/axis，并在 GUI Reload。
+# ============================================================================
+
+version: 1
+
+# ── base（角色整体位姿）── npz 播 base 时同步 root 的位移与朝向（与皮肤 map 的 base_pos/base_rot 一致）
+base:
+  pos_retarget: [y,x,z]
+  pos_scale: [2.0, 2.0, 2.0]
+  pos_dir:   [1.0, -1.0, 1.0]
+  rot_retarget: [x,y,z]
+  rot_scale: [1.0, 1.0, 1.0]
+  rot_offset: [0.0, 0.0, 0.0]
+
+retarget:
+
+  # ── 头部（单骨三轴收 pitch/roll/yaw）─────────────────────────────────────
+  head_yaw_joint:
+    bone: head
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-60.0, 60.0]
+
+  head_pitch_joint:
+    bone: head
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-60.0, 60.0]
+
+  head_roll_joint:
+    bone: head
+    axis: z
+    sign: -1
+    bias: 0.0
+    limit: [-60.0, 60.0]
+
+  # ── 左臂 ────────────────────────────────────────────────────────────────
+  # arm_L=肩根部连接，arm_pitch_L=上臂（三轴收 pitch/roll/yaw），arm_elbow_L=肘
+  left_arm_pitch_joint:
+    bone: arm_pitch_L
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-180.0, 180.0]
+
+  left_arm_roll_joint:
+    bone: arm_pitch_L
+    axis: z
+    sign: 1
+    bias: 0.0
+    limit: [-180.0, 180.0]
+
+  left_arm_yaw_joint:
+    bone: arm_pitch_L
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-180.0, 180.0]
+
+  left_elbow_ankle_joint:
+    bone: arm_elbow_L
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 140.0]
+
+  # ── 右臂 ────────────────────────────────────────────────────────────────
+  right_arm_pitch_joint:
+    bone: arm_pitch_R
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-180.0, 180.0]
+
+  right_arm_roll_joint:
+    bone: arm_pitch_R
+    axis: z
+    sign: 1
+    bias: 0.0
+    limit: [-180.0, 180.0]
+
+  right_arm_yaw_joint:
+    bone: arm_pitch_R
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-180.0, 180.0]
+
+  right_elbow_ankle_joint:
+    bone: arm_elbow_R
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 140.0]
+
+  # ── 左腿 ────────────────────────────────────────────────────────────────
+  # hip_pitch_L=大腿（pitch 主 + roll/yaw 收这里），knee_L=膝，ankle_L=踝
+  left_hip_pitch_joint:
+    bone: hip_pitch_L
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [-140.0, 0.0]
+
+  left_hip_roll_joint:
+    bone: hip_pitch_L
+    axis: z
+    sign: -1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  left_hip_yaw_joint:
+    bone: hip_pitch_L
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  left_knee_joint:
+    bone: knee_L
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [0.0, 90.0]
+
+  left_ankle_joint:
+    bone: ankle_L
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-60.0, 30.0]
+
+  # ── 右腿 ────────────────────────────────────────────────────────────────
+  right_hip_pitch_joint:
+    bone: hip_pitch_R
+    axis: x
+    sign: -1
+    bias: 0.0
+    limit: [-140.0, 0.0]
+
+  right_hip_roll_joint:
+    bone: hip_pitch_R
+    axis: z
+    sign: -1
+    bias: 0.0
+    limit: [-5.0, 15.0]
+
+  right_hip_yaw_joint:
+    bone: hip_pitch_R
+    axis: y
+    sign: 1
+    bias: 0.0
+    limit: [-15.0, 5.0]
+
+  right_knee_joint:
+    bone: knee_R
+    axis: x
+    sign: 1
+    bias: 0.0
+    limit: [0.0, 90.0]
+
+  right_ankle_joint:
+    bone: ankle_R
+    axis: x
+    sign: 1
+    bias: -0.0
+    limit: [-60.0, 30.0]

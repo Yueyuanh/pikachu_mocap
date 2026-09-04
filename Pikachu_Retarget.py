@@ -54,6 +54,8 @@ RETARGET_CFG = os.path.join(BASE_DIR, "retarget", "config")
 RETARGET_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map.yaml")
 BLENDER_URDF_MAP_PATH = os.path.join(RETARGET_CFG, "blender_urdf_map.yaml")
 SELF_RIG_V2_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map_self_rig_v2.yaml")
+# 自定义皮肤骨架注册表（per-armature、带 name；rig / self_rig_v2 / self_rig_v3 统一在这里管理）
+BLENDER_SKIN_MAP_PATH = os.path.join(RETARGET_CFG, "blender_skin_map.yaml")
 # 新增的自定义皮肤骨架目标（Blender 里的真实骨架名）——把 URDF 皮肤姿态也推给它
 SELF_RIG_V2_ARMATURE = "Pikacuh_skin_self_rig_v2"
 DEFAULT_URDF_PATH = os.path.join(
@@ -114,6 +116,58 @@ def v2_bone_limits_from_map(rt_map_v2, bones):
         fb = fallback.get(b, (-90.0, 90.0))
         out[b] = {ax: (lims[b][ax] if lims[b][ax] is not None else fb) for ax in ("x", "y", "z")}
     return out
+
+
+# 通用别名：对任意皮肤骨架的 joints 聚合逐骨逐轴 limit（不止 self_rig_v2）
+bone_limits_from_map = v2_bone_limits_from_map
+
+
+def load_skin_registry(path=None):
+    """读 blender_skin_map.yaml → 皮肤骨架注册表列表。
+
+    每条: {"name": Blender 骨架名, "joints": {URDF关节: {bone,axis,sign,bias,limit}},
+           "bones": [直接操控的骨名…], "cfg": 合并后的 base 配置, "source_fbx": 可选离线骨源}。
+
+    结构兼容新旧两种格式（老单条 meta["armature"]/meta["joints"] 也能读）。enabled=False 或
+    解析失败返回空列表（调用方据此回退）。map 里没填 base 键时给单位默认。
+    """
+    path = path or BLENDER_SKIN_MAP_PATH
+    try:
+        import yaml
+        with open(path, "r", encoding="utf-8") as f:
+            meta = yaml.safe_load(f) or {}
+        if not meta.get("enabled", True):
+            return []
+        arms = meta.get("armatures") or []
+        if not arms:
+            arm, joints = meta.get("armature"), meta.get("joints")
+            if arm and joints:
+                arms = [{"name": arm, "joints": joints}]
+        out = []
+        for a in arms:
+            if not isinstance(a, dict) or not a.get("name"):
+                continue
+            bp = a.get("base_pos") or {}
+            br = a.get("base_rot") or {}
+            cfg = dict(bp)
+            cfg.setdefault("pos_retarget", ["x", "y", "z"])
+            cfg.update(br)
+            cfg.setdefault("pos_scale", [1.0, 1.0, 1.0])
+            cfg.setdefault("pos_dir", [1.0, 1.0, 1.0])
+            cfg.setdefault("rot_retarget", ["x", "y", "z"])
+            cfg.setdefault("rot_scale", [1.0, 1.0, 1.0])
+            cfg.setdefault("rot_offset", [0.0, 0.0, 0.0])
+            out.append({
+                "name": a.get("name"),
+                "joints": a.get("joints") or {},
+                "bones": list(a.get("bones") or []),
+                "cfg": cfg,
+                "source_fbx": a.get("source_fbx", ""),
+            })
+        return out
+    except Exception as e:
+        print("[skin registry] load failed:", e)
+        return []
 
 
 # NPZ 关节 dof 列序（= twin_server.py 的 PIKACHU_JOINT_NAMES，14 列）→ 对应 URDF 关节名
@@ -576,19 +630,10 @@ class RetargetPanel(QWidget):
         self.rt_map = self._current_map()
         lay = QVBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
-        header = QHBoxLayout()
-        title = QLabel("Retarget Map (URDF→Skin)")
-        title.setStyleSheet("font-size: 13px; font-weight: 600;")
-        header.addWidget(title)
+        # 标题行(含 map_combo / Reload)由外层 CollapsibleFrame 标题栏承载，这里只留 body
         self.map_combo = QComboBox()
         self._fill_map_combo()
         self.map_combo.currentIndexChanged.connect(self._rebuild_from_combo)
-        header.addWidget(self.map_combo)
-        reload_btn = QPushButton("Reload")
-        reload_btn.setFixedWidth(70)
-        reload_btn.clicked.connect(lambda: self.on_reload())
-        header.addWidget(reload_btn)
-        lay.addLayout(header)
 
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(["Joint", "Bone", "Axis", "Sign", "Bias", "Limit"])
@@ -654,16 +699,7 @@ class BlenderUrdfPanel(QWidget):
         self.on_reload = on_reload
         lay = QVBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
-        header = QHBoxLayout()
-        title = QLabel("Blender URDF (urdf→blender-urdf)")
-        title.setStyleSheet("font-size: 13px; font-weight: 600;")
-        header.addWidget(title)
-        header.addStretch(1)
-        rb = QPushButton("Reload")
-        rb.setFixedWidth(70)
-        rb.clicked.connect(lambda: self.on_reload())
-        header.addWidget(rb)
-        lay.addLayout(header)
+        # 标题行(含 Reload)由外层 CollapsibleFrame 标题栏承载，这里只留 body
         self.info = QLabel("")
         self.info.setWordWrap(True)
         lay.addWidget(self.info)
@@ -794,6 +830,92 @@ class NPZPanel(QWidget):
             p()
 
 
+# ============================ 可折叠面板 ============================
+
+class CollapsibleFrame(QFrame):
+    """可折叠面板：标题栏含折叠箭头 + 标题 + (可选 header_widget，如 map 下拉) + 右侧 Reload，
+    body(内容) 可点箭头折叠/展开；折叠后给上方控件腾出竖向空间。
+    Reload 始终在标题栏显示，折叠时仍可点。"""
+
+    def __init__(self, title, body, header_widget=None, on_reload=None, collapsed=False):
+        super().__init__()
+        self.setFrameShape(QFrame.StyledPanel)
+        lay = QVBoxLayout()
+        lay.setContentsMargins(6, 6, 6, 4)
+        lay.setSpacing(2)
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(4)
+        self._arrow = QPushButton("▾")
+        self._arrow.setFixedSize(24, 22)
+        self._arrow.setCursor(Qt.PointingHandCursor)
+        self._arrow.setToolTip("折叠 / 展开")
+        self._arrow.setStyleSheet(
+            "QPushButton { border: 1px solid #b0b0b0; border-radius: 3px;"
+            " background: #f5f5f5; font-size: 12px; padding: 0; }"
+            "QPushButton:hover { background: #e0e0e0; }")
+        self._arrow.clicked.connect(self._toggle_collapsed)
+        header.addWidget(self._arrow)
+        lab = QLabel(title)
+        lab.setStyleSheet("font-size: 13px; font-weight: 600;")
+        header.addWidget(lab)
+        if header_widget is not None:
+            header.addWidget(header_widget)
+        header.addStretch(1)
+        if on_reload is not None:
+            rb = QPushButton("Reload")
+            rb.setFixedWidth(70)
+            rb.clicked.connect(lambda: on_reload())
+            header.addWidget(rb)
+        lay.addLayout(header)
+        self._body = body
+        body.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(body, 1)
+        self.setLayout(lay)
+        self.setMinimumHeight(30)   # 保住标题行，防止被 splitter 拖没
+        self._collapsed = False
+        if collapsed:
+            self.set_collapsed(True)
+
+    def set_collapsed(self, collapsed):
+        self._collapsed = collapsed
+        if self._body is not None:
+            self._body.setVisible(not collapsed)
+        self._arrow.setText("▶" if collapsed else "▾")
+        self._resync_splitters()
+
+    def toggle_collapsed(self):
+        self.set_collapsed(not self._collapsed)
+
+    def _resync_splitters(self):
+        """折叠/展开后逐级重设所在 QSplitter 的 sizes：让本面板按当前所需高度
+        (sizeHint) 收缩/恢复，其余空间按份分给兄弟 → 折叠腾出的竖向空间
+        立即被相邻面板与上方面板吸收，无需手动拖分隔线。"""
+        self.updateGeometry()
+        node = self
+        while node.parentWidget() is not None:
+            node.updateGeometry()
+            parent = node.parentWidget()
+            if isinstance(parent, QSplitter):
+                idx = parent.indexOf(node)
+                want = max(1, node.sizeHint().height(), node.minimumHeight())
+                sizes = parent.sizes()
+                cur_total = sum(sizes)
+                cur_other = cur_total - sizes[idx]
+                n_other = parent.count() - 1
+                for i in range(parent.count()):
+                    if i == idx:
+                        sizes[i] = want
+                    else:
+                        sizes[i] = (int(cur_other // n_other)
+                                    if (n_other and cur_other > 0) else 0)
+                parent.setSizes(sizes)
+            node = parent
+
+    def _toggle_collapsed(self):
+        self.toggle_collapsed()
+
+
 # ============================ 主窗口 ============================
 
 class RetargetStudio(QWidget):
@@ -825,11 +947,10 @@ class RetargetStudio(QWidget):
         self.burdf_map = self._load_burdf_map()
 
         self.bone_angles = {name: [0, 0, 0] for name, _ in DIRECT_BONES}
-        self.v2_bone_angles = {name: [0, 0, 0] for name, _ in V2_BONES}
-        # V2Bone 每根骨 x/y/z 各轴范围（聚合自 self_rig_v2.yaml limit；未映射的骨用 V2_BONES 兜底）
-        self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
-        # npz 播 base 用的位置缩放/方向（来自 self_rig_v2.yaml 顶层 base 块）
-        self.base_cfg_v2 = _load_base_cfg_from_file(SELF_RIG_V2_MAP_PATH)
+        self.scene_bones = {}  # request_scene 返回的 armature名 -> [骨名]（Blender scene 热加载）
+        # 皮肤骨架注册表 + 每套直接操控状态（angles/limits/骨骼），rig 走 self.rt_map 映射
+        self._build_skin_states()
+        self._active_skin = None
         self.urdf_joint_angles_rad = {}
         self.urdf_joint_widgets_list = {}
         self.urdf_use_degree = True
@@ -890,41 +1011,57 @@ class RetargetStudio(QWidget):
         self.reset_btn.clicked.connect(self.reset_all)
         list_layout.addWidget(self.reset_btn)
 
-        # 模式切换
-        mode_lay = QHBoxLayout()
+        self.reload_skin_btn = QPushButton("Reload 皮肤 (map + scene 热加载)")
+        self.reload_skin_btn.clicked.connect(self._reload_skin_registry)
+        list_layout.addWidget(self.reload_skin_btn)
+
+        # 模式切换：皮肤骨架下拉（Bone/V2Bone/V3Bone 统一变成下拉切骨架）+ URDF/NPZ 模式按钮。
+        # 三项用网格三列等宽，保证「皮肤 / URDF / NPZ」尽量等长。
+        mode_lay = QGridLayout()
         mode_lay.setContentsMargins(0, 0, 0, 0)
+        mode_lay.setSpacing(4)
+        self.skin_combo = QComboBox()
+        self._populate_skin_combo()
+        self._active_skin = self.skin_combo.currentData()
+        self.skin_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        mode_lay.addWidget(self.skin_combo, 0, 0)
         self.mode_btns = {}
-        for i, (txt, key) in enumerate([("Bone", "bone"), ("URDF", "urdf"), ("V2Bone", "v2bone"), ("NPZ", "npz")]):
+        for col, (txt, key) in enumerate([("URDF", "urdf"), ("NPZ", "npz")], start=1):
             btn = QPushButton(txt)
             btn.setCheckable(True)
-            btn.setChecked(i == 1)
+            btn.setChecked(key == "urdf")
             btn.clicked.connect(lambda _=False, k=key: self._switch_mode(k))
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             btn.setStyleSheet("""
                 QPushButton { font-size: 12px; padding: 4px 8px;
                               border: 1px solid #ccc; border-radius: 3px; }
                 QPushButton:checked { background: #2d6cdf; color: white;
                                       border: 1px solid #2d6cdf; }
             """)
-            mode_lay.addWidget(btn)
+            mode_lay.addWidget(btn, 0, col)
             self.mode_btns[key] = btn
+        for c in range(3):
+            mode_lay.setColumnStretch(c, 1)
         list_layout.addLayout(mode_lay)
 
         # 模式面板（stack）
         self.mode_stack = QStackedWidget()
 
-        # ── Bone 模式 ──
-        bone_w = QWidget()
-        bone_w_lay = QVBoxLayout()
-        bone_w_lay.setContentsMargins(0, 0, 0, 0)
-        self.bone_list = QListWidget()
-        for name, _ in DIRECT_BONES:
-            self.bone_list.addItem(name)
-        self.bone_list.currentRowChanged.connect(self._on_bone_selected)
-        bone_w_lay.addWidget(self.bone_list, 1)
-        self.bone_joint_widget = BoneJointWidget(DIRECT_BONES[0][0], DIRECT_BONES[0][1], self._on_bone_axis_change)
-        bone_w_lay.addWidget(self.bone_joint_widget)
-        bone_w.setLayout(bone_w_lay)
-        self.mode_stack.addWidget(bone_w)      # index 0
+        # ── 皮肤 Bone 模式：直接转动所选皮肤骨架的骨骼（下拉切骨架）──
+        skin_w = QWidget()
+        skin_w_lay = QVBoxLayout()
+        skin_w_lay.setContentsMargins(0, 0, 0, 0)
+        tip = QLabel("直接转动所选皮肤骨架骨骼 → set_pose(bone, armature=所选骨架)")
+        tip.setWordWrap(True)
+        tip.setStyleSheet("font-size: 11px; color: #888;")
+        skin_w_lay.addWidget(tip)
+        self.skin_bone_list = QListWidget()
+        self.skin_bone_list.currentRowChanged.connect(self._on_skin_bone_selected)
+        skin_w_lay.addWidget(self.skin_bone_list, 1)
+        self.skin_bone_joint_widget = BoneJointWidget("", {"x": (-120, 120), "y": (-120, 120), "z": (-120, 120)}, self._on_skin_bone_axis_change)
+        skin_w_lay.addWidget(self.skin_bone_joint_widget)
+        skin_w.setLayout(skin_w_lay)
+        self.mode_stack.addWidget(skin_w)      # index 0
 
         # ── URDF 模式 ──
         urdf_w = QWidget()
@@ -954,29 +1091,14 @@ class RetargetStudio(QWidget):
         urdf_w.setLayout(urdf_w_lay)
         self.mode_stack.addWidget(urdf_w)      # index 1
 
-        # ── V2Bone 模式：直接控制 self_rig_v2 皮肤骨骼，方便适配映射 ──
-        v2_w = QWidget()
-        v2_w_lay = QVBoxLayout()
-        v2_w_lay.setContentsMargins(0, 0, 0, 0)
-        tip = QLabel("直接转动 self_rig_v2 骨骼 → set_pose(骨骼, armature)，据此对 retarget_map_self_rig_v2.yaml 的 axis/sign")
-        tip.setWordWrap(True)
-        tip.setStyleSheet("font-size: 11px; color: #888;")
-        v2_w_lay.addWidget(tip)
-        self.v2_bone_list = QListWidget()
-        for name, _ in V2_BONES:
-            self.v2_bone_list.addItem(name)
-        self.v2_bone_list.currentRowChanged.connect(self._on_v2_bone_selected)
-        v2_w_lay.addWidget(self.v2_bone_list, 1)
-        self.v2_bone_joint_widget = BoneJointWidget(V2_BONES[0][0], self.v2_bone_limits[V2_BONES[0][0]], self._on_v2_bone_axis_change)
-        v2_w_lay.addWidget(self.v2_bone_joint_widget)
-        v2_w.setLayout(v2_w_lay)
-        self.mode_stack.addWidget(v2_w)        # index 2
-
         # ── NPZ 模式 ──
         self.npz_panel = NPZPanel(self._on_play_state, lambda v: None)
         self.npz_panel._on_load = self._npz_load
         self.npz_panel._browse_fn = self._npz_browse
-        self.mode_stack.addWidget(self.npz_panel)  # index 3
+        self.mode_stack.addWidget(self.npz_panel)  # index 2
+
+        # 骨架下拉切换 → 进入皮肤控制并刷新骨列表（reload 重建 combo 后也由它保持）
+        self.skin_combo.currentIndexChanged.connect(self._on_skin_armature_selected)
 
         self._switch_mode("urdf")
         list_layout.addWidget(self.mode_stack, 1)
@@ -991,8 +1113,19 @@ class RetargetStudio(QWidget):
         bottom = QWidget()
         bottom_lay = QVBoxLayout()
         bottom_lay.setContentsMargins(0, 0, 0, 0)
-        bottom_lay.addWidget(self._make_panel("URDF→Skin", self.retarget_panel), 3)
-        bottom_lay.addWidget(self._make_panel("URDF→Blender-URDF", self.burdf_panel), 2)
+        # 底部两个可折叠面板，竖向放入可拖动的 QSplitter（鼠标拖手柄调节上下比例）
+        bottom_split = QSplitter(Qt.Vertical)
+        skin_frame = CollapsibleFrame(
+            "URDF→Skin", self.retarget_panel,
+            header_widget=self.retarget_panel.map_combo, on_reload=self._reload_map)
+        urdf_frame = CollapsibleFrame(
+            "URDF→Blender-URDF", self.burdf_panel,
+            header_widget=None, on_reload=self._reload_burdf_map)
+        bottom_split.addWidget(skin_frame)
+        bottom_split.addWidget(urdf_frame)
+        bottom_split.setSizes([320, 200])
+        bottom_split.setChildrenCollapsible(False)
+        bottom_lay.addWidget(bottom_split, 1)
         bottom.setLayout(bottom_lay)
 
         left_splitter = QSplitter(Qt.Vertical)
@@ -1000,7 +1133,8 @@ class RetargetStudio(QWidget):
         left_splitter.addWidget(bottom)
         left_splitter.setStretchFactor(0, 3)
         left_splitter.setStretchFactor(1, 2)
-        left_splitter.setSizes([500, 260])
+        left_splitter.setChildrenCollapsible(False)   # 拖动分隔不会让下面区域消失
+        left_splitter.setSizes([620, 300])
 
         viewer_widget = self.urdf_viewer if self.urdf_viewer else QLabel("No URDF viewer")
         # meshcat 下方叠 Base 手动排查面板（pos/rot 滑块，直连 meshcat + Blender，方便定位）
@@ -1160,7 +1294,7 @@ class RetargetStudio(QWidget):
 
     # ---------- 模式切换 ----------
     def _switch_mode(self, key):
-        order = {"bone": 0, "urdf": 1, "v2bone": 2, "npz": 3}
+        order = {"skin": 0, "urdf": 1, "npz": 2}
         self.mode_stack.setCurrentIndex(order[key])
         for k, b in self.mode_btns.items():
             b.setChecked(k == key)
@@ -1188,8 +1322,21 @@ class RetargetStudio(QWidget):
         objs = data.get("objects", [])
         arma = data.get("armatures", [])
         print(f"[Scene] objects={len(objs)} armatures={len(arma)}")
+        # 热加载：把 Blender 场景里的真实骨骼写回对应皮肤骨架（scene 优先于 map 的 bones）
         for a in arma:
-            print(f"   armature '{a['name']}': {len(a['bones'])} bones")
+            nm = a.get("name", "")
+            bones = [b["name"] for b in a.get("bones", []) if isinstance(b, dict)]
+            if not nm or not bones:
+                continue
+            print(f"   armature '{nm}': {len(bones)} bones")
+            self.scene_bones[nm] = bones
+            st = self.skin_states.get(nm)
+            if st:
+                st["bones"] = bones
+                for b in bones:
+                    st["angles"].setdefault(b, [0, 0, 0])
+                    st["limits"].setdefault(b, {"x": (-120, 120), "y": (-120, 120), "z": (-120, 120)})
+        self._refresh_skin_bone_list()
         # 校验 retarget_map 目标骨是否在任一 armature
         allbones = {b["name"] for a in arma for b in a["bones"]}
         missing = sorted({c["bone"] for c in self.rt_map.values() if c["bone"] and c["bone"] in ("",
@@ -1197,35 +1344,73 @@ class RetargetStudio(QWidget):
         if allbones and missing:
             print("   retarget 目标骨缺失:", missing)
 
-    # ---------- Bone 直接控制 ----------
-    def _on_bone_selected(self, row):
+    # ---------- 皮肤骨架直接控制（下拉切骨架；Bone/V2Bone/V3Bone 统一走这里）----------
+    def _on_skin_armature_selected(self, idx):
+        name = self.skin_combo.itemData(idx)
+        if name not in self.skin_states:
+            return
+        self._set_active_skin(name)
+
+    def _set_active_skin(self, name):
+        if name not in self.skin_states:
+            return
+        self._active_skin = name
+        st = self.skin_states[name]
+        self.skin_bone_list.blockSignals(True)
+        self.skin_bone_list.clear()
+        for b in st["bones"]:
+            self.skin_bone_list.addItem(b)
+        self.skin_bone_list.blockSignals(False)
+        if st["bones"]:
+            self.skin_bone_list.setCurrentRow(0)
+        self.skin_bone_joint_widget.set_angles([0, 0, 0])
+        # 同步下拉框，切到皮肤控制页
+        self.skin_combo.blockSignals(True)
+        want = self.skin_combo.findData(name)
+        if want >= 0 and self.skin_combo.currentIndex() != want:
+            self.skin_combo.setCurrentIndex(want)
+        self.skin_combo.blockSignals(False)
+        self._switch_mode("skin")
+
+    def _refresh_skin_bone_list(self):
+        """scene 热加载改动了当前骨架的骨骼后刷新列表。"""
+        st = self.skin_states.get(self._active_skin)
+        if not st:
+            return
+        cur = self.skin_bone_list.currentRow()
+        cur_name = st["bones"][cur] if 0 <= cur < len(st["bones"]) else None
+        self.skin_bone_list.blockSignals(True)
+        self.skin_bone_list.clear()
+        for b in st["bones"]:
+            self.skin_bone_list.addItem(b)
+        self.skin_bone_list.blockSignals(False)
+        if st["bones"]:
+            if cur_name in st["bones"]:
+                self.skin_bone_list.setCurrentRow(st["bones"].index(cur_name))
+            else:
+                self.skin_bone_list.setCurrentRow(0)
+            self._on_skin_bone_selected(self.skin_bone_list.currentRow())
+
+    def _on_skin_bone_selected(self, row):
         if row < 0:
             return
-        name, limit = DIRECT_BONES[row]
-        self.bone_joint_widget.set_bone_name(name)
-        self.bone_joint_widget.set_angles(self.bone_angles.get(name, [0, 0, 0]))
-
-    def _on_bone_axis_change(self, bone, axis, val):
-        angles = self.bone_angles.get(bone, [0, 0, 0])
-        angles[AXIS_INDEX[axis]] = val
-        self.bone_angles[bone] = angles
-        self._push_skin_pose()
-
-    # ---------- self_rig_v2 骨骼直接控制（适配用）----------
-    def _on_v2_bone_selected(self, row):
-        if row < 0:
+        st = self.skin_states.get(self._active_skin)
+        if not st:
             return
-        name, limit = V2_BONES[row]
-        self.v2_bone_joint_widget.set_bone_name(name)
-        self.v2_bone_joint_widget.set_limits(self.v2_bone_limits.get(name, {"x": limit, "y": limit, "z": limit}))
-        self.v2_bone_joint_widget.set_angles(self.v2_bone_angles.get(name, [0, 0, 0]))
+        name = st["bones"][row]
+        lim = st["limits"].get(name, {"x": (-120, 120), "y": (-120, 120), "z": (-120, 120)})
+        self.skin_bone_joint_widget.set_bone_name(name)
+        self.skin_bone_joint_widget.set_limits(lim)
+        self.skin_bone_joint_widget.set_angles(st["angles"].get(name, [0, 0, 0]))
 
-    def _on_v2_bone_axis_change(self, bone, axis, val):
-        angles = self.v2_bone_angles.get(bone, [0, 0, 0])
+    def _on_skin_bone_axis_change(self, bone, axis, val):
+        st = self.skin_states.get(self._active_skin)
+        if not st:
+            return
+        angles = st["angles"].setdefault(bone, [0, 0, 0])
         angles[AXIS_INDEX[axis]] = val
-        self.v2_bone_angles[bone] = angles
         if self.client.connected:
-            self.client.set_pose(dict(self.v2_bone_angles), armature=SELF_RIG_V2_ARMATURE)
+            self.client.set_pose(dict(st["angles"]), armature=st["armature_name"])
 
     # ---------- URDF 控制 ----------
     def _on_urdf_joint_change(self, name, angle_rad):
@@ -1244,17 +1429,46 @@ class RetargetStudio(QWidget):
         self._push_skins()
         self._push_urdf_if_needed()
 
+    def _populate_skin_combo(self):
+        """按 skin 注册表 name 填充下拉（不触发 currentIndexChanged）。"""
+        self.skin_combo.blockSignals(True)
+        self.skin_combo.clear()
+        for name in self.skin_states:
+            self.skin_combo.addItem(name, name)
+        self.skin_combo.blockSignals(False)
+
+    def _build_skin_states(self):
+        """读 blender_skin_map.yaml 建 self.skin_states = {骨架名: {...}}。
+
+        每套含 armature_name/joints/bones/limits/angles/base_cfg。rig 的 joints 指
+        self.rt_map（retarget_map.yaml，支持 Retarget 面板编辑）；v2/v3 用皮肤 map
+        各自 joints 块。bones 由 map 的 bones 初始化，连上 Blender 后由 scene 覆盖。
+        """
+        reg = load_skin_registry()
+        self.skin_registry = reg
+        self.skin_states = {}
+        for a in reg:
+            name = a["name"]
+            limits = bone_limits_from_map(
+                a["joints"], [(b, (-120, 120)) for b in a["bones"]])
+            self.skin_states[name] = {
+                "armature_name": name,
+                "joints": self.rt_map if name == "rig" else a["joints"],
+                "bones": list(a["bones"]),
+                "limits": limits,
+                "angles": {b: [0, 0, 0] for b in a["bones"]},
+                "base_cfg": a["cfg"],
+            }
+        return reg
+
     def _skin_armatures(self):
         """供 set_pose 驱动的皮肤骨架注册表：(armature_name, rt_map)。
 
         每个骨架用各自的 retarget map 把 URDF 关节角写成该骨架的骨骼欧拉角。
         rig = 原 Rigify 皮肤（默认 / 旧版 addon 也兜得住）；
-        其余为新增自定义皮肤骨架。
+        其余为 blender_skin_map.yaml 里登记的自定义皮肤骨架（self_rig_v2 / self_rig_v3 …）。
         """
-        return [
-            ("rig", self.rt_map),
-            (SELF_RIG_V2_ARMATURE, self.rt_map_v2),
-        ]
+        return [(st["armature_name"], st["joints"]) for st in self.skin_states.values()]
 
     def _push_skins(self):
         """把当前 URDF 皮肤姿态推给所有注册的皮肤骨架（受 Sync to Blender 皮肤 开关限制）。"""
@@ -1532,9 +1746,8 @@ class RetargetStudio(QWidget):
             s.blockSignals(False)
 
     def _skin_base_confs(self):
-        """皮肤骨架 (name, base_cfg)：rig 用单位配置，self_rig_v2 用其 yaml 顶层 base。"""
-        return [("rig", dict(UNIT_BASE_CFG)),
-                (SELF_RIG_V2_ARMATURE, self.base_cfg_v2 or dict(UNIT_BASE_CFG))]
+        """皮肤骨架 (name, base_cfg)：全部来自 blender_skin_map.yaml 的 per-armature base 块。"""
+        return [(a["name"], a["base_cfg"]) for a in self.skin_states.values()]
 
     def _burdf_base_confs(self):
         confs = []
@@ -1598,24 +1811,39 @@ class RetargetStudio(QWidget):
             self.rt_map = retarget_mod.load_retarget_map(self.map_path)
             self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
             self.retarget_panel.set_maps({"rig": self.rt_map, "self_rig_v2": self.rt_map_v2})
-            self._reload_skin_base()
-            if hasattr(self, "v2_bone_list") and self.v2_bone_list.currentRow() >= 0:
-                self._on_v2_bone_selected(self.v2_bone_list.currentRow())
+            self._reload_skin_registry()
             print("Retarget map reloaded")
         except Exception as e:
             print("Reload map failed:", e)
 
-    def _reload_skin_base(self):
-        """统一重读 self_rig_v2.yaml（皮肤 base 配置 + V2Bone 逐轴限位）。
-        Retarget 与 Burdf 两个面板的 Reload 都调用，保证皮肤 base 改动即时生效。"""
-        self.base_cfg_v2 = _load_base_cfg_from_file(SELF_RIG_V2_MAP_PATH)
-        self.v2_bone_limits = v2_bone_limits_from_map(self.rt_map_v2, V2_BONES)
-        print("  skin(base) cfg =", self.base_cfg_v2)
+    def _reload_skin_registry(self):
+        """统一重读 blender_skin_map.yaml：重建皮肤骨架注册表/限位/下拉，并用 Blender scene 覆盖骨骼。
+        Retarget / Burdf 面板与「Reload 皮肤」按钮都调用，皮肤 map 改动即时生效。"""
+        if not hasattr(self, "skin_states"):
+            return
+        prev = self._active_skin
+        self._build_skin_states()
+        if prev not in self.skin_states:
+            prev = next(iter(self.skin_states), None)
+        if prev:
+            self._active_skin = prev
+            # 重建下拉并同步回 prev（不触发 signal / 不切页）
+            self._populate_skin_combo()
+            self.skin_combo.blockSignals(True)
+            w = self.skin_combo.findData(prev)
+            if w >= 0:
+                self.skin_combo.setCurrentIndex(w)
+            self.skin_combo.blockSignals(False)
+            self._refresh_skin_bone_list()
+            self.skin_bone_joint_widget.set_angles([0, 0, 0])
+        if self.client.connected:
+            self.client.request_scene()
+        print("  skin registry reloaded:", list(self.skin_states))
 
     def _reload_burdf_map(self):
         self.burdf_map = self._load_burdf_map()
         self.burdf_panel.rebuild(self.burdf_map)
-        self._reload_skin_base()
+        self._reload_skin_registry()
         print("Blender URDF map reloaded")
 
     def reset_all(self):
@@ -1633,10 +1861,13 @@ class RetargetStudio(QWidget):
         if self.urdf_viewer:
             self.urdf_viewer.update_robot()
 
-        # 清零 FK 骨 + UI
-        for name in list(self.bone_angles):
-            self.bone_angles[name] = [0, 0, 0]
-        self.bone_joint_widget.set_angles([0, 0, 0])
+        # 清零直接操控骨（所有皮肤骨架）+ UI
+        for st in self.skin_states.values():
+            for b in st["angles"]:
+                st["angles"][b] = [0, 0, 0]
+        self.skin_bone_joint_widget.set_angles([0, 0, 0])
+        if hasattr(self, "skin_bone_list") and self.skin_bone_list.currentRow() >= 0:
+            self._on_skin_bone_selected(self.skin_bone_list.currentRow())
 
         # 上行零姿态给 Blender（所有皮肤骨架 + blender-urdf）
         bone_pose = self._current_skin_pose()

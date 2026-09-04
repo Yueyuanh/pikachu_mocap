@@ -58,12 +58,14 @@ import argparse
 import base64
 import http.server
 import json
+import math
 import os
 import re
 import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import xml.etree.ElementTree as ET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -201,6 +203,298 @@ def _export_mjcf_endpoint(data):
     return 400, res
 
 
+# ============================================================================
+# meshcat 3D + npz 动作加载
+# ----------------------------------------------------------------------------
+# HTML 前端的 3D 显示改成 meshcat:前端把每帧(每条 link 的世界位姿 + 质心 +
+# 足端支撑多边形 + 重心落点)POST 到 /api/scene,本进程在后台持有一个
+# meshcat.Visualizer(自带网页),把同 URL 嵌进页面 iframe;这样 3D 是真正的
+# meshcat 浅蓝主题,前端只需算 FK(与 2D 图纸同一份 JS),后端只负责渲染。
+#
+# npz 动作仿照 Pikachu_Retarget 的加载(同一份 14 列 NPZ_COLUMNS_TO_URDF),
+# 并针对"27dof 已是 T-pose 展开、npz arm_roll 以下垂=0"做角度偏置:
+#     θ = v - π/2   (左右对称,几何推导 + 数值核验)
+# meshcat + numpy 只在 mocap 环境可用;若当前进程缺少,相关接口返回 4xx 提示。
+# ============================================================================
+
+# npz 库目录;Retarget 同款
+DEFAULT_NPZ_DIR = os.path.abspath(
+    "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/src/mjlab/mocap/npz")
+_NPZ_DIR = DEFAULT_NPZ_DIR
+
+# npz joint_pos 的 14 列顺序 -> URDF 关节名(与 Pikachu_Retarget 的
+# NPZ_COLUMNS_TO_URDF 完全一致;只有腿 10 + 臂 4,无肘/头/耳/尾)
+NPZ_COLS_14 = [
+    "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+    "left_knee_joint", "left_ankle_joint",
+    "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+    "right_knee_joint", "right_ankle_joint",
+    "left_arm_pitch_joint", "left_arm_roll_joint",
+    "right_arm_pitch_joint", "right_arm_roll_joint",
+]
+
+# 27dof xacro 的全部可动关节(按遍历顺序;q前端按 name 对应)
+ALL_27_NAMES = [
+    "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+    "left_knee_joint", "left_ankle_joint",
+    "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+    "right_knee_joint", "right_ankle_joint",
+    "left_arm_pitch_joint", "left_arm_roll_joint", "left_arm_yaw_joint", "left_elbow_joint",
+    "right_arm_pitch_joint", "right_arm_roll_joint", "right_arm_yaw_joint", "right_elbow_joint",
+    "head_pitch_joint", "head_yaw_joint", "head_roll_joint",
+    "left_ear_pitch_joint", "left_ear_roll_joint",
+    "right_ear_pitch_joint", "right_ear_roll_joint",
+    "tail_pitch_joint", "tail_yaw_joint",
+]
+NAME2IDX27 = {n: i for i, n in enumerate(ALL_27_NAMES)}
+
+_MC = None          # meshcat 单例: {"viewer","url","links"}
+_MC_LOCK = threading.Lock()
+
+
+def _meshcat_available():
+    try:
+        import meshcat  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _ensure_meshcat():
+    """惰性启动一个 meshcat.Visualizer(自带网页 / 自有端口),返回单例 dict。"""
+    global _MC
+    with _MC_LOCK:
+        if _MC is None:
+            import numpy as np  # noqa: F401   (meshcat 依赖 numpy)
+            import meshcat
+            vis = meshcat.Visualizer()          # 自动起服务器,不开浏览器
+            _MC = {"viewer": vis, "url": vis.url(), "links": None}
+        return _MC
+
+
+def _reset_meshcat(vis):
+    for sub in ("pikachu", "fx"):
+        try:
+            vis[sub].delete()
+        except Exception:
+            pass
+
+
+def _to_color_int(c):
+    """'#rrggbb' / '#rgb' / int -> int,直立为浅蓝灰。"""
+    if isinstance(c, int):
+        return c
+    s = str(c or "").strip()
+    if not s.startswith("#"):
+        return 0x9fb4cc
+    s = s.lstrip("#")
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    try:
+        return int(s, 16)
+    except ValueError:
+        return 0x9fb4cc
+
+
+def _map_npz_to_27(row, arm_bias):
+    """npz 单帧 14 列 -> {urdf_joint: 弧度};对 arm_roll 应用 T-pose 角度偏置。"""
+    out = {}
+    mode = arm_bias or "v-90"
+    for i, name in enumerate(NPZ_COLS_14):
+        if i >= len(row):
+            break
+        v = float(row[i])
+        if name.endswith("arm_roll_joint"):
+            if mode == "v-90":       # 推荐:新 27dof 装配位=水平外展,减 π/2 回垂挂
+                v = v - math.pi / 2.0
+            elif mode == "90-v":
+                v = math.pi / 2.0 - v
+            # 'direct' 原样
+        out[name] = v
+    return out
+
+
+def _quat_wxyz_to_mat(q):
+    q = [float(x) for x in q]
+    qn = math.sqrt(sum(x * x for x in q))
+    if qn < 1e-9:
+        return [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    w, x, y, z = (v / qn for v in q)
+    xx, yy, zz = x * x, y * y, z * z
+    xy, xz, yz = x * y, x * z, y * z
+    wx, wy, wz = w * x, w * y, w * z
+    return [
+        [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
+        [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
+        [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)],
+    ]
+
+
+def _mat_to_euler_xyz_deg(R):
+    beta = math.atan2(-R[2][0], math.hypot(R[0][0], R[1][0]))
+    if abs(abs(beta) - math.pi / 2.0) > 1e-6:
+        alpha = math.atan2(R[2][1], R[2][2])
+        gamma = math.atan2(R[1][0], R[0][0])
+    else:
+        alpha = math.atan2(R[0][1], R[0][2])
+        gamma = 0.0
+    return [math.degrees(alpha), math.degrees(beta), math.degrees(gamma)]
+
+
+def _npz_files(data):
+    d = (data or {}).get("dir") or _NPZ_DIR
+    if not os.path.isdir(d):
+        d = _NPZ_DIR
+    try:
+        fs = sorted(f for f in os.listdir(d) if f.lower().endswith(".npz"))
+    except OSError:
+        fs = []
+    return {"ok": True, "dir": os.path.abspath(d), "files": fs}
+
+
+def _npz_parse(data):
+    """载入 npz,把 joint_pos(T,14) 映射成 (T,27) 弧度,并算根位姿(base)。"""
+    import numpy as np
+    path = str((data or {}).get("path") or "")
+    if not path or not os.path.isfile(path):
+        return 400, {"ok": False, "error": "无效 npz 路径"}
+    if not path.lower().endswith(".npz"):
+        return 400, {"ok": False, "error": "不是 .npz 文件"}
+    arm_bias = (data or {}).get("armBias", "v-90")
+    try:
+        z = np.load(path, allow_pickle=True)
+    except Exception as e:
+        return 400, {"ok": False, "error": f"npz 读取失败: {e}"}
+    if "joint_pos" not in z:
+        return 400, {"ok": False, "error": "缺少 joint_pos"}
+    jp = np.asarray(z["joint_pos"])
+    if jp.ndim != 2:
+        return 400, {"ok": False, "error": "joint_pos 需为二维 (T,14)"}
+    T = int(jp.shape[0])
+    j27 = np.zeros((T, len(ALL_27_NAMES)), dtype=float)
+    for t in range(T):
+        for name, val in _map_npz_to_27(jp[t], arm_bias).items():
+            idx = NAME2IDX27.get(name)
+            if idx is not None:
+                j27[t, idx] = val
+
+    base_pos = base_rpy = None
+    if "body_pos_w" in z and "body_quat_w" in z:
+        bp, bq = np.asarray(z["body_pos_w"]), np.asarray(z["body_quat_w"])
+        if bp.ndim == 3 and bq.ndim == 3 and int(bp.shape[0]) == T and bp.shape[1] >= 1:
+            pos0 = bp[0, 0]
+            base_pos = (bp[:, 0] - pos0).astype(float).tolist()
+            base_rpy = [_mat_to_euler_xyz_deg(_quat_wxyz_to_mat(q)) for q in bq[:, 0]]
+    fps = 30.0
+    if "fps" in z:
+        try:
+            fps = float(np.asarray(z["fps"]).reshape(-1)[0])
+        except Exception:
+            fps = 30.0
+
+    return 200, {"ok": True, "fps": fps, "n": T,
+                 "jointNames": ALL_27_NAMES, "joints": j27.tolist(),
+                 "basePos": base_pos, "baseRpy": base_rpy, "armBias": arm_bias}
+
+
+def _handle_scene(data):
+    """POST /api/scene:把前端送来的 link 世界位姿 + 覆盖层推给 meshcat。"""
+    import numpy as np
+    import meshcat.geometry as mg
+    mc = _ensure_meshcat()
+    vis = mc["viewer"]
+    links = data.get("links") or []
+    full = bool(data.get("full"))
+    names = [l.get("name") for l in links]
+    if full or mc["links"] != names:
+        _reset_meshcat(vis)
+        root = vis["pikachu"]
+        for l in links:
+            root[l["name"]].set_object(
+                mg.Box([float(x) for x in l["size"]]),
+                mg.MeshLambertMaterial(color=_to_color_int(l.get("color"))))
+        mc["links"] = names
+    for l in links:
+        node = vis["pikachu"][l["name"]]
+        R = np.array(l["r9"], dtype=float).reshape(3, 3)
+        p = np.array(l["pos"], dtype=float)
+        T = np.eye(4)
+        T[:3, :3] = R
+        T[:3, 3] = p
+        node.set_transform(T)
+    _push_overlays(vis, data)
+    return 200, {"ok": True, "url": mc["url"]}
+
+
+def _push_overlays(vis, data):
+    """地平面 + 质心球 + 重心落点/下落线 + 足端支撑多边形(含平衡与否着色)。
+
+    脚底平面 z0 由连杆包围盒自动求出(全模型最低 box 角点),不依赖前端传值;
+    重心距脚底的高度 = com.z - z0,用于下落线长度。
+    """
+    import numpy as np
+    import meshcat.geometry as mg
+    fx = vis["fx"]
+
+    fx["ground"].set_object(
+        mg.Box([1.4, 1.4, 0.003]),
+        mg.MeshBasicMaterial(color=0xbfd6f2, opacity=0.14, transparent=True))
+    fx["ground"].set_transform(_tr([0, 0, -0.0015]))   # 顶面 ≈ z=0，机器人脚底贴地
+
+    # 自动算脚底平面:所有连杆 box 最低角点的 world z
+    z0 = None
+    for l in (data.get("links") or []):
+        try:
+            s = l.get("size"); p = l.get("pos")
+            if not s or not p:
+                continue
+            b = float(p[2]) - float(s[2]) / 2.0
+            if z0 is None or b < z0:
+                z0 = b
+        except Exception:
+            continue
+    if z0 is None:
+        z0 = float(data.get("footZ", 0.0) or 0.0)
+
+    com = data.get("com")
+    if com:
+        fx["com"].set_object(mg.Sphere(0.010),
+                             mg.MeshLambertMaterial(color=0xe0442e))
+        fx["com"].set_transform(_tr(com))
+        drop_h = max(com[2] - z0, 0.004)
+        fx["comDrop"].set_object(
+            mg.Box([0.0016, 0.0016, drop_h]),
+            mg.MeshBasicMaterial(color=0xe0442e, opacity=0.45, transparent=True))
+        fx["comDrop"].set_transform(_tr([com[0], com[1], z0 + drop_h / 2.0]))
+        fx["comGround"].set_object(
+            mg.Box([0.024, 0.024, 0.0015]),
+            mg.MeshBasicMaterial(color=0xe0442e, opacity=0.85, transparent=True))
+        fx["comGround"].set_transform(_tr([com[0], com[1], z0 + 0.002]))
+
+    poly = (data.get("feet") or {}).get("poly2d") if data.get("feet") else None
+    if poly and len(poly) >= 3:
+        z_face = z0   # 脚底平面 = 自动算出的最低 box z
+        stable = bool(data.get("balance"))
+        color = 0x2ea869 if stable else 0xd64545
+        verts = [list(p) + [z_face + 0.004] for p in poly]
+        faces = [[0, i + 1, i + 2] for i in range(len(verts) - 2)]
+        fx["footPoly"].set_object(
+            mg.TriangularMeshGeometry(np.array(verts, dtype=float).reshape(-1, 3),
+                                      np.array(faces, dtype=int).reshape(-1, 3)),
+            mg.MeshBasicMaterial(color=color, opacity=0.38, transparent=True))
+    else:
+        try:
+            fx["footPoly"].delete()
+        except Exception:
+            pass
+
+
+def _tr(p):
+    import numpy as np
+    import meshcat.transformations as mt
+    return mt.translation_matrix([float(x) for x in p])
+
+
 class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
     """静态文件处理器:仅 GET,站点根锁定在 directory(由 server 注入)。
 
@@ -219,25 +513,50 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
 
     # 只放行 GET;HEAD 由基类分派到 do_GET,一并保留(无副作用)
     def do_GET(self):
+        if self.path == "/api/meshcat":
+            if not _meshcat_available():
+                return self._send_json(400, {"ok": False,
+                                             "error": "meshcat 不可用,请用 "
+                                                      "`conda activate mocap && "
+                                                      "python pikachu_link_tuner_server.py` "
+                                                      "启动后在页面重试。"})
+            try:
+                mc = _ensure_meshcat()
+            except Exception as e:
+                return self._send_json(500, {"ok": False, "error": f"meshcat 启动失败: {e}"})
+            return self._send_json(200, {"ok": True, "url": mc["url"]})
         if self.path.startswith("/api/"):
             self._send_json(404, {"ok": False, "error": "no such api"})
             return
         return super().do_GET()
 
     # 保存接口: /api/save 与 /api/save_dir;导出: /api/export_mjcf
+    # 3D/motion: /api/scene /api/npz_files /api/npz_parse
     def do_POST(self):
         if self.path == "/api/save":
-            self._api_save()
-        elif self.path == "/api/save_dir":
-            self._api_save_dir()
-        elif self.path == "/api/export_mjcf":
-            data, err = self._read_json()
-            if err:
-                return self._send_json(400, {"ok": False, "error": err})
+            return self._api_save()
+        if self.path == "/api/save_dir":
+            return self._api_save_dir()
+        data, err = self._read_json()
+        if err:
+            return self._send_json(400, {"ok": False, "error": err})
+        if self.path == "/api/export_mjcf":
             code, payload = _export_mjcf_endpoint(data)
-            self._send_json(code, payload)
+        elif self.path == "/api/scene":
+            if not _meshcat_available():
+                code, payload = 400, {"ok": False,
+                                      "error": "meshcat 3D 需要 mocap 环境,"
+                                               "请用 `conda activate mocap && "
+                                               "python pikachu_link_tuner_server.py` 重启。"}
+            else:
+                code, payload = _handle_scene(data)
+        elif self.path == "/api/npz_files":
+            code, payload = 200, _npz_files(data)
+        elif self.path == "/api/npz_parse":
+            code, payload = _npz_parse(data)
         else:
-            self._send_json(404, {"ok": False, "error": "no such api"})
+            code, payload = 404, {"ok": False, "error": "no such api"}
+        self._send_json(code, payload)
 
     # ---------- 保存 API ----------
 
@@ -397,11 +716,14 @@ def main(argv=None):
                     help=f"根目录;缺省本文件所在目录 ({HERE})")
     ap.add_argument("--host", default="127.0.0.1",
                     help="绑定地址;缺省 127.0.0.1(仅本机)")
+    ap.add_argument("--npz-dir", default=DEFAULT_NPZ_DIR,
+                    help=f"npz 动作库目录;缺省 {DEFAULT_NPZ_DIR}")
     ap.add_argument("--mocap", metavar="PY", default="",
                     help="能导出 MJCF 的 Python(需含 xacro+mujoco,如 mocap 环境的"
                          "bin/python)。缺省自动探测;缺省也用不了则导出 MJCF 报错")
     args = ap.parse_args(argv)
     globals()["_DST_PY"] = args.mocap  # 供 _find_mocap_python 取用
+    globals()["_NPZ_DIR"] = os.path.abspath(args.npz_dir) if args.npz_dir else DEFAULT_NPZ_DIR
 
     try:
         server, port, root = build_server(args.dir, args.host, args.port)
@@ -412,6 +734,13 @@ def main(argv=None):
     url = f"http://{args.host}:{port}/pikachu_link_tuner.html"
     print(f"[server] 根目录: {root}", flush=True)
     print(f"[server] 调校台: {url}  (Ctrl+C 退出)", flush=True)
+    print(f"[server] npz 动作库: {_NPZ_DIR}  (--npz-dir 可改)", flush=True)
+    if _meshcat_available():
+        print("[server] meshcat 3D / npz 播放: 可用", flush=True)
+    else:
+        print("[server] meshcat 3D / npz 播放: 不可用 —— 需 meshcat+numpy(本机 mocap"
+              f"环境)。请用 conda activate mocap && python {os.path.basename(__file__)} "
+              "重启以获得 3D 显示", flush=True)
     if _find_mocap_python() is not None:
         print("[server] MJCF 一键导出: 可用 (xacro + mujoco)", flush=True)
     else:

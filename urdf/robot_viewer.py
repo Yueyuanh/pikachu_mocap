@@ -212,13 +212,12 @@ class RobotViewer(QWidget):
             self._maybe_follow_camera()
 
     def _maybe_follow_camera(self):
-        """把默认相机移到机器人水平位置上方，看向机器人（近似跟随）。"""
+        """把默认相机移到 base_link 上方，看向 base_link（近似跟随）。"""
         if not self._follow:
             return
-        bx, by, bz = self._base_pos
-        tz = bz + self._ground_offset
-        eye = np.array([bx + self._cam_d, by - self._cam_d * 0.6, tz + self._cam_h])
-        target = np.array([bx, by, tz])
+        t = self._base_link_world_pos()
+        eye = np.array([t[0] + self._cam_d, t[1] - self._cam_d * 0.6, t[2] + self._cam_h])
+        target = t
         look = _look_at(eye, target, np.array([0.0, 0.0, 1.0]))
         self.viewer["/Cameras/default/rotated"].set_transform(look)
 

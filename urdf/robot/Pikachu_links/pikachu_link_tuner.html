@@ -8,44 +8,42 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
-  --bg:#101318;
-  --panel:#171c24;
-  --panel2:#1d232e;
-  --raise:#232b38;
-  --line:#29313f;
-  --line2:#343e50;
-  --text:#e7edf6;
-  --text-dim:#a6b2c4;
-  --muted:#6f7c90;
-  --accent:#ff933a;          /* SCAD 高亮橙 */
-  --accent-soft:rgba(255,147,58,.14);
+  /* meshcat 浅蓝主题(默认明亮) */
+  --bg:#eef3fa;  --panel:#f8fbff; --panel2:#e6eef9; --raise:#dbe7f6;
+  --line:#cddaf0; --line2:#b6c8e4; --text:#16233c; --text-dim:#415b7b; --muted:#6f87a8;
+  --accent:#2f6fd6;          /* meshcat 蓝 */
+  --accent-soft:rgba(47,111,214,.13);
   --blue:#5f7cff;             /* 取自 leg_hip_yaw 蓝 */
-  --ok:#56c98a;
-  --shadow:0 12px 40px rgba(0,0,0,.35);
+  --ok:#2ea869;
+  --shadow:0 12px 32px rgba(40,70,120,.16);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#101318; --panel:#171c24; --panel2:#1d232e; --raise:#232b38;
-    --line:#29313f; --line2:#343e50; --text:#e7edf6; --text-dim:#a6b2c4; --muted:#6f7c90;
+    --bg:#17202f; --panel:#1e2a3d; --panel2:#233046; --raise:#2a3a55;
+    --line:#31415e; --line2:#43577a; --text:#e9f0fb; --text-dim:#9db1cd; --muted:#7c91b2;
+    --accent:#4d8fe8; --accent-soft:rgba(77,143,232,.15); --blue:#5f7cff; --ok:#46c07f;
+    --shadow:0 12px 34px rgba(0,0,0,.4);
   }
 }
 :root[data-theme="dark"]{
-  --bg:#101318; --panel:#171c24; --panel2:#1d232e; --raise:#232b38;
-  --line:#29313f; --line2:#343e50; --text:#e7edf6; --text-dim:#a6b2c4; --muted:#6f7c90;
+  --bg:#17202f; --panel:#1e2a3d; --panel2:#233046; --raise:#2a3a55;
+  --line:#31415e; --line2:#43577a; --text:#e9f0fb; --text-dim:#9db1cd; --muted:#7c91b2;
+  --accent:#4d8fe8; --accent-soft:rgba(77,143,232,.15); --blue:#5f7cff; --ok:#46c07f;
+  --shadow:0 12px 34px rgba(0,0,0,.4);
 }
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
-    --bg:#eef1f6; --panel:#f7f9fc; --panel2:#e9eef5; --raise:#dfe6f0;
-    --line:#cfd7e3; --line2:#bcc7d6; --text:#1a2130; --text-dim:#4a5668; --muted:#72809a;
-    --accent:#e06d14; --accent-soft:rgba(224,109,20,.12); --blue:#3d5adf; --ok:#24915a;
-    --shadow:0 12px 32px rgba(30,40,60,.16);
+    --bg:#eef3fa;  --panel:#f8fbff; --panel2:#e6eef9; --raise:#dbe7f6;
+    --line:#cddaf0; --line2:#b6c8e4; --text:#16233c; --text-dim:#415b7b; --muted:#6f87a8;
+    --accent:#2f6fd6; --accent-soft:rgba(47,111,214,.13); --blue:#5f7cff; --ok:#2ea869;
+    --shadow:0 12px 32px rgba(40,70,120,.16);
   }
 }
 :root[data-theme="light"]{
-  --bg:#eef1f6; --panel:#f7f9fc; --panel2:#e9eef5; --raise:#dfe6f0;
-  --line:#cfd7e3; --line2:#bcc7d6; --text:#1a2130; --text-dim:#4a5668; --muted:#72809a;
-  --accent:#e06d14; --accent-soft:rgba(224,109,20,.12); --blue:#3d5adf; --ok:#24915a;
-  --shadow:0 12px 32px rgba(30,40,60,.16);
+  --bg:#eef3fa;  --panel:#f8fbff; --panel2:#e6eef9; --raise:#dbe7f6;
+  --line:#cddaf0; --line2:#b6c8e4; --text:#16233c; --text-dim:#415b7b; --muted:#6f87a8;
+  --accent:#2f6fd6; --accent-soft:rgba(47,111,214,.13); --blue:#5f7cff; --ok:#2ea869;
+  --shadow:0 12px 32px rgba(40,70,120,.16);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -101,6 +99,8 @@ input{font:inherit;color:inherit}
 .viewport{flex:1;min-height:0;position:relative;border:0;border-radius:0;background:var(--panel2);overflow:hidden;
   display:flex;align-items:center;justify-content:center}
 .viewport canvas{width:auto;height:auto;display:block;touch-action:none}
+.viewport iframe{width:100%;height:100%;border:0;background:#f7fafd;display:block}
+.mcwait{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:12px;pointer-events:none;z-index:2}
 .view2d-inner{flex:1;min-height:0;position:relative;background:var(--panel2);overflow:hidden;
   display:flex;align-items:stretch;gap:12px;padding:12px}
 .view2d-inner .cv-wrap{flex:1;min-width:0;position:relative;display:flex;align-items:center;justify-content:center}
@@ -284,19 +284,16 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
   </aside>
 
   <section class="v3cell" id="view3d">
-    <div class="cell-head">3D 模型 <span class="dim">拖动旋转 · 滚轮缩放</span></div>
+    <div class="cell-head">3D 模型 · meshcat <span class="dim">拖动旋转 · 滚轮缩放</span></div>
     <div class="v3ctl">
       <label class="chk"><input type="checkbox" id="cInert" checked>质心 / 惯量</label>
-      <label class="chk"><input type="checkbox" id="cCom" checked>落足重心</label>
+      <label class="chk"><input type="checkbox" id="cCom" checked>落足重心 / 支撑多边形</label>
+      <button class="btn" id="btnResetPose" title="把所有关节角归零，恢复 T-pose，清除位姿变换">重置位姿</button>
       <span class="comread" id="comread"></span>
     </div>
     <div class="viewport">
-      <canvas id="canvas3d"></canvas>
-      <div class="sat3d">
-        <button id="vpFront">正</button>
-        <button id="vpSide">侧</button>
-        <button id="vpBottom">底</button>
-      </div>
+      <iframe id="meshcatFrame" title="meshcat 3D 视图"></iframe>
+      <div class="mcwait" id="mcWait">meshcat 3D 载入中…</div>
     </div>
   </section>
 
@@ -578,7 +575,21 @@ function parseRobot(xmlStr){
 }
 
 /* ================= 世界变换 ================= */
-// 返回每个 link 的 {pos:linkFrame原点 world, R:旋转} 与父级
+// 绕任意单位轴转 ang(Rodrigues);ang=0 时返回单位阵
+function axisRotMat(axis, ang){
+  if(!ang) return [[1,0,0],[0,1,0],[0,0,1]];
+  const a=axis[0],b=axis[1],c=axis[2];
+  const n=Math.sqrt(a*a+b*b+c*c); if(n<1e-9) return [[1,0,0],[0,1,0],[0,0,1]];
+  const uz=a/n,uy=b/n,ux=c/n;
+  const s=Math.sin(ang), c_=Math.cos(ang), t=1-c_;
+  return [
+    [t*ux*ux+c_,    t*ux*uy-s*uz,  t*ux*uz+s*uy ],
+    [t*ux*uy+s*uz,  t*uy*uy+c_,    t*uy*uz-s*ux ],
+    [t*ux*uz-s*uy,  t*uy*uz+s*ux,  t*uz*uz+c_   ]
+  ];
+}
+// 返回每个 link 的 {pos:linkFrame原点 world, R:旋转} 与父级;
+// revolute 关节按 Angle[<关节名>](弧度)绕其 axis 旋转
 function computeTFs(model){
   const {links,joints}=model;
   const tf={};
@@ -593,7 +604,8 @@ function computeTFs(model){
       if(visited.has(j.child)) continue; visited.add(j.child);
       const oj=j.origin;
       const linkPos=add(c.pos, matVec(c.R, oj));
-      const R=matMul(c.R, rpyToMat(j.rpy));
+      const ang=(j.type==='revolute')? (Angle[j.name]||0):0;
+      const R=matMul(matMul(c.R, rpyToMat(j.rpy)), axisRotMat(j.axis||[1,0,0], ang));
       const t={pos:linkPos,R}; tf[j.child]=t;
       stack.push({name:j.child,pos:linkPos,R});
     }
@@ -616,7 +628,7 @@ function boxCorners(link, tf){
 const EDGES=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
 
 /* ================= 3D 渲染 ================= */
-const cv3=$('#canvas3d'), ctx3=cv3.getContext('2d');
+const cv3=document.getElementById('canvas3d'), ctx3=(cv3)?cv3.getContext('2d'):null;
 let Rx=0.35, Ry=0.5, zoom=1;   // 俯角 + 水平转角：正立 3/4 视角（URDF 为 Z 朝上）
 function proj3D(w, cam){
   // 相机: 先绕竖直轴(Z)水平转角 ry(cam.ry=Ry)，再绕世界X 俯角 rx(cam.rx=Rx)
@@ -992,18 +1004,132 @@ function fitRect(cv){
   cv.width=Math.round(w*RENDER_RES); cv.height=Math.round(h*RENDER_RES);
 }
 function setSize(){
-  fitSquare($('#canvas3d'),4);       // 3D 保持正方形
   fitRect($('#canvas2d'));           // 2D 走宽度优先的矩形
   if(Model) renderAll();
 }
-function renderAll(){
+function renderAll(){ updateView(); }
+
+/* ================= meshcat 3D 推送 ================= */
+// 3D 由后端 meshcat 渲染:前端只算 FK,把每帧 link 世界位姿 + 覆盖层 POST /api/scene
+let BaseT=null;      // npz 根位姿:{pos:delta[3], R:3x3}; null=不动
+function worldTFs(){
+  const tfs=computeTFs(Model);
+  if(!BaseT) return tfs;
+  const B=BaseT, out={};
+  for(const n in tfs){ const tf=tfs[n]; out[n]={pos:add(B.pos, matVec(B.R, tf.pos)), R:matMul(B.R, tf.R)}; }
+  return out;
+}
+
+// 凸包(monotone chain, xy 平面)→ 逆时针点列
+function convexHull2D(pts){
+  const p=[...pts].map(q=>[+q[0],+q[1]]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  if(p.length<3) return p;
+  const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lower=[];
+  for(const q of p){ while(lower.length>=2 && cross(lower[lower.length-2],lower[lower.length-1],q)<=0) lower.pop(); lower.push(q); }
+  const upper=[];
+  for(let i=p.length-1;i>=0;i--){ const q=p[i]; while(upper.length>=2 && cross(upper[upper.length-2],upper[upper.length-1],q)<=0) upper.pop(); upper.push(q); }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
+}
+function pointInPoly(x,y,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if((yi>y)!==(yj>y) && x<(xj-xi)*(y-yi)/(yj-yi)+xi) inside=!inside;
+  }
+  return inside;
+}
+function polyEdgeDist(x,y,poly){
+  let d=Infinity;
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length], dx=b[0]-a[0], dy=b[1]-a[1];
+    const t=((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1), t2=Math.max(0,Math.min(1,t));
+    const cx=a[0]+dx*t2, cy=a[1]+dy*t2;
+    d=Math.min(d, Math.hypot(x-cx,y-cy));
+  }
+  return d;
+}
+// 平衡判定:支撑多边形=两只脚掌底部(最低角)的 xy 凸包;质心落点在其内且有余量
+function balanceInfo(tfs){
+  const pts=[];
+  for(const n in Model.links){
+    if(!/_ankle_link$/.test(n)) continue;
+    const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue;
+    const cs=boxCorners(lk,tf);
+    let zmin=Infinity; for(const p of cs) if(p[2]<zmin) zmin=p[2];
+    for(const p of cs) if(Math.abs(p[2]-zmin)<1e-9) pts.push([p[0],p[1]]);
+  }
+  let footZ=Infinity;
+  for(const n in Model.links){ const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue; for(const p of boxCorners(lk,tf)) if(p[2]<footZ) footZ=p[2]; }
+  const com=systemCOM(tfs).com;
+  const hull=convexHull2D(pts);
+  const inside=hull.length>=3 && pointInPoly(com[0],com[1],hull);
+  const margin=hull.length>=3? polyEdgeDist(com[0],com[1],hull) : 0;
+  return {com, footZ, poly2d:hull, balance: inside && margin>0.002, margin};
+}
+let _sceneSig=null, _pushTimer=null, _mcUrl=null;
+function push3D(tfs){
+  if(!tfs) return;
+  const fset=fixedClinkSet(), links=[];
+  for(const n in Model.links){
+    if(fset[n]) continue;
+    const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue;
+    const c=add(tf.pos, matVec(tf.R, lk.origin||[0,0,0]));
+    let r9=[];
+    for(const r of tf.R) for(const v of r) r9.push(v);
+    links.push({name:n, size:lk.size, pos:c, r9:r9, color:rgbaToHex(lk.color)});
+  }
+  const sig=JSON.stringify(links.map(l=>[l.name,l.size,l.color]));
+  const full=(sig!==_sceneSig); _sceneSig=sig;
+  const bal=balanceInfo(tfs);
+  const payload={full:full, links:links, com:bal.com,
+                 feet:{poly2d:bal.poly2d, z:bal.footZ}, balance:bal.balance};
+  clearTimeout(_pushTimer);
+  _pushTimer=setTimeout(()=>{
+    fetch('/api/scene',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(r=>r.json()).then(j=>{
+        if(j&&j.ok&&j.url){
+          const f=$('#meshcatFrame');
+          if(f&&!f.getAttribute('src')){ f.setAttribute('src',j.url); const w=$('#mcWait'); if(w) w.style.display='none'; }
+        }
+      }).catch(()=>{});
+  },40);
+}
+function updateView(){
   if(!Model) return;
-  const mode={rx:Rx,ry:Ry};
-  render3D(Model,mode);
+  const tfs=worldTFs();
+  push3D(tfs);
   render2D(Model);
   updateComReadout();
 }
+
+/* ================= 位姿控制 ================= */
+let T0Z=0;                         // 贴地 base 高度偏移：把初始脚底降到 z=0(=地面顶面)
+
+// 根据当前关节角(FK)自动算全模型最低 box 角点 z → 设 base 偏移使脚底落 z=0
+function groundFeet(){
+  if(!Model) return;
+  const tfs=computeTFs(Model);     // 原始模型系(未加偏移)
+  let fz=Infinity;
+  for(const n in Model.links){
+    const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue;
+    for(const p of boxCorners(lk,tf)) if(p[2]<fz) fz=p[2];
+  }
+  T0Z=isFinite(fz)?-fz:0;
+  BaseT={pos:[0,0,T0Z], R:[[1,0,0],[0,1,0],[0,0,1]]};
+}
+function resetPose(){
+  if(!Model) return;
+  for(const j of (Model.joints||[])){ if(j) Angle[j.name]=0; }
+  groundFeet();                    // 回零位，并把脚底贴回地面
+  document.querySelectorAll('input[data-aj]').forEach(inp=>{ inp.value='0.0000'; });
+  document.querySelectorAll('[data-av]').forEach(v=>{ v.textContent='0.00'; });
+  updateView();
+  toast('已重置到 T-pose · 脚底贴地');
+}
 let Model=null, Props={};
+let Angle={};                   // 关节角: {<joint name>: rad}，computeTFs 按此驱动
 let DENSITY=1500;               // 全局密度 kg/m³（默认与后端 mjcf_convert 一致）
 let Inert={};                   // per-link 惯量覆盖：{<link>:{mass,ixx,iyy,izz}}，缺省字段=按几何×密度自动
 
@@ -1138,15 +1264,26 @@ function buildJointControls(model){
           <span>min<input type="number" class="num" value="${(+lo).toFixed(3)}" data-j="${j.name}" data-k="lower" step="0.05"></span>
           <span>max<input type="number" class="num" value="${(+up).toFixed(3)}" data-j="${j.name}" data-k="upper" step="0.05"></span>
           <span>effort<input type="number" class="num" value="${(+ef).toFixed(2)}" data-j="${j.name}" data-k="effort" step="1"></span>
+        </div>
+        <div class="jangle" title="关节角(弧度)">
+          <input type="range" data-aj="${j.name}" min="${(-Math.max(Math.abs(lo)*3,0.5)).toFixed(2)}" max="${(Math.max(Math.abs(up)*3,0.5)).toFixed(2)}" step="0.005" value="${(Angle[j.name]||0).toFixed(4)}">
+          <span class="aval" data-av="${j.name}">${(Angle[j.name]||0).toFixed(2)}</span>
         </div>`;
       row.querySelector('input[type=checkbox]').addEventListener('change',e=>{
         const c=JointConf[j.name]=JointConf[j.name]||{}; c.fixed=e.target.checked;
-        renderAll();    // 锁定→隐藏该 child link；取消→恢复显示
+        updateView();   // 锁定→隐藏该 child link；取消→恢复显示
       });
       row.querySelectorAll('input[type=number]').forEach(inp=>{
         inp.addEventListener('change',e=>{
           const c=JointConf[j.name]=JointConf[j.name]||{}; c[e.target.dataset.k]=+e.target.value;
         });
+      });
+      const arow=row.querySelector('input[data-aj="'+j.name+'"]'),
+            aval=row.querySelector('[data-av="'+j.name+'"]');
+      arow.addEventListener('input',()=>{
+        Angle[j.name]=+arow.value;
+        if(aval) aval.textContent=(+arow.value).toFixed(2);
+        updateView();
       });
       box.appendChild(row);
     }
@@ -1190,10 +1327,13 @@ function buildInertControls(){
 function updateComReadout(){
   const el=$('#comread'); if(!el) return;
   if(!Model){ el.textContent=''; return; }
-  const {com,totalMass,footZ}=systemCOM(computeTFs(Model));
-  const g=mm(com[0]), h=mm(com[1]), z=mm(com[2]);
-  const lx=mm(com[0]), ly=mm(com[1]);
-  el.textContent=`Σm=${totalMass.toFixed(2)}kg  COM(${g},${h},${z}) 落足(${lx},${ly})mm@z=${mm(footZ)}`;
+  const {com,totalMass,footZ}=systemCOM(worldTFs());
+  const bal=balanceInfo(worldTFs());
+  const st=bal.balance?'稳定':'不稳定';
+  const hFoot=Math.max(com[2]-footZ,0);   // 重心距脚底高度(自动)
+  el.innerHTML=`Σm=${totalMass.toFixed(2)}kg COM(${mm(com[0])},${mm(com[1])},${mm(com[2])}) `
+    +`距脚底${mm(hFoot)} 落足(${mm(com[0])},${mm(com[1])})@z=${mm(footZ)} `
+    +`<b style="color:${bal.balance?'var(--ok)':'#e0442e'}">● ${st}${bal.margin?`(${bal.margin.toFixed(0)}mm)`:'-'}</b>`;
 }
 
 function rgbaToHex(r){const p=String(r).trim().split(/\s+/).map(Number);return '#'+[p[0],p[1],p[2]].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');}
@@ -1205,7 +1345,9 @@ function rebuildScene(){
     syncLegend();
     buildJointControls(Model);
     buildInertControls();
-    updateStats(); renderAll();
+    updateStats();
+    groundFeet();                // 按新几何自动算贴地偏移：初始脚底落 z=0(地面顶面)
+    renderAll();
   }catch(e){ toast('解析出错: '+e.message,true); }
 }
 
@@ -1227,11 +1369,7 @@ function updateStats(){
 }
 
 /* ================= 交互 ================= */
-let dragging=false,lx=0,ly=0;
-cv3.addEventListener('pointerdown',e=>{dragging=true;lx=e.clientX;ly=e.clientY;cv3.setPointerCapture(e.pointerId);});
-window.addEventListener('pointermove',e=>{if(!dragging)return;Rx+=(e.clientY-ly)*0.008;Ry+=(e.clientX-lx)*0.008;lx=e.clientX;ly=e.clientY;Rx=Math.max(-Math.PI,Math.min(Math.PI,Rx));renderAll();});
-window.addEventListener('pointerup',()=>dragging=false);
-cv3.addEventListener('wheel',e=>{e.preventDefault();zoom*=e.deltaY>0?0.92:1.08;zoom=Math.max(0.3,Math.min(6,zoom));renderAll();},{passive:false});
+// 3D 视角交给 meshcat 自带轨道控制(不再用 canvas 手写拖拽/缩放)
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
   b.classList.add('on');dimView=b.dataset.v;syncRefImg();renderAll();
@@ -1669,11 +1807,19 @@ $('#btnExportAll').addEventListener('click',async()=>{
 /* ================= 启动 ================= */
 function boot(){
   setSize(); window.addEventListener('resize',()=>{setSize();renderAll();});
-  // 默认加载同目录的 xacro（http 服务下）；file:// 下 fetch 会被浏览器拦截 → 回退内置示例
-  fetch('pikachu_sample_links.xacro').then(r=>{ if(!r.ok)throw new Error('HTTP '+r.status); return r.text(); })
-    .then(t=>loadSrc(t,'已载入当前目录 pikachu_sample_links.xacro'))
-    .catch(()=>{ loadSrc($('#src-default').textContent.trim());
-      toast('未读到同目录 pikachu_sample_links.xacro，已载入内置示例（建议用 http server 打开本页）',true); });
+  // 手动关节角驱动；重置位姿
+  const rp=$('#btnResetPose'); if(rp) rp.addEventListener('click',resetPose);
+  // 默认加载 27dof xacro(http 服务下)；file:// 被拦截或缺失 → 回退内置示例
+  const candidates=['default/27dof/pikachu_sample_links_27dof.xacro',
+                    'default/pikachu_sample_links.xacro',
+                    'pikachu_sample_links.xacro'];
+  (function tryLoad(i){
+    if(i>=candidates.length){ loadSrc($('#src-default').textContent.trim());
+      toast('未读到内置示例之外的 xacro，已载入内置示例（建议用 http server 打开本页）',true); return; }
+    fetch(candidates[i]).then(r=>{ if(!r.ok)throw new Error('HTTP '+r.status); return r.text(); })
+      .then(t=>loadSrc(t,'已载入 '+candidates[i]))
+      .catch(()=>tryLoad(i+1));
+  })(0);
 }
 boot();
 </script>

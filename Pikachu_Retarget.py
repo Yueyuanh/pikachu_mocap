@@ -652,6 +652,9 @@ class RetargetPanel(QWidget):
         self.map_combo.clear()
         for key in self._rt_maps:
             self.map_combo.addItem(key, key)
+        # 默认选中最新的（yaml 末尾）骨架（如 self_rig_v3）
+        if self.map_combo.count():
+            self.map_combo.setCurrentIndex(self.map_combo.count() - 1)
 
     def _current_map(self):
         key = self.map_combo.currentData() if hasattr(self, "map_combo") else None
@@ -1106,8 +1109,9 @@ class RetargetStudio(QWidget):
         list_panel.setLayout(list_layout)
 
         # 底部面板：重定向 + Blender URDF 映射
+        # URDF→Skin 下拉统由 blender_skin_map.yaml 注册表驱动（rig / self_rig_v2 / self_rig_v3 …）
         self.retarget_panel = RetargetPanel(
-            {"rig": self.rt_map, "self_rig_v2": self.rt_map_v2}, self._reload_map)
+            {nm: st["joints"] for nm, st in self.skin_states.items()}, self._reload_map)
         self.burdf_panel = BlenderUrdfPanel(self.burdf_map, self._reload_burdf_map)
 
         bottom = QWidget()
@@ -1430,11 +1434,17 @@ class RetargetStudio(QWidget):
         self._push_urdf_if_needed()
 
     def _populate_skin_combo(self):
-        """按 skin 注册表 name 填充下拉（不触发 currentIndexChanged）。"""
+        """按 skin 注册表 name 填充下拉（不触发 currentIndexChanged）。
+
+        默认选中最近的（yaml 里最后一个）骨架（如 self_rig_v3），随 yaml 末尾新项同步更新。
+        """
         self.skin_combo.blockSignals(True)
         self.skin_combo.clear()
         for name in self.skin_states:
             self.skin_combo.addItem(name, name)
+        # 默认选最后一项（最新 self_rig_v3；加新骨架则自动跟随 yaml 末尾）
+        if self.skin_combo.count():
+            self.skin_combo.setCurrentIndex(self.skin_combo.count() - 1)
         self.skin_combo.blockSignals(False)
 
     def _build_skin_states(self):
@@ -1810,8 +1820,10 @@ class RetargetStudio(QWidget):
         try:
             self.rt_map = retarget_mod.load_retarget_map(self.map_path)
             self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
-            self.retarget_panel.set_maps({"rig": self.rt_map, "self_rig_v2": self.rt_map_v2})
+            # URDF→Skin 下拉本次统由 blender_skin_map.yaml 注册表驱动（含 rig / self_rig_v2 / self_rig_v3），
+            # 不再沿用旧的 {"rig","self_rig_v2"} 硬编码。先重读注册表再喂给 Retarget 面板。
             self._reload_skin_registry()
+            self.retarget_panel.set_maps({nm: st["joints"] for nm, st in self.skin_states.items()})
             print("Retarget map reloaded")
         except Exception as e:
             print("Reload map failed:", e)
@@ -1824,7 +1836,8 @@ class RetargetStudio(QWidget):
         prev = self._active_skin
         self._build_skin_states()
         if prev not in self.skin_states:
-            prev = next(iter(self.skin_states), None)
+            # 默认回退到 yaml 里最后一项（最新 self_rig_v3）
+            prev = next(reversed(self.skin_states), None)
         if prev:
             self._active_skin = prev
             # 重建下拉并同步回 prev（不触发 signal / 不切页）
@@ -1873,6 +1886,10 @@ class RetargetStudio(QWidget):
         bone_pose = self._current_skin_pose()
         self.retarget_panel.update_pose(bone_pose)
         if self.client.connected:
+            # 直接骨骼控制：把清零后的 st["angles"]（全 0）推给每个皮肤骨架，让 Blender 模型回中。
+            # 注意直接操控的姿势存于 st["angles"]，与 URDF 推导的 rest pose 是两套，都要上行。
+            for st in self.skin_states.values():
+                self.client.set_pose(dict(st["angles"]), armature=st["armature_name"])
             for arm_name, m in self._skin_armatures():
                 pose = self._current_skin_pose(m)
                 if pose:

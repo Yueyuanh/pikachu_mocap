@@ -301,7 +301,8 @@
     </link>
 
     <joint name="${side}_arm_roll_joint" type="revolute">
-      <origin xyz="0 ${sn*arm_pitch_to_roll_y} 0" rpy="0 0 0"/>
+      <!-- rpy 加 90°(x) 偏置：默认(angle=0)即 T-pose 水平外展，不再垂挂 -->
+      <origin xyz="0 ${sn*arm_pitch_to_roll_y} 0" rpy="${sn*1.57} 0 0"/>
       <parent link="${side}_arm_pitch_link"/>
       <child  link="${side}_arm_roll_link"/>
       <axis xyz="${sn} 0 0"/>
@@ -339,7 +340,8 @@
     </link>
 
     <joint name="${side}_elbow_joint" type="revolute">
-      <origin xyz="0 0 ${-arm_lower_z}" rpy="0 -1.57 0"/>
+      <!-- rpy 清零：去除原折弯，默认手与前臂连成直线（展开） -->
+      <origin xyz="0 0 ${-arm_lower_z}" rpy="0 0 0"/>
       <parent link="${side}_arm_yaw_link"/>
       <child  link="${side}_elbow_link"/>
       <axis xyz="0 ${-sn} 0"/>
@@ -383,7 +385,8 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <parent link="${side}_ear_pitch_link"/>
       <child  link="${side}_ear_roll_link"/>
-      <axis xyz="0 0 ${sn}"/>
+      <!-- 轴改 x：真正绕前后横轴 roll（耳朵左右倒伏/张开）；原 0 0 z 是 yaw -->
+      <axis xyz="1 0 0"/>
       <limit lower="${ear_lim_min}" upper="${ear_lim_max}" effort="1.0" velocity="2"/>
     </joint>
 

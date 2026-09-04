@@ -15,6 +15,7 @@
   --accent-soft:rgba(47,111,214,.13);
   --blue:#5f7cff;             /* 取自 leg_hip_yaw 蓝 */
   --ok:#2ea869;
+  --warn:#c77a16; --danger:#d64545;
   --shadow:0 12px 32px rgba(40,70,120,.16);
 }
 @media (prefers-color-scheme: dark){
@@ -244,6 +245,81 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
   .side{max-height:52vh;border-right:none;border-bottom:1px solid var(--line)}
   .main{grid-template-rows:56vh 300px;overflow:visible}
 }
+
+/* ---------- v2 工程工作台 ---------- */
+.source-meta{min-width:0;display:flex;flex-direction:column;gap:1px;margin-right:auto}
+.source-meta strong{font-family:"IBM Plex Mono",monospace;font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.source-meta small{font-size:10px;color:var(--muted)}
+.statusbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel2);color:var(--text-dim);border-radius:999px;padding:4px 8px;font:500 10px "IBM Plex Mono",monospace;white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.chip.ok::before{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 16%,transparent)}
+.chip.warn::before{background:var(--warn)}
+.chip.error::before{background:var(--danger)}
+.chip.dirty::before{background:var(--accent)}
+.iconbtn{width:32px;height:32px;padding:0;display:grid;place-items:center;font:600 16px "IBM Plex Mono",monospace}
+.btn[disabled]{opacity:.42;cursor:not-allowed;transform:none}
+
+.layout{grid-template-columns:minmax(330px,380px) minmax(360px,1fr) minmax(360px,1fr);grid-template-rows:minmax(360px,1fr) 226px}
+.v3cell{grid-column:2;grid-row:1}
+.v2cell{grid-column:3;grid-row:1}
+.verifycell{grid-column:2/4;grid-row:2;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;min-height:0}
+.verify-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.verify-head{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.verify-head strong{font:600 11px "IBM Plex Mono",monospace;letter-spacing:.5px;text-transform:uppercase}
+.verify-summary{margin-left:auto;font:500 10px "IBM Plex Mono",monospace;color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(105px,1fr));gap:7px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.metric{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 8px;min-width:0}
+.metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+.metric b{display:block;margin-top:1px;font:600 12px "IBM Plex Mono",monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.issues{overflow:auto;padding:5px 10px 9px;display:grid;gap:4px}
+.issue{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center;border-left:3px solid var(--line2);background:var(--panel2);border-radius:5px;padding:5px 7px;font-size:11px}
+.issue.error{border-left-color:var(--danger)} .issue.warn{border-left-color:var(--warn)} .issue.ok{border-left-color:var(--ok)}
+.issue .sev{font:600 9px "IBM Plex Mono",monospace;text-transform:uppercase;color:var(--muted)}
+.issue code{font:500 10px "IBM Plex Mono",monospace;color:var(--text-dim)}
+.measurements{width:300px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:8px 10px}
+.measurements h3{font:600 10px "IBM Plex Mono",monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px}
+.measure-row{display:grid;grid-template-columns:22px 1fr auto;gap:6px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:10px;align-items:center}
+.measure-row .no,.measure-row b{color:var(--accent);font-family:"IBM Plex Mono",monospace}
+
+.panel-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px;border-bottom:1px solid var(--line)}
+.panel-tabs button{border:1px solid transparent;background:transparent;color:var(--muted);padding:6px 4px;border-radius:6px;font-size:11px}
+.panel-tabs button.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,var(--line));color:var(--accent);font-weight:600}
+.filterbar{display:flex;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line)}
+.filterbar input{width:100%;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:11px}
+.filterbar input:focus{border-color:var(--accent);outline:none}
+.panel-page{display:none}.panel-page.on{display:block}
+.panel-page .seclabel{margin-top:7px}
+.slider-row.changed,.jrow.changed,.inrow.changed{box-shadow:inset 3px 0 0 var(--accent);padding-left:8px}
+.slider-row.invalid,.jrow.invalid,.inrow.invalid{box-shadow:inset 3px 0 0 var(--danger)}
+.slider-row label .delta{color:var(--warn);font-size:9px;margin-left:auto;margin-right:8px}
+.jangle{display:flex;align-items:center;gap:7px;margin-top:6px}
+.jangle input{flex:1;accent-color:var(--accent)}
+.jangle .aval{width:43px;text-align:right;font:500 10px "IBM Plex Mono",monospace;color:var(--accent)}
+.jrow.is-fixed .jangle{opacity:.4}
+.sidecell .scroll{padding-top:6px}
+.footcell{padding:10px;gap:8px}
+.footcell .export{margin-top:2px;padding-top:8px}
+.export-status{display:flex;align-items:center;gap:7px;margin-top:8px;padding:7px 8px;border-radius:7px;background:var(--panel2);color:var(--muted);font-size:10px}
+.export-status b{color:var(--text)}
+.source-tools{display:flex;gap:6px;align-items:center}
+.source-tools .mini{margin-left:auto}
+.src details{margin-top:0}.src textarea{height:180px}
+.viewport #canvas3d{display:none;position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%}
+.viewport.fallback #meshcatFrame{display:none}
+.viewport.fallback #canvas3d{display:block}
+.mcwait{background:linear-gradient(135deg,var(--panel2),transparent);text-align:center;padding:24px}
+.sat3d{display:none}.viewport.fallback .sat3d{display:flex}
+.cell-head{display:flex;align-items:center}.cell-head .view-state{margin-left:auto;color:var(--muted);font-weight:400;letter-spacing:0}
+
+@media (max-width:1180px){
+  .layout{grid-template-columns:350px 1fr;grid-template-rows:minmax(400px,1fr) minmax(340px,.8fr) 240px;height:auto;min-height:calc(100vh - 58px)}
+  .sidecell{grid-column:1;grid-row:1/3}.footcell{grid-column:1;grid-row:3}.v3cell{grid-column:2;grid-row:1}.v2cell{grid-column:2;grid-row:2}.verifycell{grid-column:2;grid-row:3}
+  .measurements{width:250px}.statusbar .chip:nth-child(n+3){display:none}
+}
+@media (max-width:760px){
+  .topbar{position:relative;flex-wrap:wrap}.source-meta{order:3;width:100%}.statusbar{margin-left:auto}.layout{display:flex;height:auto;flex-direction:column}.sidecell{height:70vh}.v3cell,.v2cell{height:65vh}.footcell{min-height:220px}.verifycell{min-height:380px;flex-direction:column}.measurements{width:auto;border-left:0;border-top:1px solid var(--line)}.metrics{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
@@ -256,9 +332,21 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
     </span>
     <span>连杆调校台<small>Pikachu · URDF/xacro link tuner</small></span>
   </div>
-  <div class="status">
-    <span id="statLink">–</span> links · <span id="statJoint">–</span> joints · <span id="statParam">–</span> params
+  <div class="source-meta">
+    <strong id="sourceName">正在载入模型…</strong>
+    <small id="sourceHint">尚未建立工程基线</small>
   </div>
+  <div class="statusbar" aria-label="工作台状态">
+    <span class="chip" id="backendChip">后端检测中</span>
+    <span class="chip" id="meshcatChip">3D 检测中</span>
+    <span class="chip" id="validationChip">待校验</span>
+    <span class="chip" id="dirtyChip">未修改</span>
+  </div>
+  <div class="status" title="当前已解析的模型规模">
+    <span id="statLink">–</span>L · <span id="statJoint">–</span>J · <span id="statParam">–</span>P
+  </div>
+  <button class="btn iconbtn" id="btnUndo" title="撤销 (Ctrl/Cmd+Z)" disabled>←</button>
+  <button class="btn iconbtn" id="btnRedo" title="重做 (Ctrl/Cmd+Shift+Z)" disabled>→</button>
   <label class="btn" style="margin-left:2px;margin-left:0">载入文件
     <input type="file" id="fileInput" accept=".xacro,.urdf,.xml" hidden>
   </label>
@@ -267,24 +355,38 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
 
 <div class="layout">
   <aside class="sidecell">
-    <div class="cell-head">连杆长度 · 关节</div>
+    <div class="cell-head">设计参数 <span class="view-state" id="changeCount">0 项变更</span></div>
+    <nav class="panel-tabs" aria-label="参数类别">
+      <button class="on" data-panel="params">几何</button>
+      <button data-panel="joints">关节</button>
+      <button data-panel="inertia">惯量</button>
+    </nav>
+    <div class="filterbar">
+      <input id="controlSearch" type="search" placeholder="搜索参数 / link / joint" aria-label="搜索调参项">
+    </div>
     <div class="scroll">
-      <div class="seclabel">连杆长度</div>
-      <div id="groups"></div>
-      <div class="seclabel">关节 · 固定 / 限位 / effort</div>
-      <div id="joints"></div>
-      <div class="seclabel">惯量 / 质心 <span class="dim">kg · kg·m²</span></div>
-      <div class="inert-head">
-        密度 <input type="number" id="inertDensity" value="1500" min="10" step="10" title="全局密度 kg/m³；单 link 留空=按几何×密度自动算">
-        <span>kg/m³</span>
-      </div>
-      <div id="inert"></div>
-      <div class="legend" id="legend" style="margin-top:8px"></div>
+      <section class="panel-page on" data-page="params">
+        <div class="seclabel">几何参数 <span class="dim">mm · rad</span></div>
+        <div id="groups"></div>
+      </section>
+      <section class="panel-page" data-page="joints">
+        <div class="seclabel">关节位姿 / 限位 / effort</div>
+        <div id="joints"></div>
+      </section>
+      <section class="panel-page" data-page="inertia">
+        <div class="seclabel">惯量 / 质心 <span class="dim">kg · kg·m²</span></div>
+        <div class="inert-head">
+          基准密度 <input type="number" id="inertDensity" value="1500" min="10" step="10" title="全局密度 kg/m³；单 link 留空=按几何×密度自动算">
+          <span>kg/m³</span>
+        </div>
+        <div id="inert"></div>
+        <div class="legend" id="legend" style="margin-top:8px"></div>
+      </section>
     </div>
   </aside>
 
   <section class="v3cell" id="view3d">
-    <div class="cell-head">3D 模型 · meshcat <span class="dim">拖动旋转 · 滚轮缩放</span></div>
+    <div class="cell-head">3D 装配与姿态 <span class="dim">拖动旋转 · 滚轮缩放</span><span class="view-state" id="view3dState">meshcat</span></div>
     <div class="v3ctl">
       <label class="chk"><input type="checkbox" id="cInert" checked>质心 / 惯量</label>
       <label class="chk"><input type="checkbox" id="cCom" checked>落足重心 / 支撑多边形</label>
@@ -293,26 +395,31 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
     </div>
     <div class="viewport">
       <iframe id="meshcatFrame" title="meshcat 3D 视图"></iframe>
+      <canvas id="canvas3d" aria-label="本地 3D 备用视图"></canvas>
+      <div class="sat3d">
+        <button id="vpFront">正面</button><button id="vpSide">侧面</button><button id="vpBottom">底部</button>
+      </div>
       <div class="mcwait" id="mcWait">meshcat 3D 载入中…</div>
     </div>
   </section>
 
   <aside class="footcell">
-    <div class="mini">
-      <button class="btn" id="btnReset">重置默认</button>
-      <button class="btn" id="btnTheme" title="切换明暗主题">主题</button>
+    <div class="source-tools">
+      <strong style="font-size:11px">版本与交付</strong>
+      <div class="mini">
+        <button class="btn" id="btnReset">恢复基线</button>
+        <button class="btn" id="btnTheme" title="切换明暗主题">主题</button>
+      </div>
     </div>
     <div class="export">
-      <div class="grptitle">导出 / 保存</div>
       <div class="erow">
-        <button class="btn" id="btnSaveX" title="把当前参数写回并另存为 .xacro">保存 Xacro</button>
+        <button class="btn" id="btnSaveX" title="保存保留宏结构的参数化 xacro">参数 Xacro</button>
         <button class="btn" id="btnSaveURDF" title="按当前参数生成纯几何 .urdf 并写入已选目录">导出 URDF</button>
         <button class="btn" id="btnSaveMJCF" title="一键把当前 xacro 转为适用于 muJoCo 的 MJCF(xml) 并写入已选目录">导出 MJCF</button>
       </div>
       <button class="btn uw" id="btnSave2D" title="导出带 mm 尺寸标注的 2D 图纸为 PNG">导出 2D 图纸 (PNG)</button>
       <button class="btn uw primary" id="btnExportAll" title="一次性导出 URDF + Xacro + MJCF + 2D PNG + 连杆长度JSON，写入所选目录">一键导出全部 · URDF / Xacro / MJCF / PNG / JSON</button>
-      <p class="tiny">MJCF 导出在后端完成：xacro 展开 + 按 box 自动算惯量 + MuJoCo 编译，需用 mocap 环境启动 server。</p>
-      <p class="tiny">导出会写入你方框里选的文件夹（推荐 urdf/robot/Pikachu_links）；不支持时退回下载。</p>
+      <div class="export-status" id="exportStatus"><span>●</span><b>校验完成后可交付</b></div>
     </div>
     <div class="src">
       <details>
@@ -354,6 +461,28 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
         <tbody id="dimRows"></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="verifycell" aria-label="工程验证">
+    <div class="verify-main">
+      <div class="verify-head">
+        <strong>工程验证</strong>
+        <span class="chip" id="verifyBadge">等待模型</span>
+        <span class="verify-summary" id="verifySummary">–</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><span>总质量</span><b id="metricMass">–</b></div>
+        <div class="metric"><span>总高</span><b id="metricHeight">–</b></div>
+        <div class="metric"><span>COM 高度</span><b id="metricCom">–</b></div>
+        <div class="metric"><span>支撑裕量</span><b id="metricMargin">–</b></div>
+        <div class="metric"><span>左右对称</span><b id="metricSymmetry">–</b></div>
+      </div>
+      <div class="issues" id="validationList"></div>
+    </div>
+    <aside class="measurements">
+      <h3>关键尺寸·实测值</h3>
+      <div id="measureRows"></div>
+    </aside>
   </section>
 </div>
 
@@ -540,38 +669,47 @@ function parseRobot(xmlStr){
   const dom=new DOMParser().parseFromString(xmlStr,'text/xml');
   if(dom.querySelector('parsererror')) throw new Error('XML 解析失败: '+(dom.querySelector('parsererror').textContent||'').trim());
   const root=dom.documentElement;
+  if(!root||root.localName!=='robot')throw new Error('XML 根元素必须是 <robot>');
+  const vec=(el,attr,fallback)=>{
+    const raw=el&&el.getAttribute(attr); if(!raw)return fallback.slice();
+    const out=raw.trim().split(/\s+/).map(Number); return out.length===3?out:[NaN,NaN,NaN];
+  };
+  const numberAttr=(el,attr)=>{const raw=el&&el.getAttribute(attr);return raw==null?NaN:Number(raw);};
   const mats={};
   root.querySelectorAll('material').forEach(mm=>{
     const c=mm.querySelector('color'); if(c)mats[mm.getAttribute('name')]=c.getAttribute('rgba').trim();
   });
-  const links={}; // name -> {size:[x,y,z], origin:[x,y,z], color}
+  const allLinks=[];
+  root.querySelectorAll('link').forEach(lk=>allLinks.push(lk.getAttribute('name')));
+  const links={}, unsupportedVisual=[]; // 空 link 可作为合法关节帧；只记录“有 visual 但非 box”
   root.querySelectorAll('link').forEach(lk=>{
     const vs=lk.querySelector('visual'); if(!vs) return;
     const g=vs.querySelector('geometry');
-    const b=g&&g.querySelector('box'); if(!b) return;
+    const b=g&&g.querySelector('box'); if(!b){unsupportedVisual.push(lk.getAttribute('name'));return;}
     const o=vs.querySelector('origin');
-    const mk=(v,f)=>{const t=v?a[v]():[0,0,0];return t;};
-    const oa=o?o.getAttribute('xyz').trim().split(/\s+/).map(Number):[0,0,0];
-    const ra=o&&o.getAttribute('rpy')?o.getAttribute('rpy').trim().split(/\s+/).map(Number):[0,0,0];
-    const sz=b.getAttribute('size').trim().split(/\s+/).map(Number);
+    const oa=vec(o,'xyz',[0,0,0]), ra=vec(o,'rpy',[0,0,0]);
+    const sz=vec(b,'size',[NaN,NaN,NaN]);
     const mn=vs.querySelector('material')&&vs.querySelector('material').getAttribute('name');
-    links[lk.getAttribute('name')]={origin:oa,rpy:ra,size:sz,mat:mn,color:mats[mn]||['.7','.7','.75','1'].join(' ')};
+    const inline=vs.querySelector('material color');
+    links[lk.getAttribute('name')]={origin:oa,rpy:ra,size:sz,mat:mn,color:(inline&&inline.getAttribute('rgba'))||mats[mn]||['.7','.7','.75','1'].join(' ')};
   });
   const joints=[];
   root.querySelectorAll('joint').forEach(jf=>{
     const o=jf.querySelector('origin');
     joints.push({
       name:jf.getAttribute('name'),type:jf.getAttribute('type'),
-      parent:jf.querySelector('parent').getAttribute('link'),
-      child:jf.querySelector('child').getAttribute('link'),
-      origin:o?o.getAttribute('xyz').trim().split(/\s+/).map(Number):[0,0,0],
-      rpy:o&&o.getAttribute('rpy')?o.getAttribute('rpy').trim().split(/\s+/).map(Number):[0,0,0],
-      axis:jf.querySelector('axis')?jf.querySelector('axis').getAttribute('xyz').trim().split(/\s+/).map(Number):[0,0,0],
-      limit:jf.querySelector('limit')?[+jf.querySelector('limit').getAttribute('lower'),+jf.querySelector('limit').getAttribute('upper')]:null,
+      parent:jf.querySelector('parent')?jf.querySelector('parent').getAttribute('link'):'',
+      child:jf.querySelector('child')?jf.querySelector('child').getAttribute('link'):'',
+      origin:vec(o,'xyz',[0,0,0]),
+      rpy:vec(o,'rpy',[0,0,0]),
+      axis:vec(jf.querySelector('axis'),'xyz',[0,0,0]),
+      limit:jf.querySelector('limit')?[numberAttr(jf.querySelector('limit'),'lower'),numberAttr(jf.querySelector('limit'),'upper')]:null,
       effort:jf.querySelector('limit')&&jf.querySelector('limit').getAttribute('effort')?+jf.querySelector('limit').getAttribute('effort'):5
     });
   });
-  return {links, joints};
+  if(allLinks.some(n=>!n))throw new Error('link 缺少 name 属性');
+  if(joints.some(j=>!j.name))throw new Error('joint 缺少 name 属性');
+  return {robotName:root.getAttribute('name')||'', links, allLinks, unsupportedVisual, joints};
 }
 
 /* ================= 世界变换 ================= */
@@ -580,7 +718,7 @@ function axisRotMat(axis, ang){
   if(!ang) return [[1,0,0],[0,1,0],[0,0,1]];
   const a=axis[0],b=axis[1],c=axis[2];
   const n=Math.sqrt(a*a+b*b+c*c); if(n<1e-9) return [[1,0,0],[0,1,0],[0,0,1]];
-  const uz=a/n,uy=b/n,ux=c/n;
+  const ux=a/n,uy=b/n,uz=c/n;
   const s=Math.sin(ang), c_=Math.cos(ang), t=1-c_;
   return [
     [t*ux*ux+c_,    t*ux*uy-s*uz,  t*ux*uz+s*uy ],
@@ -604,7 +742,8 @@ function computeTFs(model){
       if(visited.has(j.child)) continue; visited.add(j.child);
       const oj=j.origin;
       const linkPos=add(c.pos, matVec(c.R, oj));
-      const ang=(j.type==='revolute')? (Angle[j.name]||0):0;
+      const locked=JointConf[j.name]&&JointConf[j.name].fixed;
+      const ang=((j.type==='revolute'||j.type==='continuous')&&!locked)? (Angle[j.name]||0):0;
       const R=matMul(matMul(c.R, rpyToMat(j.rpy)), axisRotMat(j.axis||[1,0,0], ang));
       const t={pos:linkPos,R}; tf[j.child]=t;
       stack.push({name:j.child,pos:linkPos,R});
@@ -641,8 +780,8 @@ function proj3D(w, cam){
   const z2=-sv*y1 + cv*z1;  // 深度, 用于 painter 排序
   return [x1, -y2, z2];     // 屏幕右=x1, 屏幕上=-y2, 深=z2
 }
-function render3D(model, mode){
-  const tfs=computeTFs(model);
+function render3D(model, mode, suppliedTFs){
+  const tfs=suppliedTFs||computeTFs(model);
   const fh=fixedClinkSet();   // 锁定关节的 child link 不渲染
   const robots=[];
   for(const n in model.links){
@@ -714,7 +853,7 @@ function drawInertiaAndCOM(model,tfs,s,cx,cy,mode){
   }
   // 总体质心 → 落足重心（垂直投影到脚掌最低平面）
   if(showCom){
-    const {com,footZ}=systemCOM(tfs);
+    const {com}=systemCOM(tfs), footZ=balanceInfo(tfs).footZ;
     const pc=P3(com,s,cx,cy,mode);
     const land=[com[0],com[1],footZ]; const pl=P3(land,s,cx,cy,mode);
     ctx3.setLineDash([4,3]); ctx3.strokeStyle='#e6613d'; ctx3.lineWidth=1.3; ctx3.globalAlpha=.7;
@@ -763,7 +902,7 @@ function render2D(model){
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   ctx.strokeStyle=lineC; ctx.lineWidth=1; ctx.strokeRect(7,7,W-14,H-14);
   ctx.textBaseline='top';
-  // ① 底部参数表区高度（表头 + 项数行 + 边距）；长一点没关系，横贯整张图
+  // 工作台内只显示模型；导出 PNG 时才在底部绘制尺寸表。
   let n=0;
   for(const D of KEYDIMS){ let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
     if(a&&b){ const v=refDist(a,D.ad,b,D.bd); if(isFinite(v)&&v>=0.002) n++; } }
@@ -771,11 +910,12 @@ function render2D(model){
   // drawParamPanel)。过去 paramH 只按 hdrH+n*rowH+34 算，5 行时会比真实占用少 ~20px，
   // 导致最后一行(第⑤项)被画布底部裁掉。这里改用与绘制一致的行高/偏移，留足底部边距。
   const lh=Math.round(24*dpr);
-  const paramH=Math.round(66*dpr) + n*lh + Math.round(16*dpr);
+  const paramH=dimDrawVals ? Math.round(66*dpr) + n*lh + Math.round(16*dpr) : 0;
   const topH=H-paramH;
-  // ② 主图区与参数表的分隔线
-  ctx.strokeStyle=lineC; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(12,topH); ctx.lineTo(W-12,topH); ctx.stroke();
+  if(dimDrawVals){
+    ctx.strokeStyle=lineC; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(12,topH); ctx.lineTo(W-12,topH); ctx.stroke();
+  }
   // ③ 抬头说明（主图区顶部）
   ctx.fillStyle=soft; ctx.font='600 '+Math.round(12*dpr)+'px "IBM Plex Mono",monospace';
   ctx.textAlign='left';
@@ -800,8 +940,8 @@ function render2D(model){
   }
   // ⑥ 关键尺寸标注：仅正面视图，标尺全部横平竖直（引线垂直/水平引出）
   if(isFront) drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr);
-  // ⑦ 参数表画进图纸底部，横贯全宽，不遮挡主体
-  drawParamPanel(ctx,tfs,topH,ink,soft,accent,lineC,dpr);
+  // 导出图才携带可归档的尺寸表。
+  if(dimDrawVals) drawParamPanel(ctx,tfs,topH,ink,soft,accent,lineC,dpr);
   updateDimTable(tfs);   // 仍填 DOM（已隐藏），保留数据一致性
 }
 // 面板标题下的示例参数行：把关键尺寸表画进图纸右侧参数栏。
@@ -1005,6 +1145,7 @@ function fitRect(cv){
 }
 function setSize(){
   fitRect($('#canvas2d'));           // 2D 走宽度优先的矩形
+  const cv3=$('#canvas3d'); if(cv3) fitRect(cv3);
   if(Model) renderAll();
 }
 function renderAll(){ updateView(); }
@@ -1052,25 +1193,35 @@ function polyEdgeDist(x,y,poly){
 }
 // 平衡判定:支撑多边形=两只脚掌底部(最低角)的 xy 凸包;质心落点在其内且有余量
 function balanceInfo(tfs){
-  const pts=[];
+  const pts=[]; let footZ=Infinity;
   for(const n in Model.links){
     if(!/_ankle_link$/.test(n)) continue;
     const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue;
     const cs=boxCorners(lk,tf);
     let zmin=Infinity; for(const p of cs) if(p[2]<zmin) zmin=p[2];
+    footZ=Math.min(footZ,zmin);
     for(const p of cs) if(Math.abs(p[2]-zmin)<1e-9) pts.push([p[0],p[1]]);
   }
-  let footZ=Infinity;
-  for(const n in Model.links){ const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue; for(const p of boxCorners(lk,tf)) if(p[2]<footZ) footZ=p[2]; }
+  if(!isFinite(footZ))for(const n in Model.links){ const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue; for(const p of boxCorners(lk,tf)) if(p[2]<footZ) footZ=p[2]; }
   const com=systemCOM(tfs).com;
   const hull=convexHull2D(pts);
   const inside=hull.length>=3 && pointInPoly(com[0],com[1],hull);
-  const margin=hull.length>=3? polyEdgeDist(com[0],com[1],hull) : 0;
-  return {com, footZ, poly2d:hull, balance: inside && margin>0.002, margin};
+  const edgeMargin=hull.length>=3? polyEdgeDist(com[0],com[1],hull) : 0;
+  const margin=inside?edgeMargin:-edgeMargin;
+  return {com, footZ, poly2d:hull, balance: inside && edgeMargin>0.002, margin};
 }
 let _sceneSig=null, _pushTimer=null, _mcUrl=null;
+let BackendInfo={online:false,meshcat:false,mjcf:false};
+function set3DFallback(reason){
+  const vp=$('#view3d .viewport'), wait=$('#mcWait'), state=$('#view3dState');
+  if(vp) vp.classList.add('fallback');
+  if(wait){ wait.style.display='none'; wait.textContent=reason||''; }
+  if(state) state.textContent='本地备用渲染';
+  if(Model) render3D(Model,{rx:Rx,ry:Ry},worldTFs());
+}
 function push3D(tfs){
   if(!tfs) return;
+  if(!BackendInfo.meshcat){ set3DFallback('本地 3D'); return; }
   const fset=fixedClinkSet(), links=[];
   for(const n in Model.links){
     if(fset[n]) continue;
@@ -1093,15 +1244,17 @@ function push3D(tfs){
           const f=$('#meshcatFrame');
           if(f&&!f.getAttribute('src')){ f.setAttribute('src',j.url); const w=$('#mcWait'); if(w) w.style.display='none'; }
         }
-      }).catch(()=>{});
+      }).catch(()=>set3DFallback('meshcat 连接失败'));
   },40);
 }
 function updateView(){
   if(!Model) return;
   const tfs=worldTFs();
   push3D(tfs);
+  if(!BackendInfo.meshcat) render3D(Model,{rx:Rx,ry:Ry},tfs);
   render2D(Model);
   updateComReadout();
+  runValidation();
 }
 
 /* ================= 位姿控制 ================= */
@@ -1113,9 +1266,12 @@ function groundFeet(){
   const tfs=computeTFs(Model);     // 原始模型系(未加偏移)
   let fz=Infinity;
   for(const n in Model.links){
+    if(!/_ankle_link$/.test(n)) continue;
     const lk=Model.links[n], tf=tfs[n]; if(!lk||!tf) continue;
     for(const p of boxCorners(lk,tf)) if(p[2]<fz) fz=p[2];
   }
+  // 通用模型未采用 ankle_link 命名时，才回退到全模型最低点。
+  if(!isFinite(fz))for(const n in Model.links){const lk=Model.links[n],tf=tfs[n];if(!lk||!tf)continue;for(const p of boxCorners(lk,tf))if(p[2]<fz)fz=p[2];}
   T0Z=isFinite(fz)?-fz:0;
   BaseT={pos:[0,0,T0Z], R:[[1,0,0],[0,1,0],[0,0,1]]};
 }
@@ -1129,6 +1285,7 @@ function resetPose(){
   toast('已重置到 T-pose · 脚底贴地');
 }
 let Model=null, Props={};
+let InitialProps={}, BaselineState=null, BaselineSource='', CurrentFileName='';
 let Angle={};                   // 关节角: {<joint name>: rad}，computeTFs 按此驱动
 let DENSITY=1500;               // 全局密度 kg/m³（默认与后端 mjcf_convert 一致）
 let Inert={};                   // per-link 惯量覆盖：{<link>:{mass,ixx,iyy,izz}}，缺省字段=按几何×密度自动
@@ -1161,14 +1318,12 @@ function systemCOM(tfs){              // 总体质心 + 总质量 + 脚掌平面
 }
 
 /* ================= 参数控制 ================= */
-const GROUPS=[
-  ['torso','躯干'],['shoulder','躯干'],['head','头'],['hip','腿·骨盆'],['pelvis','腿·骨盆'],
-  ['thigh','腿·大腿'],['shank','腿·小腿'],['leg_','腿·截面'],['foot','腿·脚'],
-  ['arm_','臂'],['arm_lim','臂·限位'],['head_lim','头·限位']
-];
+const GROUPS=[]; // 保留旧全局名；分类由 groupOf 单一维护。
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function isLimitParam(name){ return /(?:^|_)lim(?:_|$)/.test(name); }
 function groupOf(name){
   if(name.startsWith('mat_'))return '材质';
-  if(name.endsWith('_lim')) return /^head/i.test(name)?'头·限位':'臂·限位';
+  if(isLimitParam(name)) return '关节限位';
   if(/^thigh/.test(name))return '腿·大腿';
   if(/^shank/.test(name))return '腿·小腿';
   if(/^(hip|pelvis)/.test(name))return '腿·骨盆';
@@ -1176,40 +1331,56 @@ function groupOf(name){
   if(/^leg/.test(name))return '腿·截面';
   if(/^torso|^shoulder/.test(name))return '躯干';
   if(/^head/.test(name))return '头';
+  if(/^ear/.test(name))return '耳朵';
+  if(/^tail/.test(name))return '尾巴';
   if(/^arm/.test(name))return '臂';
   return '其它';
 }
 function buildControls(params){
   const wrap=$('#groups'); wrap.innerHTML='';
-  const order=[['躯干',[]],['头',[]],['腿·骨盆',[]],['腿·大腿',[]],['腿·小腿',[]],['腿·脚',[]],['腿·截面',[]],['臂',[]],['臂·限位',[]],['头·限位',[]],['其它',[]]];
+  const order=[['躯干',[]],['头',[]],['耳朵',[]],['尾巴',[]],['腿·骨盆',[]],['腿·大腿',[]],['腿·小腿',[]],['腿·脚',[]],['腿·截面',[]],['臂',[]],['关节限位',[]],['其它',[]]];
   const names=Object.keys(params).sort((a,b)=>order.map(g=>g[0]).indexOf(groupOf(a))-order.map(g=>g[0]).indexOf(groupOf(b))||a.localeCompare(b));
   for(const name of names){
     const g=order.find(o=>o[0]===groupOf(name));
     if(!g)continue; const raw=String(params[name]);
-    if(!/^\d/.test(raw))continue;        // 只保留长度/限位数值；材质标签不进入面板
-    g[1].push({name,val:+raw,isLen:!name.endsWith('_lim')});
+    if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw.trim()))continue;
+    g[1].push({name,val:+raw,isLen:!isLimitParam(name)});
   }
+  let renderedGroups=0;
   for(const [glabel,items] of order){
     if(!items.length)continue;
     const det=document.createElement('details');
-    det.className='grp';
-    det.innerHTML=`<summary>${glabel}<span class="cn">${items.length}</span></summary>`;
+    det.className='grp'; det.dataset.search=(glabel+' '+items.map(i=>i.name).join(' ')).toLowerCase();
+    if(renderedGroups++<2) det.open=true;
+    det.innerHTML=`<summary>${esc(glabel)}<span class="cn">${items.length}</span></summary>`;
     const box=document.createElement('div'); box.className='grpbox';
     for(const it of items){
       const row=document.createElement('div'); row.className='slider-row';
+      row.dataset.search=it.name.toLowerCase();
       {
-        const lim=it.name.endsWith('_lim')?[-3,3]:[it.val*0.3,it.val*3];
-        const step=it.name.endsWith('_lim')?0.05:Math.max(0.0001,it.val*0.01);
-        const unit=it.name.endsWith('_lim')?' rad':' m';
-        row.innerHTML=`<label data-n="${it.name}" title="${it.name}"><span class="key">${it.name}</span><span class="val" id="v_${it.name}">${fmt(it.val)}${unit}</span></label>
+        const scale=it.isLen?1000:1, display=it.val*scale;
+        const lim=it.isLen?[0.1,Math.max(500,Math.abs(display)*3)]:[-3.142,3.142];
+        const step=it.isLen?0.5:0.01;
+        const unit=it.isLen?' mm':' rad';
+        const base=InitialProps&&Number(InitialProps[it.name]);
+        const changed=isFinite(base)&&Math.abs(base-it.val)>1e-10;
+        if(changed) row.classList.add('changed');
+        const delta=changed?`<span class="delta">${it.isLen?((it.val-base)*1000).toFixed(1)+' mm':(it.val-base).toFixed(3)}</span>`:'';
+        row.innerHTML=`<label data-n="${esc(it.name)}" title="${esc(it.name)}"><span class="key">${esc(it.name)}</span>${delta}<span class="val">${display.toFixed(it.isLen?1:3)}${unit}</span></label>
           <div class="rowctrl">
-            <input type="range" min="${lim[0].toFixed(4)}" max="${lim[1].toFixed(4)}" step="${step.toFixed(4)}" value="${it.val}" data-n="${it.name}">
-            <input type="number" class="num" min="${lim[0].toFixed(4)}" max="${lim[1].toFixed(4)}" step="${step.toFixed(4)}" value="${it.val.toFixed(4)}" data-n="${it.name}">
+            <input type="range" min="${lim[0]}" max="${lim[1]}" step="${step}" value="${display}" data-n="${esc(it.name)}" aria-label="${esc(it.name)}">
+            <input type="number" class="num" min="${lim[0]}" max="${lim[1]}" step="${step}" value="${display.toFixed(it.isLen?1:3)}" data-n="${esc(it.name)}" aria-label="${esc(it.name)} ${unit}">
           </div>`;
         const rng=row.querySelector('input[type=range]'), num=row.querySelector('.num');
-        const upd=(v)=>{ const f=+v; Props[it.name]=f; const l=row.querySelector('#v_'+it.name); if(l)l.textContent=fmt(f)+unit; rebuildScene(); };
+        const upd=(v)=>{
+          const shown=+v, f=shown/scale; if(!isFinite(f)) return;
+          Props[it.name]=f;
+          const l=row.querySelector('.val'); if(l)l.textContent=shown.toFixed(it.isLen?1:3)+unit;
+          row.classList.toggle('changed',!isFinite(base)||Math.abs(base-f)>1e-10);
+          rebuildScene({keepPanels:true}); scheduleHistory('调整 '+it.name); updateDirtyState();
+        };
         rng.addEventListener('input',()=>{ num.value=rng.value; upd(rng.value); });
-        num.addEventListener('change',()=>{ rng.value=num.value; upd(num.value); });
+        num.addEventListener('change',()=>{ const v=Math.max(lim[0],Math.min(lim[1],+num.value));num.value=v;rng.value=v;upd(v); });
       }
       box.appendChild(row);
     }
@@ -1219,15 +1390,16 @@ function buildControls(params){
 
 /* ================= 关节：固定 / 限位 / effort ================= */
 var JointConf={};   // {name:{fixed,lower,upper,effort}}
-// 被"固定(锁定)"的关节 → 其 child link 名集合；渲染时隐藏、导出时删除
+// 锁定关节保留完整连杆树，只把关节位姿归零并在导出时改为 fixed。
+// 保留这个兼容函数，让旧渲染路径不需特判；它始终返回空集合。
 function fixedClinkSet(){
-  const m={}; if(!Model) return m;
-  for(const j of Model.joints) if(JointConf[j.name]&&JointConf[j.name].fixed) m[j.child]=1;
-  return m;
+  return {};
 }
 function anyFixed(){ for(const c of Object.values(JointConf)) if(c&&c.fixed) return true; return false; }
 function jointGroup(name){
-  if(name==='head_joint'||name.endsWith('_head_joint'))return '0·头';
+  if(name.includes('head_')||name==='head_joint')return '0·头';
+  if(name.includes('ear_'))return '6·耳';
+  if(name.includes('tail_'))return '7·尾';
   if(name.includes('_hip_'))return '1·髋';
   if(name.includes('_knee'))return '2·膝';
   if(name.includes('_ankle'))return '3·踝';
@@ -1236,46 +1408,61 @@ function jointGroup(name){
 }
 function buildJointControls(model){
   const wrap=$('#joints'); wrap.innerHTML='';
-  const revs=model.joints.filter(j=>j.type==='revolute'); // 只有可动关节可配置
+  const revs=model.joints.filter(j=>j.type==='revolute'||j.type==='continuous');
   if(!revs.length){ wrap.innerHTML='<div class="none">(无可动关节)</div>'; return; }
   const groups={};
   for(const j of revs){ const g=jointGroup(j.name); (groups[g]=groups[g]||[]).push(j); }
-  const order=['0·头','1·髋','2·膝','3·踝','4·肩/上臂','5·肘'];
+  const order=['0·头','1·髋','2·膝','3·踝','4·肩/上臂','5·肘','6·耳','7·尾'];
+  let gi=0;
   for(const g of order){
     const arr=groups[g]; if(!arr)continue;
-    const det=document.createElement('details'); det.className='grp';
-    det.innerHTML=`<summary>${g}<span class="cn">${arr.length}</span></summary>`;
+    const det=document.createElement('details'); det.className='grp'; det.dataset.search=(g+' '+arr.map(j=>j.name).join(' ')).toLowerCase();
+    if(gi++===0) det.open=true;
+    det.innerHTML=`<summary>${esc(g)}<span class="cn">${arr.length}</span></summary>`;
     const box=document.createElement('div'); box.className='grpbox';
     for(const j of arr){
       const cfg=JointConf[j.name]||{};
-      const lim=j.limit||[-3,3];
+      const lim=j.limit&&j.limit.every(Number.isFinite)?j.limit:[-3,3];
       const lo=cfg.lower!==undefined?cfg.lower:lim[0];
       const up=cfg.upper!==undefined?cfg.upper:lim[1];
       const ef=cfg.effort!==undefined?cfg.effort:j.effort;
       const fixed=!!cfg.fixed;
       const short=j.name.replace(/_joint$/,'').replace(/(left|right)_/,'');
       const row=document.createElement('div'); row.className='jrow';
+      row.dataset.search=(j.name+' '+short).toLowerCase();
+      row.classList.toggle('is-fixed',fixed);
+      row.classList.toggle('changed',Object.keys(cfg).length>0);
       row.innerHTML=`
         <div class="jtop">
-          <span class="jname" title="${j.name}">${short}</span>
-          <label class="fix"><input type="checkbox" data-j="${j.name}" ${fixed?'checked':''}> <i>锁定(隐藏·不导出)</i></label>
+          <span class="jname" title="${esc(j.name)}">${esc(short)}</span>
+          <label class="fix"><input type="checkbox" data-j="${esc(j.name)}" ${fixed?'checked':''}> <i>导出为 fixed</i></label>
         </div>
         <div class="jlim">
-          <span>min<input type="number" class="num" value="${(+lo).toFixed(3)}" data-j="${j.name}" data-k="lower" step="0.05"></span>
-          <span>max<input type="number" class="num" value="${(+up).toFixed(3)}" data-j="${j.name}" data-k="upper" step="0.05"></span>
-          <span>effort<input type="number" class="num" value="${(+ef).toFixed(2)}" data-j="${j.name}" data-k="effort" step="1"></span>
+          <span>min<input type="number" class="num" value="${(+lo).toFixed(3)}" data-j="${esc(j.name)}" data-k="lower" step="0.05"></span>
+          <span>max<input type="number" class="num" value="${(+up).toFixed(3)}" data-j="${esc(j.name)}" data-k="upper" step="0.05"></span>
+          <span>effort<input type="number" class="num" value="${(+ef).toFixed(2)}" data-j="${esc(j.name)}" data-k="effort" step="1" min="0"></span>
         </div>
         <div class="jangle" title="关节角(弧度)">
-          <input type="range" data-aj="${j.name}" min="${(-Math.max(Math.abs(lo)*3,0.5)).toFixed(2)}" max="${(Math.max(Math.abs(up)*3,0.5)).toFixed(2)}" step="0.005" value="${(Angle[j.name]||0).toFixed(4)}">
-          <span class="aval" data-av="${j.name}">${(Angle[j.name]||0).toFixed(2)}</span>
+          <input type="range" data-aj="${esc(j.name)}" min="${(+lo).toFixed(3)}" max="${(+up).toFixed(3)}" step="0.005" value="${Math.max(lo,Math.min(up,Angle[j.name]||0)).toFixed(4)}" ${fixed?'disabled':''}>
+          <span class="aval" data-av="${esc(j.name)}">${(Angle[j.name]||0).toFixed(2)}</span>
         </div>`;
       row.querySelector('input[type=checkbox]').addEventListener('change',e=>{
-        const c=JointConf[j.name]=JointConf[j.name]||{}; c.fixed=e.target.checked;
-        updateView();   // 锁定→隐藏该 child link；取消→恢复显示
+        const c=JointConf[j.name]=JointConf[j.name]||{};
+        if(e.target.checked)c.fixed=true;else delete c.fixed;
+        if(c.fixed) Angle[j.name]=0;
+        row.classList.toggle('is-fixed',!!c.fixed); row.classList.toggle('changed',Object.keys(c).length>0); arow.disabled=!!c.fixed;
+        if(aval&&c.fixed) aval.textContent='0.00';
+        if(!Object.keys(c).length)delete JointConf[j.name];
+        commitHistory((e.target.checked?'固定 ':'解锁 ')+j.name); updateDirtyState(); updateView();
       });
       row.querySelectorAll('input[type=number]').forEach(inp=>{
         inp.addEventListener('change',e=>{
-          const c=JointConf[j.name]=JointConf[j.name]||{}; c[e.target.dataset.k]=+e.target.value;
+          const c=JointConf[j.name]=JointConf[j.name]||{}, key=e.target.dataset.k, value=+e.target.value;
+          const original=key==='lower'?(j.limit&&j.limit[0]):key==='upper'?(j.limit&&j.limit[1]):j.effort;
+          if(isFinite(original)&&Math.abs(value-original)<1e-10)delete c[key];else c[key]=value;
+          row.classList.toggle('changed',Object.keys(c).length>0);
+          if(!Object.keys(c).length)delete JointConf[j.name];
+          commitHistory('修改关节限位 '+j.name); updateDirtyState(); updateView();
         });
       });
       const arow=row.querySelector('input[data-aj="'+j.name+'"]'),
@@ -1301,10 +1488,11 @@ function buildInertControls(){
   for(const nm of keys){
     const lk=Model.links[nm]; const it=linkInert(nm), auto=linkAutoInert(lk);
     const row=document.createElement('div'); row.className='inrow';
+    row.dataset.search=nm.toLowerCase();
     const short=nm.replace(/_link$/,'').replace(/(left|right)_/,'');
     const v=(w)=>{const x=Inert[nm]&&Inert[nm][w]; return (x!=null&&isFinite(+x))?+x:'';};
     row.innerHTML=`
-      <div class="inname"><span title="${nm}">${short}</span><i>auto m=${auto.mass.toFixed(3)}kg</i></div>
+      <div class="inname"><span title="${esc(nm)}">${esc(short)}</span><i>auto m=${auto.mass.toFixed(3)}kg</i></div>
       <div class="invals">
         <label>m/kg<i><input type="number" step="0.001" min="0" value="${v('mass')}" data-n="mass"></i>${it.mass.toFixed(3)}</label>
         <label>ixx<i><input type="number" step="0.000001" min="0" value="${v('ixx')}" data-n="ixx"></i>${it.ixx.toFixed(6)}</label>
@@ -1316,35 +1504,37 @@ function buildInertControls(){
         const c=Inert[nm]=Inert[nm]||{};
         if(inp.value==='') delete c[inp.dataset.n];
         else c[inp.dataset.n]=+inp.value;
+        row.classList.toggle('changed',Object.keys(c).length>0);
+        if(!Object.keys(c).length)delete Inert[nm];
+        commitHistory('修改惯量 '+nm); updateDirtyState();
         renderAll();                               // 仅重绘，不重建面板，保焦点
       });
     });
-    row.style.display='none';                       // 占位，避免空面板闪
     wrap.appendChild(row);
-    row.style.display='';
+    row.classList.toggle('changed',!!(Inert[nm]&&Object.keys(Inert[nm]).length));
   }
 }
 function updateComReadout(){
   const el=$('#comread'); if(!el) return;
   if(!Model){ el.textContent=''; return; }
-  const {com,totalMass,footZ}=systemCOM(worldTFs());
-  const bal=balanceInfo(worldTFs());
+  const {com,totalMass}=systemCOM(worldTFs());
+  const bal=balanceInfo(worldTFs()), footZ=bal.footZ;
   const st=bal.balance?'稳定':'不稳定';
   const hFoot=Math.max(com[2]-footZ,0);   // 重心距脚底高度(自动)
   el.innerHTML=`Σm=${totalMass.toFixed(2)}kg COM(${mm(com[0])},${mm(com[1])},${mm(com[2])}) `
     +`距脚底${mm(hFoot)} 落足(${mm(com[0])},${mm(com[1])})@z=${mm(footZ)} `
-    +`<b style="color:${bal.balance?'var(--ok)':'#e0442e'}">● ${st}${bal.margin?`(${bal.margin.toFixed(0)}mm)`:'-'}</b>`;
+    +`<b style="color:${bal.balance?'var(--ok)':'#e0442e'}">● ${st}${bal.margin?`(${mm(bal.margin)}mm)`:'-'}</b>`;
 }
 
 function rgbaToHex(r){const p=String(r).trim().split(/\s+/).map(Number);return '#'+[p[0],p[1],p[2]].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');}
 function hexToRgba(h){const n=parseInt(h.slice(1),16);return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255,1].map(v=>+v.toFixed(3)).join(' ');}
-function rebuildScene(){
+function rebuildScene(options){
+  const keepPanels=options&&options.keepPanels;
   try{
     const {doc}=expand($('#src').value, Props);
     Model=parseRobot(doc);
     syncLegend();
-    buildJointControls(Model);
-    buildInertControls();
+    if(!keepPanels){ buildJointControls(Model); buildInertControls(); }
     updateStats();
     groundFeet();                // 按新几何自动算贴地偏移：初始脚底落 z=0(地面顶面)
     renderAll();
@@ -1363,12 +1553,221 @@ function syncLegend(){
   }
 }
 function updateStats(){
-  $('#statLink').textContent=Object.keys(Model.links).length;
+  $('#statLink').textContent=(Model.allLinks||Object.keys(Model.links)).length;
   $('#statJoint').textContent=Model.joints.length;
   $('#statParam').textContent=Object.keys(Props).length;
 }
 
+/* ================= 变更历史 / 工程基线 ================= */
+let History=[], HistoryIndex=-1, HistoryTimer=null, RestoringHistory=false;
+let ValidationResult={issues:[],errors:0,warnings:0,metrics:{}};
+let SelfTestErrors=[];
+const clone=o=>JSON.parse(JSON.stringify(o));
+function editableState(label){
+  return {label:label||'',props:clone(Props),jointConf:clone(JointConf),inert:clone(Inert),density:DENSITY};
+}
+function stateDigest(s){
+  const c=clone(s||editableState()); delete c.label; return JSON.stringify(c);
+}
+function resetHistory(){
+  BaselineState=editableState('基线');
+  History=[clone(BaselineState)]; HistoryIndex=0; updateHistoryButtons(); updateDirtyState();
+}
+function commitHistory(label){
+  if(RestoringHistory) return;
+  clearTimeout(HistoryTimer);
+  const next=editableState(label);
+  if(HistoryIndex>=0&&stateDigest(next)===stateDigest(History[HistoryIndex])) return;
+  History=History.slice(0,HistoryIndex+1); History.push(next);
+  if(History.length>60) History.shift(); else HistoryIndex++;
+  updateHistoryButtons();
+}
+function scheduleHistory(label){
+  clearTimeout(HistoryTimer); HistoryTimer=setTimeout(()=>commitHistory(label),220);
+}
+function restoreState(state){
+  if(!state) return;
+  RestoringHistory=true;
+  Props=clone(state.props); JointConf=clone(state.jointConf); Inert=clone(state.inert); DENSITY=+state.density||1500;
+  $('#inertDensity').value=DENSITY;
+  buildControls(Props); rebuildScene();
+  RestoringHistory=false; updateHistoryButtons(); updateDirtyState();
+}
+function moveHistory(delta){
+  clearTimeout(HistoryTimer);
+  const ni=HistoryIndex+delta; if(ni<0||ni>=History.length)return;
+  HistoryIndex=ni; restoreState(History[HistoryIndex]);
+  toast((delta<0?'已撤销：':'已重做：')+(History[HistoryIndex].label||'变更'));
+}
+function updateHistoryButtons(){
+  $('#btnUndo').disabled=HistoryIndex<=0; $('#btnRedo').disabled=HistoryIndex<0||HistoryIndex>=History.length-1;
+}
+function changedSummary(){
+  let params=0;
+  const base=(BaselineState&&BaselineState.props)||InitialProps||{};
+  for(const k of new Set([...Object.keys(base),...Object.keys(Props)])){
+    if(String(base[k])!==String(Props[k])&&!(isFinite(+base[k])&&isFinite(+Props[k])&&Math.abs(+base[k]-+Props[k])<1e-12)) params++;
+  }
+  const joint=Object.values(JointConf).filter(c=>c&&Object.keys(c).length).length;
+  const inert=Object.values(Inert).filter(c=>c&&Object.keys(c).length).length;
+  const density=BaselineState&&+BaselineState.density!==+DENSITY?1:0;
+  return {params,joint,inert,density,total:params+joint+inert+density};
+}
+function setChip(el,kind,text){
+  if(!el)return; el.classList.remove('ok','warn','error','dirty'); if(kind)el.classList.add(kind); el.textContent=text;
+}
+function updateDirtyState(){
+  const c=changedSummary(), dirty=!!(BaselineState&&stateDigest(editableState())!==stateDigest(BaselineState));
+  setChip($('#dirtyChip'),dirty?'dirty':'ok',dirty?c.total+' 项偏离基线':'已对齐基线');
+  $('#changeCount').textContent=c.total+' 项变更';
+  $('#sourceHint').textContent=(dirty?'已修改 · ':'基线 · ')+((Model&&Model.allLinks)||[]).length+' links / '+(Model&&Model.joints||[]).length+' joints / '+Object.keys(Model&&Model.links||{}).length+' boxes';
+  document.title=(dirty?'● ':'')+'连杆调校台 · '+(CurrentFileName||srcName());
+}
+function restoreBaseline(){
+  if(!BaselineState)return;
+  restoreState(BaselineState); commitHistory('恢复基线'); toast('已恢复到本次载入的工程基线');
+}
+
+/* ================= 工程验证 ================= */
+function modelMeasurements(tfs){
+  const rows=[];
+  for(const D of KEYDIMS){
+    let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
+    if(!a||!b)continue; const v=refDist(a,D.ad,b,D.bd);
+    if(isFinite(v)&&v>=0.002)rows.push({no:D.no,name:D.zh,value_m:v,value_mm:+mm(v)});
+  }
+  return rows;
+}
+function runSelfTests(){
+  SelfTestErrors=[];
+  const near=(a,b)=>Math.abs(a-b)<1e-9;
+  const cases=[
+    ['RX',matVec(axisRotMat([1,0,0],Math.PI/2),[0,1,0]),[0,0,1]],
+    ['RY',matVec(axisRotMat([0,1,0],Math.PI/2),[0,0,1]),[1,0,0]],
+    ['RZ',matVec(axisRotMat([0,0,1],Math.PI/2),[1,0,0]),[0,1,0]]
+  ];
+  for(const [name,got,want] of cases)if(!got.every((v,i)=>near(v,want[i])))SelfTestErrors.push(name+' 旋转矩阵失配');
+  const box=linkAutoInert({size:[.1,.2,.3]});
+  if(!(box.mass>0&&box.ixx>0&&box.iyy>0&&box.izz>0))SelfTestErrors.push('盒体惯量公式失效');
+  return !SelfTestErrors.length;
+}
+function runValidation(){
+  if(!Model)return ValidationResult;
+  const issues=[], addIssue=(severity,code,message,subject)=>issues.push({severity,code,message,subject:subject||''});
+  for(const e of SelfTestErrors)addIssue('error','SELF_TEST','工作台内核自检失败',e);
+  const names=Model.allLinks||Object.keys(Model.links), nameSet=new Set(names);
+  const duplicateLinks=names.filter((n,i)=>names.indexOf(n)!==i);
+  if(duplicateLinks.length)addIssue('error','LINK_DUP','link 名称重复',duplicateLinks[0]);
+  const unsupported=Model.unsupportedVisual||[];
+  if(unsupported.length)addIssue('warn','GEOM_UNSUPPORTED',unsupported.length+' 个 link 不是可预览的 box visual',unsupported.slice(0,2).join(', '));
+
+  const childCount={}, childNames=new Set();
+  for(const j of Model.joints){
+    if(!nameSet.has(j.parent))addIssue('error','PARENT_MISSING','joint 的 parent link 不存在',j.name+' → '+j.parent);
+    if(!nameSet.has(j.child))addIssue('error','CHILD_MISSING','joint 的 child link 不存在',j.name+' → '+j.child);
+    childNames.add(j.child); childCount[j.child]=(childCount[j.child]||0)+1;
+    if(childCount[j.child]>1)addIssue('error','MULTI_PARENT','link 有多个父关节',j.child);
+    const fixed=JointConf[j.name]&&JointConf[j.name].fixed;
+    if((j.type==='revolute'||j.type==='continuous')&&!fixed){
+      const n=Math.hypot(...j.axis); if(!isFinite(n)||n<1e-8)addIssue('error','AXIS_ZERO','可动关节的旋转轴无效',j.name);
+      const cfg=JointConf[j.name]||{}, lo=cfg.lower!==undefined?+cfg.lower:j.limit&&j.limit[0], up=cfg.upper!==undefined?+cfg.upper:j.limit&&j.limit[1];
+      if(j.type==='revolute'&&(!isFinite(lo)||!isFinite(up)||lo>=up))addIssue('error','LIMIT_ORDER','关节下限必须小于上限',j.name);
+      const ef=cfg.effort!==undefined?+cfg.effort:+j.effort;
+      if(!(ef>0))addIssue('error','EFFORT_NONPOS','effort 必须大于 0',j.name);
+      const a=Angle[j.name]||0;
+      if(j.type==='revolute'&&isFinite(lo)&&isFinite(up)&&(a<lo-1e-8||a>up+1e-8))addIssue('warn','POSE_LIMIT','当前姿态超出关节限位',j.name);
+    }
+    if(!['fixed','revolute','continuous'].includes(j.type))addIssue('warn','JOINT_UNSUPPORTED','预览器不驱动该关节类型',j.name+' ('+j.type+')');
+  }
+  const roots=names.filter(n=>!childNames.has(n));
+  if(roots.length!==1)addIssue('error','TREE_ROOT','URDF 连杆树必须且只能有一个根',roots.join(', ')||'无根');
+  if(roots.length===1){
+    const children={}; for(const j of Model.joints)(children[j.parent]=children[j.parent]||[]).push(j.child);
+    const seen=new Set(), active=new Set(); let cycle='';
+    const walk=n=>{if(active.has(n)){cycle=n;return;}if(seen.has(n))return;seen.add(n);active.add(n);for(const c of children[n]||[])walk(c);active.delete(n);};
+    walk(roots[0]); if(cycle)addIssue('error','TREE_CYCLE','连杆树存在环',cycle);
+    if(seen.size!==nameSet.size)addIssue('error','TREE_DISCONNECTED',(nameSet.size-seen.size)+' 个 link 与根断开','');
+  }
+
+  let symmetryMax=0, symmetryPairs=0;
+  for(const [n,lk] of Object.entries(Model.links)){
+    if(!lk.size.every(v=>isFinite(v)&&v>0))addIssue('error','BOX_SIZE','box 三边必须是正的有限数',n);
+    const it=linkInert(n);
+    if(!(it.mass>0)&&isFinite(it.mass))addIssue('error','MASS_NONPOS','质量必须大于 0',n);
+    if(![it.ixx,it.iyy,it.izz].every(v=>isFinite(v)&&v>0))addIssue('error','INERTIA_NONPOS','主惯量必须是正的有限数',n);
+    else if(it.ixx>it.iyy+it.izz+1e-12||it.iyy>it.ixx+it.izz+1e-12||it.izz>it.ixx+it.iyy+1e-12)
+      addIssue('error','INERTIA_TRIANGLE','惯量不满足三角不等式',n);
+    if(n.startsWith('left_')){
+      const mate=Model.links['right_'+n.slice(5)];
+      if(mate){symmetryPairs++;for(let k=0;k<3;k++)symmetryMax=Math.max(symmetryMax,Math.abs(lk.size[k]-mate.size[k]));}
+    }
+  }
+  if(symmetryMax>0.0002)addIssue('warn','ASYMMETRY','左右同名连杆尺寸差超过 0.2 mm',mm(symmetryMax)+' mm');
+
+  const tfs=worldTFs(), bal=balanceInfo(tfs), sys=systemCOM(tfs);
+  let minZ=Infinity,maxZ=-Infinity;
+  for(const [n,lk] of Object.entries(Model.links)){const tf=tfs[n];if(!tf)continue;for(const p of boxCorners(lk,tf)){minZ=Math.min(minZ,p[2]);maxZ=Math.max(maxZ,p[2]);}}
+  if(!bal.poly2d.length)addIssue('warn','SUPPORT_MISSING','未识别到 ankle_link 脚掌支撑面','');
+  else if(!bal.balance)addIssue('warn','COM_OUTSIDE','质心投影未处于带 2 mm 余量的支撑区内','当前姿态');
+  if(!(sys.totalMass>0))addIssue('error','TOTAL_MASS','总质量必须大于 0','');
+
+  const errors=issues.filter(i=>i.severity==='error').length, warnings=issues.filter(i=>i.severity==='warn').length;
+  const measurements=modelMeasurements(tfs);
+  const metrics={mass_kg:sys.totalMass,height_mm:isFinite(maxZ-minZ)?+(mm(maxZ-minZ)):null,com_height_mm:+mm(Math.max(0,sys.com[2]-bal.footZ)),support_margin_mm:+mm(bal.margin),symmetry_error_mm:+mm(symmetryMax),symmetry_pairs:symmetryPairs,measurements};
+  ValidationResult={issues,errors,warnings,metrics,passed:errors===0}; renderValidation(); return ValidationResult;
+}
+function renderValidation(){
+  const v=ValidationResult, kind=v.errors?'error':v.warnings?'warn':'ok';
+  setChip($('#validationChip'),kind,v.errors?v.errors+' 项错误':v.warnings?v.warnings+' 项警告':'校验通过');
+  setChip($('#verifyBadge'),kind,v.errors?'阻止交付':v.warnings?'可交付·有警告':'通过');
+  $('#verifySummary').textContent=v.errors+' errors · '+v.warnings+' warnings · '+Object.keys(Model.links).length+' boxes';
+  const m=v.metrics||{};
+  $('#metricMass').textContent=m.mass_kg==null?'–':m.mass_kg.toFixed(3)+' kg';
+  $('#metricHeight').textContent=m.height_mm==null?'–':m.height_mm.toFixed(1)+' mm';
+  $('#metricCom').textContent=m.com_height_mm==null?'–':m.com_height_mm.toFixed(1)+' mm';
+  $('#metricMargin').textContent=m.support_margin_mm==null?'–':m.support_margin_mm.toFixed(1)+' mm';
+  $('#metricMargin').style.color=m.support_margin_mm>2?'var(--ok)':'var(--warn)';
+  $('#metricSymmetry').textContent=(m.symmetry_error_mm||0).toFixed(1)+' mm / '+(m.symmetry_pairs||0)+' 对';
+  const shown=v.issues.length?v.issues:[{severity:'ok',code:'READY',message:'拓扑、几何、惯量和关节限位检查通过',subject:'可交付'}];
+  $('#validationList').innerHTML=shown.map(i=>`<div class="issue ${esc(i.severity)}"><span class="sev">${esc(i.severity)}</span><span>${esc(i.message)}</span><code>${esc(i.subject||i.code)}</code></div>`).join('');
+  $('#measureRows').innerHTML=(m.measurements||[]).map(r=>`<div class="measure-row"><span class="no">${esc(r.no)}</span><span>${esc(r.name)}</span><b>${(+r.value_mm).toFixed(1)} mm</b></div>`).join('')||'<div class="none">未识别关键尺寸</div>';
+  const ex=$('#exportStatus'); ex.innerHTML=v.errors?'<span style="color:var(--danger)">●</span><b>'+v.errors+' 项错误阻止 URDF/MJCF 交付，草稿仍可保存</b>':'<span style="color:var(--ok)">●</span><b>已通过交付门禁</b>';
+  document.querySelectorAll('#btnSaveURDF,#btnSaveMJCF,#btnExportAll').forEach(b=>b.disabled=!!v.errors);
+}
+function canExport(){
+  const v=runValidation();
+  if(v.errors){toast('已阻止导出：请先修复 '+v.errors+' 项工程错误',true);$('.verifycell').scrollIntoView({behavior:'smooth',block:'nearest'});return false;}
+  return true;
+}
+function buildValidationReport(){
+  const v=runValidation(), c=changedSummary();
+  return JSON.stringify({format:2,generated_at:new Date().toISOString(),source:CurrentFileName||srcName(),robot:Model.robotName||srcName(),passed:v.passed,summary:{errors:v.errors,warnings:v.warnings,changes:c},metrics:v.metrics,issues:v.issues,parameter_baseline:InitialProps,parameter_values:Props,joint_overrides:JointConf,inertial_overrides:Inert,density_kg_m3:DENSITY},null,2);
+}
+
 /* ================= 交互 ================= */
+document.querySelectorAll('.panel-tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.panel-tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.panel-page').forEach(p=>p.classList.toggle('on',p.dataset.page===b.dataset.panel));
+  if(b.dataset.panel==='inertia')buildInertControls();
+  $('#controlSearch').value=''; filterControls('');
+}));
+function filterControls(query){
+  const q=String(query||'').trim().toLowerCase(), page=document.querySelector('.panel-page.on'); if(!page)return;
+  page.querySelectorAll('.slider-row,.jrow,.inrow').forEach(row=>row.style.display=!q||row.dataset.search.includes(q)?'':'none');
+  page.querySelectorAll('details.grp').forEach(det=>{
+    const visible=[...det.querySelectorAll('.slider-row,.jrow,.inrow')].some(r=>r.style.display!=='none');
+    det.style.display=visible?'':'none'; if(q&&visible)det.open=true;
+  });
+}
+$('#controlSearch').addEventListener('input',e=>filterControls(e.target.value));
+$('#btnUndo').addEventListener('click',()=>moveHistory(-1));
+$('#btnRedo').addEventListener('click',()=>moveHistory(1));
+window.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+  if(e.key.toLowerCase()==='z'){e.preventDefault();moveHistory(e.shiftKey?1:-1);}
+  else if(e.key.toLowerCase()==='y'){e.preventDefault();moveHistory(1);}
+});
+
 // 3D 视角交给 meshcat 自带轨道控制(不再用 canvas 手写拖拽/缩放)
 document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
@@ -1433,28 +1832,55 @@ document.querySelectorAll('.sat3d button').forEach(b=>b.addEventListener('click'
   const p=PRESET_3D[b.id]; if(!p)return;
   Rx=p[0]; Ry=p[1]; zoom=1; renderAll();
 }));
-function loadSrc(text,msg){
+
+// meshcat 缺失时的本地 canvas 轨道控制，保证无 mocap 环境也能调几何。
+(function(){
+  const cv=$('#canvas3d'); let drag=null;
+  cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,rx:Rx,ry:Ry};cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{if(!drag)return;Ry=drag.ry+(e.clientX-drag.x)*.008;Rx=Math.max(-Math.PI,Math.min(Math.PI,drag.rx+(e.clientY-drag.y)*.008));renderAll();});
+  const up=()=>drag=null; cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+  cv.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.35,Math.min(4,zoom*(e.deltaY>0?.9:1.1)));renderAll();},{passive:false});
+})();
+async function checkBackend(){
+  try{
+    const r=await fetch('/api/health',{cache:'no-store'}), j=await r.json(); if(!r.ok||!j.ok)throw new Error(j.error||r.status);
+    BackendInfo={online:true,meshcat:!!j.meshcat,mjcf:!!j.mjcf};
+    setChip($('#backendChip'),'ok','后端已连接');
+    setChip($('#meshcatChip'),j.meshcat?'ok':'warn',j.meshcat?'meshcat 可用':'本地 3D');
+    if(!j.meshcat)set3DFallback('meshcat 不可用，已切换本地 3D');
+    else {const vp=$('#view3d .viewport');vp.classList.remove('fallback');$('#view3dState').textContent='meshcat';}
+  }catch(e){
+    BackendInfo={online:false,meshcat:false,mjcf:false};
+    setChip($('#backendChip'),'warn','浏览器单机'); setChip($('#meshcatChip'),'warn','本地 3D');
+    set3DFallback('未连接 tuner server，已切换本地 3D');
+  }
+}
+function loadSrc(text,msg,sourceLabel){
   try{
     $('#src').value=text;
     const {props}=expand(text);
-    Props=Object.assign({},props);
+    Props=Object.assign({},props); InitialProps=clone(props); BaselineSource=text;
+    JointConf={}; Inert={}; Angle={}; BaseT=null;
+    CurrentFileName=sourceLabel||((/<robot\b[^>]*\bname="([\w.-]+)"/.exec(text)||[])[1]||'pikachu_links')+'.xacro';
+    $('#sourceName').textContent=CurrentFileName;
     buildControls(props);
     rebuildScene();
+    resetHistory();
     if(msg)toast(msg);
   }catch(e){ toast('载入出错: '+e.message,true); }
 }
-$('#btnReload').addEventListener('click',()=>loadSrc($('#src').value,'已应用源码 ✓'));
-$('#btnApply').addEventListener('click',()=>loadSrc($('#src').value,'已解析 ✓'));
-$('#btnLoadSample').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已载入内置示例'));
-$('#btnReset').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已重置默认'));
-$('#btnTheme').addEventListener('click',()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';toast('已切换主题');});
-$('#inertDensity').addEventListener('change',e=>{ DENSITY=Math.max(10,+e.target.value||1500); buildInertControls(); renderAll(); });
+$('#btnReload').addEventListener('click',()=>loadSrc($('#src').value,'已应用源码并建立新基线 ✓',CurrentFileName));
+$('#btnApply').addEventListener('click',()=>loadSrc($('#src').value,'已解析并建立新基线 ✓',CurrentFileName));
+$('#btnLoadSample').addEventListener('click',()=>loadSrc($('#src-default').textContent.trim(),'已载入内置示例','built-in-sample.xacro'));
+$('#btnReset').addEventListener('click',restoreBaseline);
+$('#btnTheme').addEventListener('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('pikachu-tuner-theme',t);}catch(e){}toast('已切换主题');renderAll();});
+$('#inertDensity').addEventListener('change',e=>{ DENSITY=Math.max(10,+e.target.value||1500); buildInertControls(); commitHistory('修改基准密度');updateDirtyState();renderAll(); });
 $('#cInert').addEventListener('change',()=>renderAll());
 $('#cCom').addEventListener('change',()=>renderAll());
 $('#fileInput').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=()=>loadSrc(r.result,'已载入文件 ✓');
+  r.onload=()=>loadSrc(r.result,'已载入文件 ✓',f.name);
   r.readAsText(f);e.target.value='';
 });
 
@@ -1540,50 +1966,50 @@ async function fsExportAll(files){
   for(const f of files){ dl(f.name,f.data); await new Promise(r=>setTimeout(r,360)); }
   return '当前浏览器不支持选目录，已依次下载 '+files.length+' 个文件';
 }
-// 把记录好的关节固定/限位/effort 设置写进导出文档。
-// 锁定(=固定)的关节：界面隐藏 + 导出时连同 child link 一起删除(不出现)。
+// 把关节固定/限位/effort 写入已展开的 URDF。固定关节保留 child link
+// 和原点变换，只把 type 改为 fixed，避免锁定操作破坏整棵运动学树。
 function applyJointConf(doc){
   if(!Object.keys(JointConf).length) return doc;
-  let d=doc;
-  if(anyFixed()){
-    // 先删被锁定关节的 child link（须在删 joint 前，用其原始名匹配）
-    const finks=(()=>{const m={};if(Model)for(const j of Model.joints)if(JointConf[j.name]&&JointConf[j.name].fixed)m[j.child]=1;return m;})();
-    if(Object.keys(finks).length)
-      d=d.replace(/<link\b([^>]*?)name="([^"]+)"([^>]*)>[\s\S]*?<\/link>/g,(a,pre,nm,mid)=> finks[nm]? '' : a);
-    // 再删被锁定的 <joint> 本身
-    d=d.replace(/<joint\b([^>]*?)name="([^"]+)"([^>]*)>[\s\S]*?<\/joint>/g,(a,pre,nm,mid)=>
-      (JointConf[nm]&&JointConf[nm].fixed)? '' : a);
-    doc=d;
-  }
-  return doc.replace(/<joint\b([^>]*?)type="([^"]+)"([^>]*)>([\s\S]*?)<\/joint>/g,(all,pre,type,mid,body)=>{
-    const nm=(pre+mid).match(/name="([^"]+)/); const name=nm&&nm[1]; if(!name) return all;
-    const c=JointConf[name]; if(!c) return all;
-    const lo=c.lower!==undefined?c.lower:((/lower="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||0);
-    const up=c.upper!==undefined?c.upper:((/upper="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||0);
-    const ef=c.effort!==undefined?c.effort:((/effort="([-+0-9.eE]+)"/.exec(body)&&+RegExp.$1)||5);
-    let t=type, b=body;
-    if(b.indexOf('<limit')<0){
-      b=b+'\n    <limit lower="'+lo+'" upper="'+up+'" effort="'+ef+'" />';
-    }else if(c.lower!==undefined||c.upper!==undefined||c.effort!==undefined){
-      b=b.replace(/<limit([^>]*)>/, '<limit$1').replace(/<limit([^>]*)\/>/, '<limit'+' lower="'+lo+'" upper="'+up+'" effort="'+ef+'" />');
+  const dom=new DOMParser().parseFromString(doc,'text/xml');
+  if(dom.querySelector('parsererror'))throw new Error('关节设置写回前 XML 已损坏');
+  for(const joint of Array.from(dom.documentElement.getElementsByTagName('joint'))){
+    const name=joint.getAttribute('name'), c=JointConf[name]; if(!c)continue;
+    if(c.fixed){
+      joint.setAttribute('type','fixed');
+      for(const tag of ['axis','limit','dynamics','mimic','safety_controller']){
+        for(const el of Array.from(joint.getElementsByTagName(tag)))if(el.parentNode===joint)joint.removeChild(el);
+      }
+      continue;
     }
-    return '<joint'+pre+'type="'+t+'"'+mid+'>'+b+'</joint>';
-  });
+    if(!['revolute','continuous','prismatic'].includes(joint.getAttribute('type')))continue;
+    let lim=Array.from(joint.getElementsByTagName('limit')).find(el=>el.parentNode===joint);
+    if(!lim){lim=dom.createElement('limit');joint.appendChild(lim);}
+    if(c.lower!==undefined)lim.setAttribute('lower',String(c.lower));
+    if(c.upper!==undefined)lim.setAttribute('upper',String(c.upper));
+    if(c.effort!==undefined)lim.setAttribute('effort',String(c.effort));
+    if(!lim.hasAttribute('velocity'))lim.setAttribute('velocity','1');
+  }
+  return new XMLSerializer().serializeToString(dom.documentElement);
+}
+function tunedSourceText(){
+  let t=$('#src').value;
+  for(const k in Props){
+    const safe=k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re=new RegExp('(<xacro:property\\b(?=[^>]*\\bname=["\\\']'+safe+'["\\\'])[^>]*\\bvalue=["\\\'])[^"\\\']*(["\\\'])');
+    t=t.replace(re,(m,a,b)=>a+String(Props[k])+b);
+  }
+  return t;
 }
 function buildXacroText(){
-  // 展开 + 惯量烧录后，再应用关节锁定/限位/effort（xacro 导出同样生效）
-  return applyJointConf(expandedDocWithInertials());
+  // 保留宏、注释与集中参数区；关节/惯量覆盖会在 URDF 与验证报告中完整归档。
+  return tunedSourceText();
 }
 // 惯量写回（单一出处）：展开当前 xacro（→ 纯 URDF 字符串 doc），再解析成 DOM，
 // 给每个 link 追加 <inertial>（数值=面板当前惯量/质量，缺省=几何×密度自动），
 // 序列化回字符串。导出的 xacro / urdf / mjcf 因此自包含且反映逐-link 微调；
 // 后端 mjcf_convert 对已有 <inertial> 的 link 跳过再注入，故不会重复。
 function expandedDocWithInertials(){
-  let t=$('#src').value;
-  for(const k in Props){
-    const re=new RegExp('(<xacro:property\\s+name="'+k+'"\\s+value=")[^"]*(")');
-    t=t.replace(re,(m,a,b)=>a+String(Props[k])+b);
-  }
+  const t=tunedSourceText();
   const {doc}=expand(t,Props);          // 注意：doc 是展开后的纯 URDF 字符串
   if(!Model) return doc;
   const dom=new DOMParser().parseFromString(doc,'text/xml');
@@ -1593,6 +2019,7 @@ function expandedDocWithInertials(){
     const nm=lk.getAttribute('name');
     const ml=Model.links[nm]; if(!ml) continue;
     const it=linkInert(nm);
+    for(const old of Array.from(lk.getElementsByTagName('inertial')))if(old.parentNode===lk)lk.removeChild(old);
     const inert=dom.createElement('inertial');
     const og=dom.createElement('origin');
     og.setAttribute('xyz', f3(ml.origin)); og.setAttribute('rpy', f3(ml.rpy));
@@ -1604,6 +2031,12 @@ function expandedDocWithInertials(){
     lk.appendChild(inert);
   }
   return new XMLSerializer().serializeToString(dom.documentElement);
+}
+function buildURDFText(){
+  const clean=applyJointConf(expandedDocWithInertials())
+    .replace(/\sxmlns:xacro="http:\/\/www\.ros\.org\/wiki\/xacro"/,'')
+    .replace(/^\s*<\?xml[^>]*\?>\s*/,'').trim();
+  return '<?xml version="1.0" encoding="UTF-8"?>\n'+clean+'\n';
 }
 // 连杆分类：按名字前缀归到身体部位
 const LINK_GROUPS=[
@@ -1621,7 +2054,7 @@ function buildLinksJson(){
   for(const n in Model.links){
     const lk=Model.links[n];
     const g=(LINK_GROUPS.find(x=>x[1].test(n))||['其它',/^$/])[0];
-    const rec={x_mm:+mm(lk.size[0]), y_mm:+mm(lk.size[1]), z_mm:+mm(lk.size[2]), length_mm:+mm(lk.size[2])};
+    const rec={x_mm:+mm(lk.size[0]), y_mm:+mm(lk.size[1]), z_mm:+mm(lk.size[2]), length_mm:+mm(Math.max(...lk.size))};
     out.links[n]=Object.assign({group:g},rec);
     (byGroup[g]=byGroup[g]||{})[n]=rec;
   }
@@ -1694,13 +2127,8 @@ $('#btnSaveX').addEventListener('click',async()=>{
 });
 $('#btnSaveURDF').addEventListener('click',async()=>{
   try{
-    const doc=expandedDocWithInertials();   // 已含惯量烧录
-    // 去掉可能残留的命名空间声明，并规范头部：避免 xml 声明重复/前缀未绑定
-    const clean=applyJointConf(doc)
-      .replace(' xmlns:xacro="http://www.ros.org/wiki/xacro"','')
-      .replace(/^\s*<\?xml[^>]*\?>\s*/,'')
-      .trim();
-    const out='<?xml version="1.0" encoding="UTF-8"?>\n'+clean+'\n';
+    if(!canExport())return;
+    const out=buildURDFText();
     const name=decorateName()+'.urdf';
     const sv=await saveServer(name, out, 'urdf');
     if(sv){ toast('已导出 URDF（含固定 / 限位 / effort）· '+sv.msg); return; }
@@ -1713,10 +2141,11 @@ $('#btnSaveURDF').addEventListener('click',async()=>{
    必须通过 http 服务打开(非 file://)，且 server 需有 xacro+mujoco(mocap 环境)。
    成功后把 <name>.xml(mjcf) 与 <name>.urdf 一并写入所选目录(后端优先 / 下载兜底)。 */
 $('#btnSaveMJCF').addEventListener('click',async()=>{
+  if(!canExport())return;
   const base=decorateName();
   toast('正在后端转换 xacro → MJCF(宏展开+算惯量+MuJoCo编译)…');
   try{
-    const xacroT=buildXacroText();
+    const xacroT=buildURDFText();
     const r=await fetch('/api/export_mjcf',{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({xacro:xacroT, basename:base})});
@@ -1759,14 +2188,13 @@ $('#btnSave2D').addEventListener('click',async()=>{
 $('#btnExportAll').addEventListener('click',async()=>{
   try{
     if(!Model) throw new Error('尚无模型');
+    if(!canExport())return;
     const base=decorateName();
-    // URDF（含固定/限位/effort + 惯量烧录，已清洗 xacro 残留与重复 xml 头）
-    const doc=expandedDocWithInertials();
-    const urdf='<?xml version="1.0" encoding="UTF-8"?>\n'+
-      applyJointConf(doc).replace(' xmlns:xacro="http://www.ros.org/wiki/xacro"','')
-        .replace(/^\s*<\?xml[^>]*\?>\s*/,'').trim()+'\n';
+    // URDF（含 fixed/限位/effort + 惯量烧录）与可继续调参的 xacro 分离交付。
+    const urdf=buildURDFText();
     const xacroT=buildXacroText();
     const jsonT=buildLinksJson();
+    const reportT=buildValidationReport();
     toast('正在导出 URDF + Xacro + MJCF + PNG + JSON …');
     // 取 MJCF：只能在后端做(xacro 宏展开+算惯量+MuJoCo 编译)。后端不可用 / 无
     // xacro+mujoco 时会失败，此时跳过该项并在提示里点名。(base+'.xml' 命名与单独按钮一致)
@@ -1774,7 +2202,7 @@ $('#btnExportAll').addEventListener('click',async()=>{
     try{
       const xr=await fetch('/api/export_mjcf',{method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({xacro:xacroT, basename:base})});
+        body:JSON.stringify({xacro:urdf, basename:base})});
       const xj=await xr.json().catch(()=>null);
       if(xr.ok&&xj&&xj.ok) mjcf=xj;
     }catch(e){}
@@ -1786,6 +2214,7 @@ $('#btnExportAll').addEventListener('click',async()=>{
       {filename:base+'.urdf',      content:urdf},
       {filename:base+'.xacro',     content:xacroT},
       {filename:base+'_links.json',content:jsonT},
+      {filename:base+'_validation.json',content:reportT},
       {filename:base+'_2d.png',    b64:pngDL.split(',')[1]||''}
     ];
     if(mjcf) files.push({filename:(mjcf.filename||base+'.xml'), content:mjcf.mjcf});
@@ -1796,6 +2225,7 @@ $('#btnExportAll').addEventListener('click',async()=>{
       {name:base+'.urdf',      data:new Blob([urdf],{type:'application/xml'})},
       {name:base+'.xacro',     data:new Blob([xacroT],{type:'application/xml'})},
       {name:base+'_links.json',data:new Blob([jsonT],{type:'application/json'})},
+      {name:base+'_validation.json',data:new Blob([reportT],{type:'application/json'})},
       {name:base+'_2d.png',    data:pngBlob}
     ];
     if(mjcf) rfiles.push({name:(mjcf.filename||base+'.xml'), data:new Blob([mjcf.mjcf],{type:'application/xml'})});
@@ -1806,7 +2236,10 @@ $('#btnExportAll').addEventListener('click',async()=>{
 
 /* ================= 启动 ================= */
 function boot(){
+  try{const t=localStorage.getItem('pikachu-tuner-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}
   setSize(); window.addEventListener('resize',()=>{setSize();renderAll();});
+  runSelfTests();
+  checkBackend();
   // 手动关节角驱动；重置位姿
   const rp=$('#btnResetPose'); if(rp) rp.addEventListener('click',resetPose);
   // 默认加载 27dof xacro(http 服务下)；file:// 被拦截或缺失 → 回退内置示例
@@ -1817,7 +2250,7 @@ function boot(){
     if(i>=candidates.length){ loadSrc($('#src-default').textContent.trim());
       toast('未读到内置示例之外的 xacro，已载入内置示例（建议用 http server 打开本页）',true); return; }
     fetch(candidates[i]).then(r=>{ if(!r.ok)throw new Error('HTTP '+r.status); return r.text(); })
-      .then(t=>loadSrc(t,'已载入 '+candidates[i]))
+      .then(t=>loadSrc(t,'已载入 '+candidates[i],candidates[i].split('/').pop()))
       .catch(()=>tryLoad(i+1));
   })(0);
 }

@@ -25,6 +25,7 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.request
 import webbrowser
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +55,18 @@ def wait_until_open(host, port, timeout=8.0):
     return False
 
 
+def is_tuner_server(host, port):
+    """只复用真正的 Pikachu tuner 服务，避免 --port 碰到其它网页时打开错地址。"""
+    try:
+        with urllib.request.urlopen(
+            f"http://{host}:{port}/api/health", timeout=0.5
+        ) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return bool(data.get("ok") and str(data.get("service", "")).startswith("PikachuLinkTuner/"))
+    except Exception:
+        return False
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="pikachu_link_tuner",
@@ -76,8 +89,13 @@ def main(argv=None):
     # 固定端口:指定则用之;否则本脚本探测一个空闲端口传后端,URL 立即可知
     port = args.port or pick_free_port(args.host)
 
-    # 后端可能先于本次启动已占用该端口 → 直接复用,不重复起进程
-    already_up = args.port is not None and is_port_open(args.host, port)
+    # 显式端口已占用时，只复用带正确健康接口的 tuner；其它服务不能误当后端。
+    occupied = args.port is not None and is_port_open(args.host, port)
+    already_up = occupied and is_tuner_server(args.host, port)
+    if occupied and not already_up:
+        old_port = port
+        port = pick_free_port(args.host)
+        print(f"[info] 端口 {old_port} 被非 tuner 服务占用，改用 {port}。")
 
     cmd = [sys.executable, SERVER, "--dir", args.dir, "--host", args.host,
            "--port", str(port)]
@@ -88,16 +106,10 @@ def main(argv=None):
     else:
         print(f"[启动] 启动后端 (端口 {port}) …")
         # 让后端进程追随本进程:本进程退出(或被 Ctrl+C)即随之后台结束
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        # 继承终端输出：既保留能力/错误日志，也避免 PIPE 长时间无人读取导致后端阻塞。
+        proc = subprocess.Popen(cmd)
         if proc.poll() is not None:
-            out = proc.stdout.read() if proc.stdout else ""
             print("[后端启动失败]", file=sys.stderr)
-            print(out, file=sys.stderr)
             return proc.returncode or 1
         if not wait_until_open(args.host, port):
             print("后端端口不可达。", file=sys.stderr)

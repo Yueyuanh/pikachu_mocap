@@ -50,7 +50,7 @@ pikachu_link_tuner_server.py — Pikachu 连杆调校台的后端.
                导出 MJCF 时优先用该解释器(见 _DST_PY)。默认空 = 用当前进程。
 
 安全:
-    - 仅放行 GET
+    - 静态资源仅放行 GET/HEAD，写操作只允许明确的 /api/* POST
     - 只服务本文件同目录(或 --dir 指定目录)下的文件,禁止目录遍历,不列目录
 """
 
@@ -61,14 +61,17 @@ import json
 import math
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import xml.etree.ElementTree as ET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+MAX_REQUEST_BYTES = 24 * 1024 * 1024
 
 # 与 HTML/示例文件配套的 MIME 表
 MIME = {
@@ -441,20 +444,21 @@ def _push_overlays(vis, data):
         mg.MeshBasicMaterial(color=0xbfd6f2, opacity=0.14, transparent=True))
     fx["ground"].set_transform(_tr([0, 0, -0.0015]))   # 顶面 ≈ z=0，机器人脚底贴地
 
-    # 自动算脚底平面:所有连杆 box 最低角点的 world z
-    z0 = None
-    for l in (data.get("links") or []):
-        try:
-            s = l.get("size"); p = l.get("pos")
-            if not s or not p:
-                continue
-            b = float(p[2]) - float(s[2]) / 2.0
-            if z0 is None or b < z0:
-                z0 = b
-        except Exception:
-            continue
+    # 前端用完整旋转后的 8 角包围盒精确求得脚底 z，优先直接使用。
+    # 旧版的 pos.z-size.z/2 在 link 旋转后会算错，只作兼容回退。
+    z0 = (data.get("feet") or {}).get("z")
     if z0 is None:
-        z0 = float(data.get("footZ", 0.0) or 0.0)
+        for l in (data.get("links") or []):
+            try:
+                s = l.get("size"); p = l.get("pos")
+                if not s or not p:
+                    continue
+                b = float(p[2]) - float(s[2]) / 2.0
+                if z0 is None or b < z0:
+                    z0 = b
+            except Exception:
+                continue
+    z0 = float(z0 or 0.0)
 
     com = data.get("com")
     if com:
@@ -503,7 +507,7 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
     "../" 过滤,杜绝目录遍历。
     """
 
-    server_version = "PikachuLinkTuner/1.0"
+    server_version = "PikachuLinkTuner/2.0"
     directory = os.path.abspath(HERE)  # 默认根;server 实例化时会被覆盖
 
     def __init__(self, *args, **kwargs):
@@ -513,6 +517,14 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
 
     # 只放行 GET;HEAD 由基类分派到 do_GET,一并保留(无副作用)
     def do_GET(self):
+        if self.path == "/api/health":
+            return self._send_json(200, {
+                "ok": True,
+                "service": self.server_version,
+                "meshcat": _meshcat_available(),
+                "mjcf": _find_mocap_python() is not None,
+                "root": os.path.basename(self.directory),
+            })
         if self.path == "/api/meshcat":
             if not _meshcat_available():
                 return self._send_json(400, {"ok": False,
@@ -563,6 +575,8 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
     def _read_json(self):
         try:
             length = int(self.headers.get("Content-Length", 0))
+            if length > MAX_REQUEST_BYTES:
+                return None, f"请求过大: {length} bytes (上限 {MAX_REQUEST_BYTES})"
             body = self.rfile.read(length) if length else b""
             return json.loads(body.decode("utf-8")), None
         except Exception as e:
@@ -583,13 +597,46 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
         if not name or not isinstance(name, str):
             raise ValueError(f"{label}为空")
         name = name.strip()
-        # 先用 basename 杜绝多级路径
-        name = os.path.basename(name.replace("\\", "/"))
+        if "/" in name or "\\" in name or ".." in name:
+            raise ValueError(f"{label}不能包含路径或 '..'")
         cleaned = re.sub(r"[^A-Za-z0-9._\- ]", "_", name)
         cleaned = cleaned.strip(". ")  # 去首尾点/空格,避免 '..' 或结尾点问题
         if not cleaned or cleaned in (".", ".."):
             raise ValueError(f"{label}不合法")
         return cleaned
+
+    @staticmethod
+    def _atomic_write(dest, payload):
+        """在目标目录内先写临时文件，再原子替换，避免导出中断留下半个文件。"""
+        folder = os.path.dirname(dest)
+        fd, tmp = tempfile.mkstemp(prefix=".tuner-", suffix=".tmp", dir=folder)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(payload)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, dest)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+
+    def _unique_output_dir(self, dirname):
+        """批量交付绝不覆盖历史结果；目录已存在时加时间戳。"""
+        folder = os.path.join(self.directory, dirname)
+        if not os.path.exists(folder):
+            return dirname, folder
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        candidate = f"{dirname}-{stamp}"
+        folder = os.path.join(self.directory, candidate)
+        serial = 2
+        while os.path.exists(folder):
+            candidate = f"{dirname}-{stamp}-{serial}"
+            folder = os.path.join(self.directory, candidate)
+            serial += 1
+        return candidate, folder
 
     @staticmethod
     def _to_bytes(entry):
@@ -614,8 +661,7 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
             return self._send_json(400, {"ok": False, "error": str(e)})
         dest = os.path.join(self.directory, filename)
         try:
-            with open(dest, "wb") as f:
-                f.write(payload)
+            self._atomic_write(dest, payload)
         except OSError as e:
             return self._send_json(500, {"ok": False, "error": f"写入失败: {e}"})
         self._send_json(200, {"ok": True, "path": filename, "bytes": len(payload)})
@@ -631,27 +677,28 @@ class LinkTunerHandler(http.server.SimpleHTTPRequestHandler):
         files = data.get("files") or []
         if not isinstance(files, list) or not files:
             return self._send_json(400, {"ok": False, "error": "files 为空"})
-        folder = os.path.join(self.directory, dirname)
+        prepared = []
         try:
-            os.makedirs(folder, exist_ok=True)
-        except OSError as e:
-            return self._send_json(500, {"ok": False, "error": f"无法建目录 {dirname}: {e}"})
-        saved = []
-        for entry in files:
-            if not isinstance(entry, dict):
-                continue
-            try:
+            for entry in files:
+                if not isinstance(entry, dict):
+                    raise ValueError("files 中存在非对象条目")
                 filename = self._safe_name(entry.get("filename"))
-                if os.path.sep in filename or os.path.altsep and os.path.altsep in filename:
-                    continue  # 双保险,绝不写路径
-                payload = self._to_bytes(entry)
-                with open(os.path.join(folder, filename), "wb") as f:
-                    f.write(payload)
+                prepared.append((filename, self._to_bytes(entry)))
+            if len({name for name, _ in prepared}) != len(prepared):
+                raise ValueError("files 中存在重名文件")
+        except (ValueError, KeyError, TypeError) as e:
+            return self._send_json(400, {"ok": False, "error": str(e)})
+        dirname, folder = self._unique_output_dir(dirname)
+        stage = tempfile.mkdtemp(prefix=".tuner-batch-", dir=self.directory)
+        saved = []
+        try:
+            for filename, payload in prepared:
+                self._atomic_write(os.path.join(stage, filename), payload)
                 saved.append(filename)
-            except Exception:
-                continue
-        if not saved:
-            return self._send_json(500, {"ok": False, "error": "没有文件成功写入"})
+            os.replace(stage, folder)
+        except Exception as e:
+            shutil.rmtree(stage, ignore_errors=True)
+            return self._send_json(500, {"ok": False, "error": f"批量写入失败，未产生交付目录: {e}"})
         self._send_json(200, {"ok": True, "dir": dirname, "files": saved,
                               "count": len(saved)})
 

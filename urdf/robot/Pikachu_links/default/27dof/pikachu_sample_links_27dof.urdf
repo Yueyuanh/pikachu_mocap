@@ -24,16 +24,30 @@
     head_roll_link → 左/右耳  ear_pitch→ear_roll（每耳 2 DOF，头顶两侧）
     base_link → 尾巴         tail_pitch→tail_yaw（2 DOF，躯干背面伸出）
 
+
+    工程测量定义（零位 / T-pose，不用 box 对角线代替关节轴距）：
+      M01 耳高：       base_link 原点→ear_pitch 轴的 z 差       = 0.449 (=0.166+0.283)
+      M02 耳半宽：     中心 z 轴→ear_pitch 轴的 |y|             = 0.116
+      M03 头轴高：     base_link 原点→head_pitch 轴的 z 差      = 0.219 (=0.166+0.053)
+      M04 肩半宽：     中心 z 轴→arm_pitch/arm_roll 共点的 |y| = 0.116
+      M05 手臂前向偏置：腿关节平面→肩关节平面的 x 差          = 0.083
+      M06 大臂长：     arm_pitch/arm_roll 共点→elbow 轴的欧氏距离 = 0.100
+      M07 小臂长：     elbow 轴→elbow_link 几何远端             = 0.066
+      M08 髋半宽：     中心 z 轴→hip_roll 轴的 |y|              = 0.100
+      M09 躯干长：     hip_pitch 轴→arm_pitch 轴的 z 差          = 0.166
+      M10 大腿长：     hip_pitch 轴→knee 轴的 z 差               = 0.083
+      M11 小腿长：     knee 轴→ankle 轴的 z 差                  = 0.086
+      M12 脚长：       ankle_link 的 box x 边长                       = 0.093
+      M13 尾轴高：     ankle 轴→tail_pitch 轴的 z 差             = 0.166
+      M14 尾部偏置：   腿关节平面→tail box 中心的 |x|              = 0.143
+
+    上述 14 项由 measure_* 主参数唯一驱动；tuner 按同一定义实测并做容差闭环。
+
     DOF 合计：腿 10 + 臂 8 + 头 3 + 耳 4 + 尾 2 = 27
     注：臂 pitch/roll/yaw/elbow 与 head 原本为 fixed，这里改成 revolute 以便驱动；
         限位由 arm_lim_* / head_lim_* 控制。
 ============================================================================ -->
 <robot name="pikachu_sample_links">
-  <!-- ============================================================ -->
-  <!-- 【集中参数区】改这里即可整体调整 / 适配骨骼模型              -->
-  <!-- ============================================================ -->
-  <!-- elbow_link 小臂(手)段 z 边长 = 小臂长 -->
-  <!-- 尾巴：棕 -->
   <!-- ============================================================ -->
   <!-- 材质定义（每段独立颜色，左右对称共用同一套）              -->
   <!-- ============================================================ -->
@@ -81,16 +95,16 @@
   <!-- ============================================================ -->
   <link name="base_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.083"/>
+      <origin rpy="0 0 0" xyz="0 0 0.1095"/>
       <geometry>
-        <box size="0.2 0.12 0.166"/>
+        <box size="0.2 0.232 0.219"/>
       </geometry>
       <material name="torso_blue"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.083"/>
+      <origin rpy="0 0 0" xyz="0 0 0.1095"/>
       <geometry>
-        <box size="0.2 0.12 0.166"/>
+        <box size="0.2 0.232 0.219"/>
       </geometry>
     </collision>
   </link>
@@ -99,7 +113,7 @@
   <!--   三段共用 head_lim_* 限位；头大 box 挂在末端 head_roll_link -->
   <!-- ============================================================ -->
   <joint name="head_pitch_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0 0 0.319"/>
+    <origin rpy="0 0 0" xyz="0 0 0.219"/>
     <parent link="base_link"/>
     <child link="head_pitch_link"/>
     <axis xyz="0 1 0"/>
@@ -139,29 +153,29 @@
   <!-- head_roll_link：实心头（原 head_link 大 box，末端） -->
   <link name="head_roll_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0 0.1"/>
+      <origin rpy="0 0 0" xyz="0 0 0.115"/>
       <geometry>
-        <box size="0.2 0.2 0.2"/>
+        <box size="0.2 0.26 0.23"/>
       </geometry>
       <material name="head_yellow"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.1"/>
+      <origin rpy="0 0 0" xyz="0 0 0.115"/>
       <geometry>
-        <box size="0.2 0.2 0.2"/>
+        <box size="0.2 0.26 0.23"/>
       </geometry>
     </collision>
   </link>
   <!-- 左耳 / 右耳 pitch：head_roll_link → 耳（roll 由 ear_links 宏生成） -->
   <joint name="left_ear_pitch_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0 0.045 0.13"/>
+    <origin rpy="0 0 0" xyz="0 0.116 0.23"/>
     <parent link="head_roll_link"/>
     <child link="left_ear_pitch_link"/>
     <axis xyz="0 1 0"/>
     <limit effort="1.0" lower="-0.6" upper="0.8" velocity="2"/>
   </joint>
   <joint name="right_ear_pitch_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0 -0.045 0.13"/>
+    <origin rpy="0 0 0" xyz="0 -0.116 0.23"/>
     <parent link="head_roll_link"/>
     <child link="right_ear_pitch_link"/>
     <axis xyz="0 1 0"/>
@@ -171,7 +185,7 @@
   <!-- 尾巴：tail_pitch → tail_yaw 两关节（躯干背面伸出）             -->
   <!-- ============================================================ -->
   <joint name="tail_pitch_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="-0.1 0 0.0"/>
+    <origin rpy="0 0 0" xyz="-0.09549999999999999 0 -0.002999999999999975"/>
     <parent link="base_link"/>
     <child link="tail_pitch_link"/>
     <axis xyz="0 1 0"/>
@@ -193,7 +207,7 @@
     <axis xyz="0 0 1"/>
     <limit effort="2.0" lower="-1.2" upper="1.2" velocity="2"/>
   </joint>
-  <!-- tail_yaw_link：尾巴唯一 box，长度=尾全长 tail_len，沿 -x 从躯干背面伸出 -->
+  <!-- tail_yaw_link：视觉用 STL mesh（尾造型）；碰撞仍用 box（tail_len×tail_wid×tail_thick） -->
   <link name="tail_yaw_link">
     <visual>
       <origin rpy="0 0 1.57" xyz="-0.07 0 0"/>
@@ -205,7 +219,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="-0.0475 0 0"/>
       <geometry>
-        <box size="0.095 0.143 0.02"/>
+        <box size="0.095 0.05 0.02"/>
       </geometry>
     </collision>
   </link>
@@ -226,14 +240,14 @@
   </joint>
   <!-- 臂 pitch：型→left/right_arm_pitch_link（固定，抬升 shoulder_height） -->
   <joint name="left_arm_pitch_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.083 0.096 0.166"/>
+    <origin rpy="0 0 0" xyz="0.083 0.116 0.166"/>
     <parent link="base_link"/>
     <child link="left_arm_pitch_link"/>
     <axis xyz="0 -1 0"/>
     <limit effort="2.0" lower="-1.57" upper="1.57" velocity="2"/>
   </joint>
   <joint name="right_arm_pitch_joint" type="revolute">
-    <origin rpy="0 0 0" xyz="0.083 -0.096 0.166"/>
+    <origin rpy="0 0 0" xyz="0.083 -0.116 0.166"/>
     <parent link="base_link"/>
     <child link="right_arm_pitch_link"/>
     <axis xyz="0 -1 0"/>
@@ -455,25 +469,25 @@
       </geometry>
     </collision>
   </link>
-  <!-- arm_pitch_link：覆盖到 roll 的横向(y)段 -->
+  <!-- arm_pitch_link：pitch/roll 共点的关节标记 -->
   <link name="left_arm_pitch_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 0.01 0"/>
+      <origin rpy="0 0 0" xyz="0 0.0 0"/>
       <geometry>
-        <box size="0.03 0.02 0.03"/>
+        <box size="0.004 0.004 0.004"/>
       </geometry>
       <material name="arm_pitch"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 0.01 0"/>
+      <origin rpy="0 0 0" xyz="0 0.0 0"/>
       <geometry>
-        <box size="0.03 0.02 0.03"/>
+        <box size="0.004 0.004 0.004"/>
       </geometry>
     </collision>
   </link>
   <joint name="left_arm_roll_joint" type="revolute">
-    <!-- rpy 加 90°(x) 偏置：默认(angle=0)即 T-pose 水平外展，不再垂挂 -->
-    <origin rpy="1.57 0 0" xyz="0 0.02 0"/>
+    <!-- pitch/roll 轴严格共点；rpy ±90° 使零位大臂沿 ±y 水平外展 -->
+    <origin rpy="1.5707963267948966 0 0" xyz="0 0 0"/>
     <parent link="left_arm_pitch_link"/>
     <child link="left_arm_roll_link"/>
     <axis xyz="1 0 0"/>
@@ -542,25 +556,25 @@
       </geometry>
     </collision>
   </link>
-  <!-- arm_pitch_link：覆盖到 roll 的横向(y)段 -->
+  <!-- arm_pitch_link：pitch/roll 共点的关节标记 -->
   <link name="right_arm_pitch_link">
     <visual>
-      <origin rpy="0 0 0" xyz="0 -0.01 0"/>
+      <origin rpy="0 0 0" xyz="0 -0.0 0"/>
       <geometry>
-        <box size="0.03 0.02 0.03"/>
+        <box size="0.004 0.004 0.004"/>
       </geometry>
       <material name="arm_pitch"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 -0.01 0"/>
+      <origin rpy="0 0 0" xyz="0 -0.0 0"/>
       <geometry>
-        <box size="0.03 0.02 0.03"/>
+        <box size="0.004 0.004 0.004"/>
       </geometry>
     </collision>
   </link>
   <joint name="right_arm_roll_joint" type="revolute">
-    <!-- rpy 加 90°(x) 偏置：默认(angle=0)即 T-pose 水平外展，不再垂挂 -->
-    <origin rpy="-1.57 0 0" xyz="0 -0.02 0"/>
+    <!-- pitch/roll 轴严格共点；rpy ±90° 使零位大臂沿 ±y 水平外展 -->
+    <origin rpy="-1.5707963267948966 0 0" xyz="0 0 0"/>
     <parent link="right_arm_pitch_link"/>
     <child link="right_arm_roll_link"/>
     <axis xyz="-1 0 0"/>

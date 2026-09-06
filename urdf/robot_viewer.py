@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import trimesh
+import trimesh.creation
 import meshcat
 import meshcat.geometry as mg
 import meshcat.transformations as mt
@@ -134,22 +135,27 @@ class RobotViewer(QWidget):
                 continue
 
             visual = link.visuals[0]
+            geom = visual.geometry
 
-            if visual.geometry.mesh is None:
+            # mesh: 加载 .stl/.obj；box/cylinder/sphere: 用 trimesh 按几何尺寸现造网格，
+            #        统一走 mesh 渲染路径（修复 27dof 纯 box 模型此前只剩尾巴显示的缺陷）。
+            mesh = None
+            if geom.mesh is not None:
+                mesh_path = os.path.abspath(os.path.join(self.robot.base_dir, geom.mesh.filename))
+                if not os.path.exists(mesh_path):
+                    print("Mesh not found:", mesh_path)
+                    continue
+                mesh = trimesh.load(mesh_path)
+            elif geom.box is not None:
+                mesh = trimesh.creation.box(extents=geom.box.size)
+            elif geom.cylinder is not None:
+                mesh = trimesh.creation.cylinder(radius=geom.cylinder.radius,
+                                                 height=geom.cylinder.length, sections=32)
+            elif geom.sphere is not None:
+                mesh = trimesh.creation.icosphere(subdivisions=2, radius=geom.sphere.radius)
+
+            if mesh is None:
                 continue
-
-            mesh_path = visual.geometry.mesh.filename
-
-            base_dir = self.robot.base_dir
-
-            mesh_path = os.path.join(base_dir, mesh_path)
-            mesh_path = os.path.abspath(mesh_path)
-
-            if not os.path.exists(mesh_path):
-                print("Mesh not found:", mesh_path)
-                return
-
-            mesh = trimesh.load(mesh_path)
 
             # 应用visual的origin变换
             if visual.origin is not None:

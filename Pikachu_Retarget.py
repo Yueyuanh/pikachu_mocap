@@ -51,17 +51,14 @@ if BASE_DIR not in sys.path:  # 确保 retarget/ 包可导入（不管从哪启�
     sys.path.append(BASE_DIR)
 
 RETARGET_CFG = os.path.join(BASE_DIR, "retarget", "config")
-RETARGET_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map.yaml")
 BLENDER_URDF_MAP_PATH = os.path.join(RETARGET_CFG, "blender_urdf_map.yaml")
-SELF_RIG_V2_MAP_PATH = os.path.join(RETARGET_CFG, "retarget_map_self_rig_v2.yaml")
-# 自定义皮肤骨架注册表（per-armature、带 name；rig / self_rig_v2 / self_rig_v3 统一在这里管理）
+# 皮肤骨架注册表（per-armature、带 name；rig / self_rig_v2 / self_rig_v3 统一在这里管理）
+# —— 皮肤映射的唯一来源；不再加载 retarget_map.yaml / retarget_map_self_rig_v2/v3.yaml。
 BLENDER_SKIN_MAP_PATH = os.path.join(RETARGET_CFG, "blender_skin_map.yaml")
-# 新增的自定义皮肤骨架目标（Blender 里的真实骨架名）——把 URDF 皮肤姿态也推给它
+# 自定义皮肤骨架目标（Blender 里的真实骨架名，用于诊断/打印）
 SELF_RIG_V2_ARMATURE = "Pikacuh_skin_self_rig_v2"
 DEFAULT_URDF_PATH = os.path.join(
-    # BASE_DIR, "urdf", "robot", "Pikachu_V025", "urdf","Pikachu_V025_flat_14dof.urdf"
-    BASE_DIR, "urdf", "robot", "Pikachu_V025", "urdf","Pikachu_V025_flat_21dof.urdf"
-
+    BASE_DIR, "urdf", "robot", "Pikachu_links", "default", "27dof", "pikachu_sample_links_27dof.urdf"
 )
 DEFAULT_NPZ_DIR = (
     "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/src/mjlab/mocap/npz"
@@ -941,17 +938,15 @@ class RetargetStudio(QWidget):
     def __init__(self, urdf_path=None, map_path=None, npz_dir=None):
         super().__init__()
 
-        self.map_path = map_path or RETARGET_MAP_PATH
+        # map_path 参数保留仅为向后兼容；皮肤/URDF 映射现分别由
+        # blender_skin_map.yaml / blender_urdf_map.yaml 唯一驱动。
         self.burdf_map_path = BLENDER_URDF_MAP_PATH
         self.npz_dir = npz_dir or DEFAULT_NPZ_DIR
-        self.rt_map = retarget_mod.load_retarget_map(self.map_path)
-        # 新增自定义皮肤骨架的独立映射（Pikacuh_skin_self_rig_v2）
-        self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
         self.burdf_map = self._load_burdf_map()
 
         self.bone_angles = {name: [0, 0, 0] for name, _ in DIRECT_BONES}
         self.scene_bones = {}  # request_scene 返回的 armature名 -> [骨名]（Blender scene 热加载）
-        # 皮肤骨架注册表 + 每套直接操控状态（angles/limits/骨骼），rig 走 self.rt_map 映射
+        # 皮肤骨架注册表 + 每套直接操控状态（angles/limits/骨骼），由 blender_skin_map.yaml 驱动
         self._build_skin_states()
         self._active_skin = None
         self.urdf_joint_angles_rad = {}
@@ -1216,21 +1211,25 @@ class RetargetStudio(QWidget):
             ], ("hip", "knee", "ankle")),
             ("Arm", [
                 "left_arm_pitch_joint", "left_arm_roll_joint", "left_arm_yaw_joint",
-                "left_elbow_ankle_joint",
+                "left_elbow_joint",
                 "right_arm_pitch_joint", "right_arm_roll_joint", "right_arm_yaw_joint",
-                "right_elbow_ankle_joint",
+                "right_elbow_joint",
             ], ("arm", "elbow", "shoulder")),
             ("Head", [
                 "head_yaw_joint", "head_pitch_joint", "head_roll_joint",
             ], ("head", "neck")),
+            ("Ear", [
+                "left_ear_pitch_joint", "left_ear_roll_joint",
+                "right_ear_pitch_joint", "right_ear_roll_joint",
+            ], ("ear",)),
+            ("Tail", [
+                "tail_pitch_joint", "tail_yaw_joint",
+            ], ("tail",)),
         ]
 
         def joint_limit(name):
             if self.urdf_robot and name in self.urdf_robot.joint_limits:
                 return self.urdf_robot.joint_limits[name]
-            if name in self.rt_map:
-                lo, hi = self.rt_map[name]["limit"]
-                return math.radians(lo), math.radians(hi)
             return -3.14, 3.14
 
         for group_title, order, terms in GROUPS:
@@ -1240,9 +1239,7 @@ class RetargetStudio(QWidget):
                 names += [n for n in self.urdf_robot.joint_names
                           if n not in known and any(n.startswith(t) for t in terms)]
             else:
-                names = [n for n in order if n in self.rt_map]
-                names += [n for n in self.rt_map
-                          if n not in known and any(n.startswith(t) for t in terms)]
+                names = list(order)
 
             # 折叠头：勾选=展开（↑/↓ 箭头 + 文字）
             head = QToolButton()
@@ -1341,12 +1338,14 @@ class RetargetStudio(QWidget):
                     st["angles"].setdefault(b, [0, 0, 0])
                     st["limits"].setdefault(b, {"x": (-120, 120), "y": (-120, 120), "z": (-120, 120)})
         self._refresh_skin_bone_list()
-        # 校验 retarget_map 目标骨是否在任一 armature
+        # 校验各皮肤骨架映射目标骨是否存在于任一 Blender armature（仅诊断）
         allbones = {b["name"] for a in arma for b in a["bones"]}
-        missing = sorted({c["bone"] for c in self.rt_map.values() if c["bone"] and c["bone"] in ("",
-                          "head", "upper_arm_fk.L")} - allbones) if allbones else []
-        if allbones and missing:
-            print("   retarget 目标骨缺失:", missing)
+        if allbones:
+            ref_bones = {c.get("bone") for st in self.skin_states.values()
+                         for c in st["joints"].values() if c.get("bone")}
+            missing = sorted(ref_bones - allbones)
+            if missing:
+                print("   skin 映射目标骨缺失:", missing)
 
     # ---------- 皮肤骨架直接控制（下拉切骨架；Bone/V2Bone/V3Bone 统一走这里）----------
     def _on_skin_armature_selected(self, idx):
@@ -1450,9 +1449,9 @@ class RetargetStudio(QWidget):
     def _build_skin_states(self):
         """读 blender_skin_map.yaml 建 self.skin_states = {骨架名: {...}}。
 
-        每套含 armature_name/joints/bones/limits/angles/base_cfg。rig 的 joints 指
-        self.rt_map（retarget_map.yaml，支持 Retarget 面板编辑）；v2/v3 用皮肤 map
-        各自 joints 块。bones 由 map 的 bones 初始化，连上 Blender 后由 scene 覆盖。
+        每套含 armature_name/joints/bones/limits/angles/base_cfg。joints 一律来自
+        blender_skin_map.yaml 各自的 joints 块（rig 不再走 retarget_map.yaml）。
+        bones 由 map 的 bones 初始化，连上 Blender 后由 scene 覆盖。
         """
         reg = load_skin_registry()
         self.skin_registry = reg
@@ -1463,7 +1462,7 @@ class RetargetStudio(QWidget):
                 a["joints"], [(b, (-120, 120)) for b in a["bones"]])
             self.skin_states[name] = {
                 "armature_name": name,
-                "joints": self.rt_map if name == "rig" else a["joints"],
+                "joints": a["joints"],
                 "bones": list(a["bones"]),
                 "limits": limits,
                 "angles": {b: [0, 0, 0] for b in a["bones"]},
@@ -1491,6 +1490,28 @@ class RetargetStudio(QWidget):
 
     def _urdf_armature_list(self):
         return BlenderUrdfPanel._armature_list(self.burdf_map)
+
+    def _urdf_push_targets(self):
+        """返回 [(blender 真实骨架名, joints)] 供 set_urdf_pose 驱动。
+
+        连上 Blender 且 scene 里存在 URDF 骨架（骨名含 .revolute/.fixed.bone）时，
+        用 scene 真实骨架名推送、并合并 map 全套 joints —— 否则 map 里历史虚拟骨架名
+        （Pikachu_V025 / pikachu_sample_links / ...）与 Blender 场景对象名（如
+        pikachu_urdf_T）对不上，addon 的 get_armature 会回退到「当前激活 / 第一个
+        ARMATURE」，时而被写进皮肤骨架整台不动、时而被写进 URDF 却只有骨名对得上的
+        部分能动 → 时好时坏。未连 Blender（离线兜底）时回退 map 原样。
+        """
+        map_arms = self._urdf_armature_list()
+        if not map_arms:
+            return []
+        merged = {}
+        for a in map_arms:
+            merged.update(a.get("joints") or {})
+        scene_urdf = [nm for nm, bn in self.scene_bones.items()
+                      if any(".revolute.bone" in b or ".fixed.bone" in b for b in bn)]
+        if scene_urdf:
+            return [(nm, merged) for nm in scene_urdf]
+        return [(a.get("name", ""), a.get("joints") or {}) for a in map_arms]
 
     def _build_pose_for_armature(self, joints, angles, zero=False):
         """把当前 urdf 关节角（弧度）换算成该 rig 的 pose = {bone: [x,y,z](rad)}。
@@ -1527,11 +1548,11 @@ class RetargetStudio(QWidget):
             return
         angles = self.urdf_joint_angles_rad
         sent = []
-        for a in self._urdf_armature_list():
-            pose = self._build_pose_for_armature(a.get("joints", {}), angles)
+        for arm_name, joints in self._urdf_push_targets():
+            pose = self._build_pose_for_armature(joints, angles)
             if pose:
-                self.client.set_urdf_pose(a.get("name", ""), pose)
-                sent.append(f"{a.get('name')}({len(pose)}骨)")
+                self.client.set_urdf_pose(arm_name, pose)
+                sent.append(f"{arm_name}({len(pose)}骨)")
         if sent:
             print("[URDF→Blender] set_urdf_pose ->", ", ".join(sent))
 
@@ -1540,15 +1561,19 @@ class RetargetStudio(QWidget):
         不受 Drive Blender URDF 开关限制（reset 一致性优先），是否生效仍由面板勾选过滤。"""
         if not self.client.connected:
             return
-        for a in self._urdf_armature_list():
-            pose = self._build_pose_for_armature(a.get("joints", {}), {}, zero=True)
+        for arm_name, joints in self._urdf_push_targets():
+            pose = self._build_pose_for_armature(joints, {}, zero=True)
             if pose:
-                self.client.set_urdf_pose(a.get("name", ""), pose)
+                self.client.set_urdf_pose(arm_name, pose)
 
     def _current_skin_pose(self, rt_map=None):
         active = {n: self.urdf_joint_angles_rad.get(n, 0.0)
                   for n, w in self.urdf_joint_widgets_list.items() if w.sync_checkbox.isChecked()}
-        return retarget_mod.apply_retarget_rad(active, rt_map or self.rt_map)
+        if rt_map is None:
+            # 无参调用（仅用于面板显示 pose 文本）默认取 rig 骨架的映射
+            rig = self.skin_states.get("rig") if hasattr(self, "skin_states") else None
+            rt_map = rig.get("joints", {}) if rig else {}
+        return retarget_mod.apply_retarget_rad(active, rt_map)
 
     def _push_skin_pose(self):
         bone_pose = self.bone_angles  # 直接 FK 控制
@@ -1757,7 +1782,7 @@ class RetargetStudio(QWidget):
 
     def _skin_base_confs(self):
         """皮肤骨架 (name, base_cfg)：全部来自 blender_skin_map.yaml 的 per-armature base 块。"""
-        return [(a["name"], a["base_cfg"]) for a in self.skin_states.values()]
+        return [(a["armature_name"], a["base_cfg"]) for a in self.skin_states.values()]
 
     def _burdf_base_confs(self):
         confs = []
@@ -1818,10 +1843,7 @@ class RetargetStudio(QWidget):
     # ---------- 重载 / 复位 ----------
     def _reload_map(self):
         try:
-            self.rt_map = retarget_mod.load_retarget_map(self.map_path)
-            self.rt_map_v2 = retarget_mod.load_retarget_map(SELF_RIG_V2_MAP_PATH)
-            # URDF→Skin 下拉本次统由 blender_skin_map.yaml 注册表驱动（含 rig / self_rig_v2 / self_rig_v3），
-            # 不再沿用旧的 {"rig","self_rig_v2"} 硬编码。先重读注册表再喂给 Retarget 面板。
+            # 皮肤映射统一重读 blender_skin_map.yaml；再喂给 Retarget 面板表格显示。
             self._reload_skin_registry()
             self.retarget_panel.set_maps({nm: st["joints"] for nm, st in self.skin_states.items()})
             print("Retarget map reloaded")
@@ -1912,7 +1934,7 @@ class RetargetStudio(QWidget):
 
 
 if __name__ == "__main__":
-    print("Retarget map:", os.path.abspath(RETARGET_MAP_PATH))
+    print("Skin map:", os.path.abspath(BLENDER_SKIN_MAP_PATH))
     urdf_path = DEFAULT_URDF_PATH
     if len(sys.argv) > 1:
         urdf_path = sys.argv[1]

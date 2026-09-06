@@ -101,112 +101,115 @@
   <!-- ③ 其他细则：厚度 / 局部偏移 / 限位 / 尺寸 / 材质，按部件分区   -->
   <!-- ============================================================ -->
   <!-- base -->
-  <xacro:property name="pelvis_half_width" value="0.06"/>
-    <!-- 骨盆半宽：躯干盒 y 宽 = 2×此（髋关节定位现由①hip_width 独立，与此解耦） -->
+  <!-- 骨盆半宽：躯干盒 y 宽 = 2×此（髋关节定位现由①hip_width 独立，与此解耦） -->
+  <xacro:property name="pelvis_half_width" value="0.116"/>
+  <!-- 躯干盒 x(前后) 厚度 -->
   <xacro:property name="torso_len_x"       value="0.2"/>
-    <!-- 躯干盒 x(前后) 厚度 -->
+  <!-- 躯干盒 z(上下) 高度（肩关节定位现由①shoulder_height 独立，与此解耦 166） -->
+  <xacro:property name="base_height"       value="0.219"/>
+
   <!-- leg -->
+  <!-- hip_pitch→hip_roll 关节沿 y 偏移（骨盆横向段） -->
   <xacro:property name="hip_pitch_to_roll_y" value="0.0355"/>
-    <!-- hip_pitch→hip_roll 关节沿 y 偏移（骨盆横向段） -->
+  <!-- hip_roll→hip_yaw 关节沿 -z 偏移（骨盆下沿段）；与大腿段对分 hip_pitch→knee 总长 -->
   <xacro:property name="hip_roll_to_yaw_z"   value="${thigh_len/2}"/>
-    <!-- hip_roll→hip_yaw 关节沿 -z 偏移（骨盆下沿段）；与大腿段对分 hip_pitch→knee 总长 -->
+  <!-- 腿 box x(前后) 厚 -->
   <xacro:property name="leg_thick_x" value="0.04"/>
-    <!-- 腿 box x(前后) 厚 -->
+  <!-- 腿 box y(内外) 厚 -->
   <xacro:property name="leg_width_y" value="0.025"/>
-    <!-- 腿 box y(内外) 厚 -->
+  <!-- 脚 宽 / 高 -->
   <xacro:property name="foot_wid_y" value="0.05"/>
   <xacro:property name="foot_hgt_z" value="0.02"/>
-    <!-- 脚 宽 / 高 -->
   <!-- arm -->
+  <!-- 共点串联关节的数值稳定用小盒；不参与人体尺寸定义 -->
   <xacro:property name="joint_marker_size" value="0.004"/>
-    <!-- 共点串联关节的数值稳定用小盒；不参与人体尺寸定义 -->
+  <!-- 臂 box x / y 厚 -->
   <xacro:property name="arm_thick_x" value="0.03"/>
   <xacro:property name="arm_width_y" value="0.03"/>
-    <!-- 臂 box x / y 厚 -->
+  <!-- 臂 pitch/roll/yaw/elbow 关节限位（弧度） -->
   <xacro:property name="arm_lim_min" value="-1.57"/>
   <xacro:property name="arm_lim_max" value="1.57"/>
-    <!-- 臂 pitch/roll/yaw/elbow 关节限位（弧度） -->
   <!-- head -->
-  <xacro:property name="head_len_x"         value="0.15"/>
-  <xacro:property name="head_wid_y"         value="0.15"/>
-  <xacro:property name="head_hgt_z"         value="0.15"/>
-    <!-- 头 长/宽/高 -->
+  <!-- 头 长/宽/高 -->
+  <xacro:property name="head_len_x"         value="0.2"/>
+  <xacro:property name="head_wid_y"         value="0.26"/>
+  <xacro:property name="head_hgt_z"         value="0.23"/>
   <!-- 头底部(转轴) 相对躯干顶的抬升 = 头高 - 躯干长（不含 box 半高，box 尺寸独立） -->
   <xacro:property name="head_bottom_offset" value="${head_height - shoulder_height}"/>
+  <!-- 头关节限位（弧度） -->
   <xacro:property name="head_lim_min" value="-0.8"/>
   <xacro:property name="head_lim_max" value="0.8"/>
-    <!-- 头关节限位（弧度） -->
   <!-- ear -->
+  <!-- 耳朵 横向偏移 / 全长 / 厚 / 宽 / 限位 -->
   <xacro:property name="ear_off_y"   value="${measure_ear_root_half_width}"/>
   <xacro:property name="ear_len"     value="0.085"/>
   <xacro:property name="ear_thick_x" value="0.018"/>
   <xacro:property name="ear_width_y" value="0.028"/>
   <xacro:property name="ear_lim_min" value="-0.6"/>
   <xacro:property name="ear_lim_max" value="0.8"/>
-    <!-- 耳朵 横向偏移 / 全长 / 厚 / 宽 / 限位 -->
+  <!-- 耳根相对 head_roll_link 原点(头底部中心/转轴) 的 z 抬升 = 耳高 - 头高；只抬升耳朵，头保持原位 -->
   <xacro:property name="ear_root_z" value="${ear_height - head_height}"/>
-    <!-- 耳根相对 head_roll_link 原点(头底部中心/转轴) 的 z 抬升 = 耳高 - 头高；只抬升耳朵，头保持原位 -->
   <!-- tail -->
+  <!-- 尾 box 全长 / 横向宽 / 厚 / 限位 -->
   <xacro:property name="tail_len"   value="0.095"/>
   <xacro:property name="tail_wid"   value="0.050"/>
   <xacro:property name="tail_thick" value="0.02"/>
   <xacro:property name="tail_lim_min" value="-1.2"/>
   <xacro:property name="tail_lim_max" value="1.2"/>
-    <!-- 尾 box 全长 / 横向宽 / 厚 / 限位 -->
+  <!-- 尾根位置由“尾 box 中心偏置”反推：root_x-tail_len/2 = -M14 -->
   <xacro:property name="tail_root_x" value="${-measure_tail_center_offset_x + tail_len/2.0}"/>
-    <!-- 尾根位置由“尾 box 中心偏置”反推：root_x-tail_len/2 = -M14 -->
   <!-- ============ link box 边长（解耦：box 尺寸现独立；box 中心位置仍由①②关节距离定位） ============ -->
   <!-- 躯干 box -->
+  <!-- 躯干盒 y 宽 = 骨盆半宽×2 -->
   <xacro:property name="torso_wid_y" value="${pelvis_half_width*2}"/>
-    <!-- 躯干盒 y 宽 = 骨盆半宽×2 -->
-  <xacro:property name="torso_hgt_z" value="${shoulder_height}"/>
-    <!-- 躯干盒 z 高 = 躯干长（肩高） -->
+  <!-- 躯干盒 z 高 = base_height（独立解耦，不再借用肩高） -->
+  <xacro:property name="torso_hgt_z" value="${base_height}"/>
   <!-- 腿 box 各段长（截面 leg_thick_x / leg_width_y 见上） -->
+  <!-- hip_pitch_link 横向(y)边长 -->
   <xacro:property name="leg_hip_pitch_box_len" value="${hip_pitch_to_roll_y}"/>
-    <!-- hip_pitch_link 横向(y)边长 -->
+  <!-- hip_roll_link 骨盆段 z 边长 -->
   <xacro:property name="leg_hip_roll_box_len"  value="${hip_roll_to_yaw_z}"/>
-    <!-- hip_roll_link 骨盆段 z 边长 -->
+  <!-- hip_yaw_link 大腿段 z 边长 -->
   <xacro:property name="leg_thigh_box_len"     value="${thigh_length}"/>
-    <!-- hip_yaw_link 大腿段 z 边长 -->
+  <!-- knee_link 小腿段 z 边长 -->
   <xacro:property name="leg_shank_box_len"     value="${shank_length}"/>
-    <!-- knee_link 小腿段 z 边长 -->
   <!-- 臂 box 各段长（截面 arm_thick_x / arm_width_y 见上） -->
+  <!-- arm_pitch_link 是 pitch/roll 共点的小型关节标记，不占用大臂长 -->
   <xacro:property name="arm_pitch_box_len" value="${joint_marker_size}"/>
-    <!-- arm_pitch_link 是 pitch/roll 共点的小型关节标记，不占用大臂长 -->
+  <!-- arm_roll_link 大臂 roll 段 z 边长 -->
   <xacro:property name="arm_roll_box_len"  value="${arm_upper_z}"/>
-    <!-- arm_roll_link 大臂 roll 段 z 边长 -->
+  <!-- arm_yaw_link 大臂 yaw 段 z 边长 -->
   <xacro:property name="arm_yaw_box_len"   value="${arm_lower_z}"/>
-    <!-- arm_yaw_link 大臂 yaw 段 z 边长 -->
+  <!-- elbow_link 小臂(手)段 z 边长 = 小臂长 -->
   <xacro:property name="arm_elbow_box_len" value="${lower_arm_len}"/>
-    <!-- elbow_link 小臂(手)段 z 边长 = 小臂长 -->
 
   <!-- 材质（仅便于视觉区分；相邻关节不同色，左右对称） -->
+  <!-- 躯干：淡蓝灰 -->
   <xacro:property name="mat_torso"   value="0.55 0.60 0.75 1"/>
-    <!-- 躯干：淡蓝灰 -->
+  <!-- 臂段A(arm_pitch 肩)：紫 -->
   <xacro:property name="mat_arm_pitch"     value="0.75 0.35 1.00 1"/>
-    <!-- 臂段A(arm_pitch 肩)：紫 -->
+  <!-- 臂段B(arm_roll 上臂)：黄 -->
   <xacro:property name="mat_arm_roll"      value="1.00 0.90 0.25 1"/>
-    <!-- 臂段B(arm_roll 上臂)：黄 -->
+  <!-- 臂段C(arm_yaw 下臂)：青 -->
   <xacro:property name="mat_arm_yaw"       value="0.30 0.85 0.80 1"/>
-    <!-- 臂段C(arm_yaw 下臂)：青 -->
+  <!-- 臂段D(elbow 手)：珊瑚 -->
   <xacro:property name="mat_arm_elbow"     value="1.00 0.45 0.55 1"/>
-    <!-- 臂段D(elbow 手)：珊瑚 -->
+  <!-- 腿段A(hip_pitch)：品红 -->
   <xacro:property name="mat_leg_hip_pitch" value="0.90 0.35 0.80 1"/>
-    <!-- 腿段A(hip_pitch)：品红 -->
+  <!-- 腿段B(hip_roll)：橙 -->
   <xacro:property name="mat_leg_hip_roll"  value="1.00 0.60 0.20 1"/>
-    <!-- 腿段B(hip_roll)：橙 -->
+  <!-- 腿段C(hip_yaw 大腿)：蓝 -->
   <xacro:property name="mat_leg_hip_yaw"   value="0.35 0.55 1.00 1"/>
-    <!-- 腿段C(hip_yaw 大腿)：蓝 -->
+  <!-- 腿段D(knee 小腿)：绿 -->
   <xacro:property name="mat_leg_knee"      value="0.30 0.80 0.35 1"/>
-    <!-- 腿段D(knee 小腿)：绿 -->
+  <!-- 腿段E(ankle 脚)：深灰蓝 -->
   <xacro:property name="mat_leg_ankle"     value="0.25 0.28 0.35 1"/>
-    <!-- 腿段E(ankle 脚)：深灰蓝 -->
+  <!-- 头：亮黄 -->
   <xacro:property name="mat_head"    value="0.98 0.85 0.30 1"/>
-    <!-- 头：亮黄 -->
+  <!-- 耳朵：亮黄 -->
   <xacro:property name="mat_ear"         value="0.95 0.78 0.25 1"/>
-    <!-- 耳朵：亮黄 -->
+  <!-- 尾巴：棕 -->
   <xacro:property name="mat_tail"        value="0.55 0.38 0.18 1"/>
-    <!-- 尾巴：棕 -->
 
   <!-- ============================================================ -->
   <!-- 材质定义（每段独立颜色，左右对称共用同一套）              -->
@@ -478,14 +481,14 @@
   <!-- ============================================================ -->
   <link name="base_link">
     <visual>
-      <origin xyz="0 0 ${shoulder_height/2.0}" rpy="0 0 0"/>
+      <origin xyz="0 0 ${base_height/2.0}" rpy="0 0 0"/>
       <geometry>
         <box size="${torso_len_x} ${torso_wid_y} ${torso_hgt_z}"/>
       </geometry>
       <material name="torso_blue"/>
     </visual>
 <collision>
-      <origin xyz="0 0 ${shoulder_height/2.0}" rpy="0 0 0"/>
+      <origin xyz="0 0 ${base_height/2.0}" rpy="0 0 0"/>
       <geometry>
         <box size="${torso_len_x} ${torso_wid_y} ${torso_hgt_z}"/>
       </geometry>
@@ -638,12 +641,12 @@
     <axis xyz="0 0 1"/>
     <limit lower="${tail_lim_min}" upper="${tail_lim_max}" effort="2.0" velocity="2"/>
   </joint>
-  <!-- tail_yaw_link：简化尾 box，沿 -x 伸出；可视与碰撞几何严格一致 -->
+  <!-- tail_yaw_link：视觉用 STL mesh（尾造型）；碰撞仍用 box（tail_len×tail_wid×tail_thick） -->
   <link name="tail_yaw_link">
     <visual>
-      <origin xyz="${-tail_len/2.0} 0 0" rpy="0 0 0"/>
+      <origin xyz="-0.07 0 0" rpy="0 0 1.57"/>
       <geometry>
-        <box size="${tail_len} ${tail_wid} ${tail_thick}"/>
+        <mesh filename="meshes/pikachu_skin_self_rig_mesh_T3Plane-edited.stl"/>
       </geometry>
       <material name="tail_brown"/>
     </visual>

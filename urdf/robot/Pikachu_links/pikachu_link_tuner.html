@@ -268,7 +268,7 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
 .verify-head{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line)}
 .verify-head strong{font:600 11px "IBM Plex Mono",monospace;letter-spacing:.5px;text-transform:uppercase}
 .verify-summary{margin-left:auto;font:500 10px "IBM Plex Mono",monospace;color:var(--muted)}
-.metrics{display:grid;grid-template-columns:repeat(5,minmax(105px,1fr));gap:7px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(96px,1fr));gap:7px;padding:8px 10px;border-bottom:1px solid var(--line)}
 .metric{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 8px;min-width:0}
 .metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.5px}
 .metric b{display:block;margin-top:1px;font:600 12px "IBM Plex Mono",monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -277,10 +277,11 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
 .issue.error{border-left-color:var(--danger)} .issue.warn{border-left-color:var(--warn)} .issue.ok{border-left-color:var(--ok)}
 .issue .sev{font:600 9px "IBM Plex Mono",monospace;text-transform:uppercase;color:var(--muted)}
 .issue code{font:500 10px "IBM Plex Mono",monospace;color:var(--text-dim)}
-.measurements{width:300px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:8px 10px}
+.measurements{width:380px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:8px 10px}
 .measurements h3{font:600 10px "IBM Plex Mono",monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px}
-.measure-row{display:grid;grid-template-columns:22px 1fr auto;gap:6px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:10px;align-items:center}
+.measure-row{display:grid;grid-template-columns:34px minmax(90px,1fr) auto;gap:6px;padding:4px 2px;border-bottom:1px solid var(--line);font-size:10px;align-items:center}
 .measure-row .no,.measure-row b{color:var(--accent);font-family:"IBM Plex Mono",monospace}
+.measure-row b{font-size:9px;text-align:right}.measure-row.fail b{color:var(--danger)}.measure-row.pass b{color:var(--ok)}
 
 .panel-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px;border-bottom:1px solid var(--line)}
 .panel-tabs button{border:1px solid transparent;background:transparent;color:var(--muted);padding:6px 4px;border-radius:6px;font-size:11px}
@@ -476,11 +477,12 @@ input:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-vis
         <div class="metric"><span>COM 高度</span><b id="metricCom">–</b></div>
         <div class="metric"><span>支撑裕量</span><b id="metricMargin">–</b></div>
         <div class="metric"><span>左右对称</span><b id="metricSymmetry">–</b></div>
+        <div class="metric"><span>尺寸最大偏差</span><b id="metricMeasurement">–</b></div>
       </div>
       <div class="issues" id="validationList"></div>
     </div>
     <aside class="measurements">
-      <h3>关键尺寸·实测值</h3>
+      <h3>工程尺寸 · 实算 / 目标 / 偏差</h3>
       <div id="measureRows"></div>
     </aside>
   </section>
@@ -600,15 +602,27 @@ const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 function evalMath(expr, props){
   let s = String(expr).trim();
   if(s.startsWith('${') && s.endsWith('}')) s = s.slice(2,-1).trim(); // 剥掉最外层 ${ }
-  // 变量内联（${var} 与算式内裸标识符 var 两种形式都解析）
-  s = s.replace(/\$\{([A-Za-z_]\w*)\}/g,(m,n)=>{
-    if(!(n in props)) throw new Error('未定义变量: '+n);
-    return String(props[n]);
-  });
-  s = s.replace(/\b[A-Za-z_]\w*\b/g,(n)=> (n in props) ? String(props[n]) : n);
+  const inlineProp=(n)=>{
+    if(!(n in props))throw new Error('未定义变量: '+n);
+    const raw=String(props[n]).trim();
+    return raw.startsWith('${')&&raw.endsWith('}')?'('+raw.slice(2,-1)+')':raw;
+  };
+  // 递归内联派生属性（${a}→${b}→数值）；限制轮数并检测循环引用。
+  const seen=new Set();
+  for(let depth=0;depth<24;depth++){
+    if(seen.has(s))throw new Error('属性循环引用: '+s.slice(0,32));
+    seen.add(s);
+    const templated = s.replace(/\$\{([A-Za-z_]\w*)\}/g,(m,n)=>{
+      return inlineProp(n);
+    });
+    if(templated!==s){s=templated;continue;}
+    const bare=s.replace(/\b[A-Za-z_]\w*\b/g,(n)=> (n in props) ? inlineProp(n) : n);
+    if(bare===s)break;
+    s=bare;
+  }
   // 归一 + 校验：仅允许数字与算术符号
   s=s.replace(/--/g,'+').replace(/\s+/g,' ');
-  if(!/^[\d+\-*/().\s]+$/.test(s)) throw new Error('非法表达式: '+s.trim().slice(0,32));
+  if(!/^[\deE+\-*/().\s]+$/.test(s)) throw new Error('非法表达式: '+s.trim().slice(0,32));
   let v;
   try{ v=Function('"use strict";return ('+s+');')(); }
   catch(e){ throw new Error(e&&e.name==='ReferenceError' ? '未定义的变量: '+e.message : (e&&e.message||String(e))); }
@@ -681,17 +695,18 @@ function parseRobot(xmlStr){
   });
   const allLinks=[];
   root.querySelectorAll('link').forEach(lk=>allLinks.push(lk.getAttribute('name')));
-  const links={}, unsupportedVisual=[]; // 空 link 可作为合法关节帧；只记录“有 visual 但非 box”
+  const links={}, unsupportedVisual=[]; // 空 link 可作为合法关节帧；box 优先取 visual，否则回退 collision
   root.querySelectorAll('link').forEach(lk=>{
-    const vs=lk.querySelector('visual'); if(!vs) return;
-    const g=vs.querySelector('geometry');
-    const b=g&&g.querySelector('box'); if(!b){unsupportedVisual.push(lk.getAttribute('name'));return;}
-    const o=vs.querySelector('origin');
+    const vs=lk.querySelector('visual'), cs=lk.querySelector('collision');
+    const vb=vs&&vs.querySelector('geometry box'), cb=cs&&cs.querySelector('geometry box');
+    const b=vb||cb, geom=vb?vs:(cb?cs:null);
+    if(!b){if(vs)unsupportedVisual.push(lk.getAttribute('name'));return;}
+    const o=geom.querySelector('origin');
     const oa=vec(o,'xyz',[0,0,0]), ra=vec(o,'rpy',[0,0,0]);
     const sz=vec(b,'size',[NaN,NaN,NaN]);
-    const mn=vs.querySelector('material')&&vs.querySelector('material').getAttribute('name');
-    const inline=vs.querySelector('material color');
-    links[lk.getAttribute('name')]={origin:oa,rpy:ra,size:sz,mat:mn,color:(inline&&inline.getAttribute('rgba'))||mats[mn]||['.7','.7','.75','1'].join(' ')};
+    const mn=vs&&vs.querySelector('material')&&vs.querySelector('material').getAttribute('name');
+    const inline=vs&&vs.querySelector('material color');
+    links[lk.getAttribute('name')]={origin:oa,rpy:ra,size:sz,mat:mn,geometrySource:vb?'visual':'collision',color:(inline&&inline.getAttribute('rgba'))||mats[mn]||['.7','.7','.75','1'].join(' ')};
   });
   const joints=[];
   root.querySelectorAll('joint').forEach(jf=>{
@@ -728,8 +743,9 @@ function axisRotMat(axis, ang){
 }
 // 返回每个 link 的 {pos:linkFrame原点 world, R:旋转} 与父级;
 // revolute 关节按 Angle[<关节名>](弧度)绕其 axis 旋转
-function computeTFs(model){
+function computeTFs(model, angleOverride){
   const {links,joints}=model;
+  const angles=angleOverride===undefined?Angle:angleOverride;
   const tf={};
   let base=Object.keys(links).find(n=>!joints.some(j=>j.child===n))||'base_link';
   const stack=[{name:base,pos:[0,0,0],R:[[1,0,0],[0,1,0],[0,0,1]]}];
@@ -743,7 +759,7 @@ function computeTFs(model){
       const oj=j.origin;
       const linkPos=add(c.pos, matVec(c.R, oj));
       const locked=JointConf[j.name]&&JointConf[j.name].fixed;
-      const ang=((j.type==='revolute'||j.type==='continuous')&&!locked)? (Angle[j.name]||0):0;
+      const ang=((j.type==='revolute'||j.type==='continuous')&&!locked)? (angles[j.name]||0):0;
       const R=matMul(matMul(c.R, rpyToMat(j.rpy)), axisRotMat(j.axis||[1,0,0], ang));
       const t={pos:linkPos,R}; tf[j.child]=t;
       stack.push({name:j.child,pos:linkPos,R});
@@ -903,14 +919,12 @@ function render2D(model){
   ctx.strokeStyle=lineC; ctx.lineWidth=1; ctx.strokeRect(7,7,W-14,H-14);
   ctx.textBaseline='top';
   // 工作台内只显示模型；导出 PNG 时才在底部绘制尺寸表。
-  let n=0;
-  for(const D of KEYDIMS){ let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
-    if(a&&b){ const v=refDist(a,D.ad,b,D.bd); if(isFinite(v)&&v>=0.002) n++; } }
+  const n=modelMeasurements(computeTFs(model,{})).length;
   // 参数表实际布局：标题在 topH+10、表头 topH+36、首数据行 topH+66、每行 lh=24(见
   // drawParamPanel)。过去 paramH 只按 hdrH+n*rowH+34 算，5 行时会比真实占用少 ~20px，
   // 导致最后一行(第⑤项)被画布底部裁掉。这里改用与绘制一致的行高/偏移，留足底部边距。
   const lh=Math.round(24*dpr);
-  const paramH=dimDrawVals ? Math.round(66*dpr) + n*lh + Math.round(16*dpr) : 0;
+  const paramH=dimDrawVals ? Math.round(66*dpr) + Math.ceil(n/2)*lh + Math.round(16*dpr) : 0;
   const topH=H-paramH;
   if(dimDrawVals){
     ctx.strokeStyle=lineC; ctx.lineWidth=1;
@@ -938,74 +952,54 @@ function render2D(model){
     ctx.fillRect(cx+ax*s, cy+ay*s, (bx-ax)*s, (by-ay)*s);
     ctx.strokeRect(cx+ax*s, cy+ay*s, (bx-ax)*s, (by-ay)*s);
   }
-  // ⑥ 关键尺寸标注：仅正面视图，标尺全部横平竖直（引线垂直/水平引出）
-  if(isFront) drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr);
+  // ⑥ 关键尺寸标注：按测量定义分配到正/侧视图，标尺横平竖直。
+  drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr,isFront);
   // 导出图才携带可归档的尺寸表。
   if(dimDrawVals) drawParamPanel(ctx,tfs,topH,ink,soft,accent,lineC,dpr);
   updateDimTable(tfs);   // 仍填 DOM（已隐藏），保留数据一致性
 }
-// 面板标题下的示例参数行：把关键尺寸表画进图纸右侧参数栏。
-// 与 loadSrc 时解析出的 xacro property(比例/长度)不同，这里展示的是
-// 从实际几何测得的 5 项轴向距离（单位 mm），工程上可直接用来核对连杆长度。
+// 导出图纸携带 14 项零位闭环值：实算 / 目标 / 偏差，双栏避免压缩主体。
 function drawParamPanel(ctx,tfs,topH,ink,soft,accent,lineC,dpr){
   const W=ctx.canvas.width, H=ctx.canvas.height;
   const x0=Math.round(16*dpr);
-  const rhs=W-Math.round(16*dpr);   // 值右对齐边界
-  const lhs=x0+Math.round(56*dpr);  // 中文名称左对齐起点（给编号留位）
+  const gap=Math.round(18*dpr), colW=(W-2*x0-gap)/2;
   ctx.textAlign='left'; ctx.textBaseline='top';
-  // 栏标题
   ctx.fillStyle=accent; ctx.font='600 '+Math.round(12*dpr)+'px "IBM Plex Mono",monospace';
-  ctx.fillText('关键尺寸 · 单位 mm', x0, topH+Math.round(10*dpr));
-  // 汇总行数
-  const rows=[];
-  for(const D of KEYDIMS){
-    let ca,cb; try{ca=D.a(tfs);cb=D.b(tfs);}catch(e){continue;}
-    if(!ca||!cb) continue;
-    const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
-    rows.push({no:D.no,zh:D.zh,val:Math.round(val*1000)});
-  }
-  // 表头
+  ctx.fillText('工程尺寸闭环 · 实算 / 目标 / 偏差 · 单位 mm', x0, topH+Math.round(10*dpr));
+  const rows=modelMeasurements(computeTFs(Model,{}));
   const hdrY=topH+Math.round(36*dpr);
   ctx.font='600 '+Math.round(10*dpr)+'px "IBM Plex Mono",monospace';
   ctx.fillStyle=soft;
-  ctx.textAlign='center'; ctx.fillText('#', x0+Math.round(20*dpr), hdrY);
-  ctx.textAlign='left';   ctx.fillText('测距', lhs, hdrY);
-  ctx.textAlign='right';  ctx.fillText('值',  rhs, hdrY);
+  for(let col=0;col<2;col++){
+    const lx=x0+col*(colW+gap), rx=lx+colW;
+    ctx.textAlign='left';ctx.fillText('#  尺寸',lx,hdrY);
+    ctx.textAlign='right';ctx.fillText('实算 / 目标 (偏差)',rx,hdrY);
+  }
   ctx.strokeStyle=lineC; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(x0, hdrY+Math.round(18*dpr));
   ctx.lineTo(W-Math.round(16*dpr), hdrY+Math.round(18*dpr)); ctx.stroke();
-  // 数据行：每项一行横贯图纸宽，长一点没关系，不遮挡主体
-  const lh=Math.round(24*dpr); let y=hdrY+Math.round(30*dpr);
-  ctx.font='500 '+Math.round(11*dpr)+'px "IBM Plex Mono",monospace';
-  for(const r of rows){
-    // 编号
-    ctx.textAlign='center'; ctx.fillStyle=soft; ctx.fillText(r.no, x0+Math.round(20*dpr), y);
-    // 值(右对齐)
-    const vs=r.val+' mm'; ctx.textAlign='right'; ctx.fillStyle=accent; ctx.fillText(vs, rhs, y);
-    // 中文：整图宽足够，仍按右值边界截断作双保险
-    const vw=ctx.measureText(vs).width;
-    let zh=r.zh; const maxW=(rhs-vw)-lhs-Math.round(8*dpr);
-    while(zh.length>0 && ctx.measureText(zh).width>maxW) zh=zh.slice(0,-1);
-    if(zh!==r.zh) zh+='…';
-    ctx.textAlign='left'; ctx.fillStyle=ink; ctx.fillText(zh, lhs, y);
-    y+=lh;
+  const lh=Math.round(24*dpr), perCol=Math.ceil(rows.length/2);
+  ctx.font='500 '+Math.round(9*dpr)+'px "IBM Plex Mono",monospace';
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i], col=Math.floor(i/perCol), row=i%perCol;
+    const lx=x0+col*(colW+gap), rx=lx+colW, y=hdrY+Math.round(30*dpr)+row*lh;
+    const label=r.no+' '+r.name;
+    const values=r.value_mm.toFixed(1)+' / '+r.target_mm.toFixed(1)+' ('+(r.error_mm>=0?'+':'')+r.error_mm.toFixed(1)+')';
+    ctx.textAlign='left';ctx.fillStyle=ink;ctx.fillText(label,lx,y);
+    ctx.textAlign='right';ctx.fillStyle=r.pass?soft:'#ff5d73';ctx.fillText(values,rx,y);
   }
   ctx.textBaseline='top';
 }
 
-// 侧边尺寸表：把 5 项轴线距离填进 dimRows（已隐藏 DOM，仅保证数据一致性）
+// 兼容旧 DOM 表格；数据与验证面板使用同一测量函数。
 function updateDimTable(tfs){
   const el=$('#dimRows'); if(!el) return;
   el.innerHTML='';
-  for(const D of KEYDIMS){
-    const ca=(()=>{try{return D.a(tfs);}catch(e){return null;}})();
-    const cb=(()=>{try{return D.b(tfs);}catch(e){return null;}})();
-    if(!ca||!cb) continue;
-    const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
+  for(const r of modelMeasurements(computeTFs(Model,{}))){
     const tr=document.createElement('tr');
-    const td1=document.createElement('td'); td1.className='nt'; td1.textContent=D.no;
-    const td2=document.createElement('td'); td2.textContent=D.zh;
-    const td3=document.createElement('td'); td3.className='val'; td3.textContent=Math.round(val*1000)+' mm';
+    const td1=document.createElement('td'); td1.className='nt'; td1.textContent=r.no;
+    const td2=document.createElement('td'); td2.textContent=r.name;
+    const td3=document.createElement('td'); td3.className='val'; td3.textContent=r.value_mm.toFixed(1)+' mm';
     tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
     el.appendChild(tr);
   }
@@ -1014,25 +1008,41 @@ function lf(p,front){
   // URDF: x=前后(侧面)、y=左右(正面)、z=高。front 用 y(左右宽) 平面，side 用 x(前后厚) 平面。z 取负使"头"在上。
   return front? [p[1],-p[2]] : [p[0],-p[2]];
 }
-// 2D 关键尺寸：只标注用户指定的 5 项距离（正面视图），从实际关节原点/轴线位置量取
-// pick 返回 {a,b}：两测量参考点的世界坐标（若命中的 link 不存在则默认跳过）
-const KEYDIMS=[
-  {no:'①', zh:'hip_pitch 轴 → arm_pitch 轴',
-   a:(t)=>t.left_hip_pitch_link&&t.left_hip_pitch_link.pos, ad:[0,-1,0],
-   b:(t)=>t.left_arm_pitch_link&&t.left_arm_pitch_link.pos, bd:[0,-1,0]},
-  {no:'②', zh:'base原点 → hip_roll 轴',
-   a:(t)=>t.base_link&&[0,0,0], ad:null,
-   b:(t)=>t.left_hip_roll_link&&t.left_hip_roll_link.pos, bd:[1,0,0]},
-  {no:'③', zh:'hip_pitch 轴 → knee 轴（垂直距离）',
-   a:(t)=>t.left_hip_pitch_link&&t.left_hip_pitch_link.pos, ad:[0,-1,0],
-   b:(t)=>t.left_knee_link&&t.left_knee_link.pos, bd:[0,1,0]},
-  {no:'④', zh:'knee 轴 → ankle 轴',
-   a:(t)=>t.left_knee_link&&t.left_knee_link.pos, ad:[0,1,0],
-   b:(t)=>t.left_ankle_link&&t.left_ankle_link.pos, bd:[0,-1,0]},
-  {no:'⑤', zh:'base中轴线 → arm_roll 轴',
-   a:(t)=>t.left_arm_roll_link&&[0,0,t.left_arm_roll_link.pos[2]], ad:[0,0,1],
-   b:(t)=>t.left_arm_roll_link&&t.left_arm_roll_link.pos, bd:[1,0,0]}
-];
+function tpos(t,name){return t[name]&&t[name].pos;}
+function localPoint(t,name,p){const tf=t[name];return tf&&add(tf.pos,matVec(tf.R,p));}
+function boxCenter(t,name){const tf=t[name],lk=Model&&Model.links[name];return tf&&lk&&linkCOM(tf,lk);}
+function linkBoxEnd(t,name,axis,sign){
+  const lk=Model&&Model.links[name]; if(!lk)return null;
+  const p=lk.origin.slice(); p[axis]+=sign*lk.size[axis]/2;
+  return localPoint(t,name,p);
+}
+function absAxis(a,b,axis){return a&&b?Math.abs(b[axis]-a[axis]):NaN;}
+function pointDistance(a,b){return a&&b?len3([b[0]-a[0],b[1]-a[1],b[2]-a[2]]):NaN;}
+
+// 每个 profile 是“模型参数 → 参考点 → 实算值”的契约。增加机型时只需注册一组定义。
+const MEASUREMENT_PROFILES={
+  pikachu_27dof_v1:[
+    {no:'M01',id:'ear_root_height',name:'耳高',view:'front',targetProp:'measure_ear_root_height',a:t=>tpos(t,'base_link'),b:t=>tpos(t,'left_ear_pitch_link'),value(t){return absAxis(this.a(t),this.b(t),2);}},
+    {no:'M02',id:'ear_root_half_width',name:'耳半宽',view:'front',targetProp:'measure_ear_root_half_width',a:t=>{const p=tpos(t,'left_ear_pitch_link');return p&&[p[0],0,p[2]];},b:t=>tpos(t,'left_ear_pitch_link'),value(t){return absAxis(this.a(t),this.b(t),1);}},
+    {no:'M03',id:'head_pitch_height',name:'头轴高',view:'side',targetProp:'measure_head_pitch_height',a:t=>tpos(t,'base_link'),b:t=>tpos(t,'head_pitch_link'),value(t){return absAxis(this.a(t),this.b(t),2);}},
+    {no:'M04',id:'shoulder_half_width',name:'肩半宽',view:'front',targetProp:'measure_shoulder_half_width',a:t=>{const p=tpos(t,'left_arm_roll_link');return p&&[p[0],0,p[2]];},b:t=>tpos(t,'left_arm_roll_link'),value(t){return absAxis(this.a(t),this.b(t),1);}},
+    {no:'M05',id:'arm_plane_offset_x',name:'手臂前向偏置',view:'side',targetProp:'measure_arm_plane_offset_x',a:t=>{const p=tpos(t,'left_arm_pitch_link'),h=tpos(t,'left_hip_pitch_link');return p&&h&&[h[0],p[1],p[2]];},b:t=>tpos(t,'left_arm_pitch_link'),value(t){return absAxis(this.a(t),this.b(t),0);}},
+    {no:'M06',id:'upper_arm_length',name:'大臂长',view:'front',targetProp:'measure_upper_arm_length',a:t=>tpos(t,'left_arm_pitch_link'),b:t=>tpos(t,'left_elbow_link'),value(t){return pointDistance(this.a(t),this.b(t));}},
+    {no:'M07',id:'forearm_length',name:'小臂长',view:'front',targetProp:'measure_forearm_length',a:t=>tpos(t,'left_elbow_link'),b:t=>linkBoxEnd(t,'left_elbow_link',2,-1),value(t){return pointDistance(this.a(t),this.b(t));}},
+    {no:'M08',id:'hip_roll_half_width',name:'髋半宽',view:'front',targetProp:'measure_hip_roll_half_width',a:t=>{const p=tpos(t,'left_hip_roll_link');return p&&[p[0],0,p[2]];},b:t=>tpos(t,'left_hip_roll_link'),value(t){return absAxis(this.a(t),this.b(t),1);}},
+    {no:'M09',id:'torso_length',name:'躯干长',view:'side',targetProp:'measure_torso_length',a:t=>tpos(t,'left_hip_pitch_link'),b:t=>tpos(t,'left_arm_pitch_link'),value(t){return absAxis(this.a(t),this.b(t),2);}},
+    {no:'M10',id:'thigh_length',name:'大腿长',view:'side',targetProp:'measure_thigh_length',a:t=>tpos(t,'left_hip_pitch_link'),b:t=>tpos(t,'left_knee_link'),value(t){return absAxis(this.a(t),this.b(t),2);}},
+    {no:'M11',id:'shank_length',name:'小腿长',view:'side',targetProp:'measure_shank_length',a:t=>tpos(t,'left_knee_link'),b:t=>tpos(t,'left_ankle_link'),value(t){return absAxis(this.a(t),this.b(t),2);}},
+    {no:'M12',id:'foot_length_x',name:'脚长',view:'side',targetProp:'measure_foot_length_x',a:t=>linkBoxEnd(t,'left_ankle_link',0,-1),b:t=>linkBoxEnd(t,'left_ankle_link',0,1),value(){const lk=Model&&Model.links.left_ankle_link;return lk?lk.size[0]:NaN;}},
+    {no:'M13',id:'tail_axis_height_from_ankle',name:'尾轴高',view:'side',targetProp:'measure_tail_axis_height_from_ankle',a:t=>tpos(t,'left_ankle_link'),b:t=>tpos(t,'tail_pitch_link'),value(t){return absAxis(this.a(t),this.b(t),2);}},
+    {no:'M14',id:'tail_center_offset_x',name:'尾部偏置',view:'side',targetProp:'measure_tail_center_offset_x',a:t=>{const p=boxCenter(t,'tail_yaw_link'),h=tpos(t,'left_hip_pitch_link');return p&&h&&[h[0],p[1],p[2]];},b:t=>boxCenter(t,'tail_yaw_link'),value(t){return absAxis(this.a(t),this.b(t),0);}}
+  ]
+};
+function engineeringDimensions(){
+  const profile=String((Props&&Props.tune_profile)||'pikachu_27dof_v1');
+  return MEASUREMENT_PROFILES[profile]||[];
+}
+function dimensionValue(D,tfs){try{return D.value?D.value(tfs):refDist(D.a(tfs),D.ad,D.b(tfs),D.bd);}catch(e){return NaN;}}
 function cross3(u,v){return [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];}
 function len3(v){return Math.hypot(v[0],v[1],v[2]);}
 // 两参考物的距离：每个都能是【点】(d=null)或【轴】(d 为轴方向，过该点)。
@@ -1052,14 +1062,15 @@ function refDist(a,ad,b,bd){
 // 关键尺寸标注——全部横平竖直。
 // 判定方向：投影两点水平差 ≥ 垂直差 → 水平尺寸线(引线竖直)；否则垂直尺寸线(引线水平)。
 // 尺寸线放到主体外包络(half)之外，多条同侧自动外推避让，数字随线、不落在主体上。
-function drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr){
+function drawKeyDims(ctx,tfs,span,s,cx,cy,accent,dpr,isFront){
   const half=span*s;              // 主体包络半宽(像素)
   const vUsed=[], hUsed=[];
-  for(const D of KEYDIMS){
+  for(const D of engineeringDimensions()){
+    if(D.view!==(isFront?'front':'side'))continue;
     let ca,cb; try{ca=D.a(tfs);cb=D.b(tfs);}catch(e){continue;}
     if(!ca||!cb) continue;
-    const val=refDist(ca,D.ad,cb,D.bd); if(!isFinite(val)||val<0.002) continue;
-    const pa=lf(ca,true), pb=lf(cb,true);   // 正面投影：[y,-z]
+    const val=dimensionValue(D,tfs); if(!isFinite(val)||val<0.002) continue;
+    const pa=lf(ca,isFront), pb=lf(cb,isFront);
     const ax=cx+pa[0]*s, ay=cy+pa[1]*s;
     const bx=cx+pb[0]*s, by=cy+pb[1]*s;
     const horiz = Math.abs(bx-ax) >= Math.abs(by-ay);
@@ -1322,6 +1333,8 @@ const GROUPS=[]; // 保留旧全局名；分类由 groupOf 单一维护。
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function isLimitParam(name){ return /(?:^|_)lim(?:_|$)/.test(name); }
 function groupOf(name){
+  if(name.startsWith('measure_'))return '工程尺寸';
+  if(name==='tune_measurement_tolerance')return '工程设置';
   if(name.startsWith('mat_'))return '材质';
   if(isLimitParam(name)) return '关节限位';
   if(/^thigh/.test(name))return '腿·大腿';
@@ -1338,7 +1351,7 @@ function groupOf(name){
 }
 function buildControls(params){
   const wrap=$('#groups'); wrap.innerHTML='';
-  const order=[['躯干',[]],['头',[]],['耳朵',[]],['尾巴',[]],['腿·骨盆',[]],['腿·大腿',[]],['腿·小腿',[]],['腿·脚',[]],['腿·截面',[]],['臂',[]],['关节限位',[]],['其它',[]]];
+  const order=[['工程尺寸',[]],['工程设置',[]],['躯干',[]],['头',[]],['耳朵',[]],['尾巴',[]],['腿·骨盆',[]],['腿·大腿',[]],['腿·小腿',[]],['腿·脚',[]],['腿·截面',[]],['臂',[]],['关节限位',[]],['其它',[]]];
   const names=Object.keys(params).sort((a,b)=>order.map(g=>g[0]).indexOf(groupOf(a))-order.map(g=>g[0]).indexOf(groupOf(b))||a.localeCompare(b));
   for(const name of names){
     const g=order.find(o=>o[0]===groupOf(name));
@@ -1631,10 +1644,13 @@ function restoreBaseline(){
 /* ================= 工程验证 ================= */
 function modelMeasurements(tfs){
   const rows=[];
-  for(const D of KEYDIMS){
-    let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
-    if(!a||!b)continue; const v=refDist(a,D.ad,b,D.bd);
-    if(isFinite(v)&&v>=0.002)rows.push({no:D.no,name:D.zh,value_m:v,value_mm:+mm(v)});
+  const tolerance=Number(Props&&Props.tune_measurement_tolerance);
+  const tol=isFinite(tolerance)&&tolerance>=0?tolerance:0.0005;
+  for(const D of engineeringDimensions()){
+    const v=dimensionValue(D,tfs), target=Number(Props&&Props[D.targetProp]);
+    if(!isFinite(v)||!isFinite(target))continue;
+    const error=v-target;
+    rows.push({no:D.no,id:D.id,name:D.name,target_prop:D.targetProp,value_m:v,value_mm:+mm(v),target_m:target,target_mm:+mm(target),error_m:error,error_mm:+mm(error),tolerance_mm:+mm(tol),pass:Math.abs(error)<=tol+1e-12});
   }
   return rows;
 }
@@ -1660,6 +1676,8 @@ function runValidation(){
   if(duplicateLinks.length)addIssue('error','LINK_DUP','link 名称重复',duplicateLinks[0]);
   const unsupported=Model.unsupportedVisual||[];
   if(unsupported.length)addIssue('warn','GEOM_UNSUPPORTED',unsupported.length+' 个 link 不是可预览的 box visual',unsupported.slice(0,2).join(', '));
+  const profile=String((Props&&Props.tune_profile)||'');
+  if(!MEASUREMENT_PROFILES[profile])addIssue('error','MEASUREMENT_PROFILE','未注册工程尺寸 profile',profile||'未设置 tune_profile');
 
   const childCount={}, childNames=new Set();
   for(const j of Model.joints){
@@ -1711,9 +1729,13 @@ function runValidation(){
   else if(!bal.balance)addIssue('warn','COM_OUTSIDE','质心投影未处于带 2 mm 余量的支撑区内','当前姿态');
   if(!(sys.totalMass>0))addIssue('error','TOTAL_MASS','总质量必须大于 0','');
 
+  const measurements=modelMeasurements(computeTFs(Model,{}));
+  for(const r of measurements)if(!r.pass)addIssue('error','MEASUREMENT_TOLERANCE',r.no+' '+r.name+' 超出尺寸容差',r.value_mm.toFixed(2)+' / '+r.target_mm.toFixed(2)+' mm，偏差 '+(r.error_mm>=0?'+':'')+r.error_mm.toFixed(2)+' mm');
+  if(MEASUREMENT_PROFILES[profile]&&measurements.length!==MEASUREMENT_PROFILES[profile].length)
+    addIssue('error','MEASUREMENT_INCOMPLETE','工程尺寸未全部解析',measurements.length+' / '+MEASUREMENT_PROFILES[profile].length);
   const errors=issues.filter(i=>i.severity==='error').length, warnings=issues.filter(i=>i.severity==='warn').length;
-  const measurements=modelMeasurements(tfs);
-  const metrics={mass_kg:sys.totalMass,height_mm:isFinite(maxZ-minZ)?+(mm(maxZ-minZ)):null,com_height_mm:+mm(Math.max(0,sys.com[2]-bal.footZ)),support_margin_mm:+mm(bal.margin),symmetry_error_mm:+mm(symmetryMax),symmetry_pairs:symmetryPairs,measurements};
+  const maxMeasurementError=measurements.length?Math.max(...measurements.map(r=>Math.abs(r.error_mm))):null;
+  const metrics={mass_kg:sys.totalMass,height_mm:isFinite(maxZ-minZ)?+(mm(maxZ-minZ)):null,com_height_mm:+mm(Math.max(0,sys.com[2]-bal.footZ)),support_margin_mm:+mm(bal.margin),symmetry_error_mm:+mm(symmetryMax),symmetry_pairs:symmetryPairs,measurement_max_error_mm:maxMeasurementError,measurement_passed:measurements.filter(r=>r.pass).length,measurement_total:measurements.length,measurements};
   ValidationResult={issues,errors,warnings,metrics,passed:errors===0}; renderValidation(); return ValidationResult;
 }
 function renderValidation(){
@@ -1728,9 +1750,11 @@ function renderValidation(){
   $('#metricMargin').textContent=m.support_margin_mm==null?'–':m.support_margin_mm.toFixed(1)+' mm';
   $('#metricMargin').style.color=m.support_margin_mm>2?'var(--ok)':'var(--warn)';
   $('#metricSymmetry').textContent=(m.symmetry_error_mm||0).toFixed(1)+' mm / '+(m.symmetry_pairs||0)+' 对';
+  $('#metricMeasurement').textContent=m.measurement_max_error_mm==null?'–':m.measurement_max_error_mm.toFixed(2)+' mm · '+(m.measurement_passed||0)+'/'+(m.measurement_total||0);
+  $('#metricMeasurement').style.color=m.measurement_total&&m.measurement_passed===m.measurement_total?'var(--ok)':'var(--danger)';
   const shown=v.issues.length?v.issues:[{severity:'ok',code:'READY',message:'拓扑、几何、惯量和关节限位检查通过',subject:'可交付'}];
   $('#validationList').innerHTML=shown.map(i=>`<div class="issue ${esc(i.severity)}"><span class="sev">${esc(i.severity)}</span><span>${esc(i.message)}</span><code>${esc(i.subject||i.code)}</code></div>`).join('');
-  $('#measureRows').innerHTML=(m.measurements||[]).map(r=>`<div class="measure-row"><span class="no">${esc(r.no)}</span><span>${esc(r.name)}</span><b>${(+r.value_mm).toFixed(1)} mm</b></div>`).join('')||'<div class="none">未识别关键尺寸</div>';
+  $('#measureRows').innerHTML=(m.measurements||[]).map(r=>`<div class="measure-row ${r.pass?'pass':'fail'}" title="${esc(r.target_prop)} · 容差 ±${(+r.tolerance_mm).toFixed(2)} mm"><span class="no">${esc(r.no)}</span><span>${esc(r.name)}</span><b>${(+r.value_mm).toFixed(1)} / ${(+r.target_mm).toFixed(1)} · ${r.error_mm>=0?'+':''}${(+r.error_mm).toFixed(2)}</b></div>`).join('')||'<div class="none">未识别工程尺寸</div>';
   const ex=$('#exportStatus'); ex.innerHTML=v.errors?'<span style="color:var(--danger)">●</span><b>'+v.errors+' 项错误阻止 URDF/MJCF 交付，草稿仍可保存</b>':'<span style="color:var(--ok)">●</span><b>已通过交付门禁</b>';
   document.querySelectorAll('#btnSaveURDF,#btnSaveMJCF,#btnExportAll').forEach(b=>b.disabled=!!v.errors);
 }
@@ -2064,25 +2088,17 @@ function buildLinksJson(){
 /* ---------- 后端保存接口（优先·失败退回浏览器下载） ---------- */
 function blobToDataURL(blob){ return new Promise((res,rej)=>{const fr=new FileReader();
   fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob);}); }
-// 根据参数表(关键连杆长度)生成可辨识文件名：pikachu_sample_links_t25_s70.urdf
-// 取 KEYDIMS 某项的图纸实测值(mm)；取不到返回 null
+// 根据零位工程实算值生成可辨识文件名；取不到返回 null。
 function keydimVal(no){
   if(!Model) return null;
-  const tfs=computeTFs(Model);
-  for(const D of KEYDIMS){
-    if(D.no!==no) continue;
-    let a,b; try{a=D.a(tfs);b=D.b(tfs);}catch(e){continue;}
-    if(!a||!b) continue;
-    const v=refDist(a,D.ad,b,D.bd);
-    if(isFinite(v)&&v>=0.002) return Math.round(v*1000);
-  }
-  return null;
+  const r=modelMeasurements(computeTFs(Model,{})).find(x=>x.no===no||x.id===no);
+  return r&&isFinite(r.value_mm)?Math.round(r.value_mm):null;
 }
 
-// 导出名：<原名>_B<躯干长①>_L<大腿长③>_l<小腿长④>，用图纸实测 mm 值
+// 导出名：<原名>_B<躯干长>_L<大腿长>_l<小腿长>，取模型实算值而非输入框文本。
 function decorateName(){
   const base=srcName();
-  const B=keydimVal('①'), L=keydimVal('③'), l=keydimVal('④');
+  const B=keydimVal('M09'), L=keydimVal('M10'), l=keydimVal('M11');
   let out=base;
   if(B!==null) out+='_B'+B;
   if(L!==null) out+='_L'+L;

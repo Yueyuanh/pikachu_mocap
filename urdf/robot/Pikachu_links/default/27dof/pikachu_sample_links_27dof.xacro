@@ -21,20 +21,23 @@
     base_link → 尾巴         tail_pitch→tail_yaw（2 DOF，躯干背面伸出）
 
 
-    耳高：base_link —— 耳朵根 ：0.166+0.283     
-    耳宽：中心轴到耳朵的距离（两耳距离/2）：0.116     
-    头高：base_link —— head_pitch:0.166+0.053      
-    肩宽：z轴 —— (arm_roll * arm_pitch) ：0.116      
-    手臂前向偏置：双腿平面 —— 双臂平面：0.083      
-    大臂：arm_pitch —— elbow：0.100      
-    小臂：elbow —— 手臂末端：0.066      
-    髋宽：base_link —— hip_roll：0.100     
-    躯干长：hip_pitch —— arm_pitch：0.166      
-    大腿长：hip_pitch——knee：0.083      
-    小腿长：knee —— ankle：0.086      
-    脚长：ankle_link 长度：0.093      
-    尾高：脚底转轴 —— 尾轴：0.166      
-    尾宽：双腿平面 —— 尾部：0.143      
+    工程测量定义（零位 / T-pose，不用 box 对角线代替关节轴距）：
+      M01 耳高：       base_link 原点→ear_pitch 轴的 z 差       = 0.449 (=0.166+0.283)
+      M02 耳半宽：     中心 z 轴→ear_pitch 轴的 |y|             = 0.116
+      M03 头轴高：     base_link 原点→head_pitch 轴的 z 差      = 0.219 (=0.166+0.053)
+      M04 肩半宽：     中心 z 轴→arm_pitch/arm_roll 共点的 |y| = 0.116
+      M05 手臂前向偏置：腿关节平面→肩关节平面的 x 差          = 0.083
+      M06 大臂长：     arm_pitch/arm_roll 共点→elbow 轴的欧氏距离 = 0.100
+      M07 小臂长：     elbow 轴→elbow_link 几何远端             = 0.066
+      M08 髋半宽：     中心 z 轴→hip_roll 轴的 |y|              = 0.100
+      M09 躯干长：     hip_pitch 轴→arm_pitch 轴的 z 差          = 0.166
+      M10 大腿长：     hip_pitch 轴→knee 轴的 z 差               = 0.083
+      M11 小腿长：     knee 轴→ankle 轴的 z 差                  = 0.086
+      M12 脚长：       ankle_link 的 box x 边长                       = 0.093
+      M13 尾轴高：     ankle 轴→tail_pitch 轴的 z 差             = 0.166
+      M14 尾部偏置：   腿关节平面→tail box 中心的 |x|              = 0.143
+
+    上述 14 项由 measure_* 主参数唯一驱动；tuner 按同一定义实测并做容差闭环。
 
     DOF 合计：腿 10 + 臂 8 + 头 3 + 耳 4 + 尾 2 = 27
     注：臂 pitch/roll/yaw/elbow 与 head 原本为 fixed，这里改成 revolute 以便驱动；
@@ -43,70 +46,56 @@
 <robot name="pikachu_sample_links" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ============================================================ -->
-  <!-- 【集中参数区】改这里即可整体调整 / 适配骨骼模型              -->
+  <!-- ① 工程主参数：14 项测量的唯一真相源（SI 单位：m）       -->
   <!-- ============================================================ -->
+  <xacro:property name="tune_profile" value="pikachu_27dof_v1"/>
+  <xacro:property name="tune_measurement_tolerance" value="0.0005"/>
 
-  <!-- 肩宽：躯干中心轴 → 肩(roll×pitch 轴交点) 横向(y)距离  -->
-  <xacro:property name="shoulder_width"     value="0.116"/>
-
-  <!-- 手臂前向偏置：双臂平面相对双腿平面的前后(x)平移，正=朝前 -->
-  <xacro:property name="arm_forward_offset" value="0.083"/>
-
-  <!-- 大臂长：arm_pitch(肩) → elbow 之间 z 向骨段 -->
-  <xacro:property name="upper_arm_len"      value="0.100"/>
-
-  <!-- 小臂长：elbow → 手臂末端(手) -->
-  <xacro:property name="lower_arm_len"      value="0.066"/>
-
-  <!-- 躯干长：hip_pitch → arm_pitch 的 z 抬升（也是躯干盒高） -->
-  <xacro:property name="torso_len"          value="0.166"/>
-
-  <!-- 大腿长：hip_pitch → knee（腿纵向骨长） -->
-  <xacro:property name="thigh_len"          value="0.083"/>
-
-  <!-- 小腿长：knee → ankle（腿纵向骨长） -->
-  <xacro:property name="shank_len"          value="0.086"/>
-
-  <!-- 脚长：ankle_link 长度（前后 x） -->
-  <xacro:property name="foot_len"           value="0.093"/>
-
-  <!-- 髋宽：躯干中心 → hip_roll 腿中心轴 横向(y)距离（非 base box 宽） -->
-  <xacro:property name="hip_width"          value="0.100"/>
-
-  <!-- 头高：base_link 底 → head_pitch 转轴（头底部中心，非 box 中心） -->
-  <xacro:property name="head_height"        value="0.219"/>
-
-  <!-- 耳高：base_link 底 → 耳根（= 躯干长 0.166 + 0.283） -->
-  <xacro:property name="ear_height"         value="0.449"/>
-
-  <!-- 尾高：躯干底(脚底平面) → 尾轴（相对 base 底） -->
-  <xacro:property name="tail_height"        value="0.0"/>
-
-  <!-- 尾宽：双腿平面 → 尾部 横向(y)宽（扁） -->
-  <xacro:property name="tail_width"         value="0.143"/>
-
-
-
+  <xacro:property name="measure_ear_root_height"             value="0.449"/>
+  <xacro:property name="measure_ear_root_half_width"         value="0.116"/>
+  <xacro:property name="measure_head_pitch_height"           value="0.219"/>
+  <xacro:property name="measure_shoulder_half_width"         value="0.116"/>
+  <xacro:property name="measure_arm_plane_offset_x"          value="0.083"/>
+  <xacro:property name="measure_upper_arm_length"            value="0.100"/>
+  <xacro:property name="measure_forearm_length"              value="0.066"/>
+  <xacro:property name="measure_hip_roll_half_width"         value="0.100"/>
+  <xacro:property name="measure_torso_length"                value="0.166"/>
+  <xacro:property name="measure_thigh_length"                value="0.083"/>
+  <xacro:property name="measure_shank_length"                value="0.086"/>
+  <xacro:property name="measure_foot_length_x"               value="0.093"/>
+  <xacro:property name="measure_tail_axis_height_from_ankle" value="0.166"/>
+  <xacro:property name="measure_tail_center_offset_x"        value="0.143"/>
 
   <!-- ============================================================ -->
-  <!-- ② 继承参数：由①推导，保持旧名供宏引用；改数值请改①，勿动此处  -->
+  <!-- ② 派生参数：宏只引用这些别名；禁止在下游重复写测量常量 -->
   <!-- ============================================================ -->
-  <xacro:property name="arm_pitch_to_roll_y" value="0.02"/>
-    <!-- 【必须先于 arm_y_offset 定义】臂 pitch→roll 沿 y 偏移（臂肩段宽），①肩宽推导依赖 -->
-  <xacro:property name="arm_y_offset"   value="${shoulder_width - arm_pitch_to_roll_y}"/>
-    <!-- 臂 pitch 关节相对中心轴的横向(y)偏移 = 肩宽 - 臂肩段宽 -->
+  <xacro:property name="shoulder_width"     value="${measure_shoulder_half_width}"/>
+  <xacro:property name="arm_forward_offset" value="${measure_arm_plane_offset_x}"/>
+  <xacro:property name="upper_arm_len"      value="${measure_upper_arm_length}"/>
+  <xacro:property name="lower_arm_len"      value="${measure_forearm_length}"/>
+  <xacro:property name="torso_len"          value="${measure_torso_length}"/>
+  <xacro:property name="thigh_len"          value="${measure_thigh_length}"/>
+  <xacro:property name="shank_len"          value="${measure_shank_length}"/>
+  <xacro:property name="foot_len"           value="${measure_foot_length_x}"/>
+  <xacro:property name="hip_width"          value="${measure_hip_roll_half_width}"/>
+  <xacro:property name="head_height"        value="${measure_head_pitch_height}"/>
+  <xacro:property name="ear_height"         value="${measure_ear_root_height}"/>
+
+  <!-- arm_pitch 与 arm_roll 轴严格共点；不再用隐含的 20 mm 肩连杆抵消肩宽。 -->
+  <xacro:property name="arm_pitch_to_roll_y" value="${0.0}"/>
+  <xacro:property name="arm_y_offset"   value="${shoulder_width}"/>
   <xacro:property name="arm_x_offset"   value="${arm_forward_offset}"/>
-  <!-- 大臂 roll 段（arm_roll_link）：大臂总长对半 -->
-  <xacro:property name="arm_upper_z"    value="${upper_arm_len/2}"/>
-  <!-- 大臂 yaw 段（arm_yaw_link）：大臂总长对半 -->
-  <xacro:property name="arm_lower_z"    value="${upper_arm_len/2}"/>
+  <xacro:property name="arm_upper_z"    value="${upper_arm_len/2.0}"/>
+  <xacro:property name="arm_lower_z"    value="${upper_arm_len/2.0}"/>
   <xacro:property name="shoulder_height" value="${torso_len}"/>
-  <xacro:property name="thigh_length"   value="${thigh_len/2}"/>
-    <!-- 大腿段：hip_yaw→knee。与骨盆下沿段 hip_roll_to_yaw_z 对分 hip_pitch→knee 总长 -->
+
+  <!-- hip_pitch→knee 的 z 差由髋部下段与大腿段各承担一半。 -->
+  <xacro:property name="thigh_length"   value="${thigh_len/2.0}"/>
   <xacro:property name="shank_length"   value="${shank_len}"/>
   <xacro:property name="foot_len_x"     value="${foot_len}"/>
-  <xacro:property name="tail_root_z"    value="${tail_height}"/>
-  <xacro:property name="tail_wid"       value="${tail_width}"/>
+
+  <!-- ankle 轴 z=-(thigh+shank)，因此 tail_root_z 可严格闭环 M13。 -->
+  <xacro:property name="tail_root_z" value="${-thigh_len - shank_len + measure_tail_axis_height_from_ankle}"/>
 
   <!-- ============================================================ -->
   <!-- ③ 其他细则：厚度 / 局部偏移 / 限位 / 尺寸 / 材质，按部件分区   -->
@@ -129,6 +118,8 @@
   <xacro:property name="foot_hgt_z" value="0.02"/>
     <!-- 脚 宽 / 高 -->
   <!-- arm -->
+  <xacro:property name="joint_marker_size" value="0.004"/>
+    <!-- 共点串联关节的数值稳定用小盒；不参与人体尺寸定义 -->
   <xacro:property name="arm_thick_x" value="0.03"/>
   <xacro:property name="arm_width_y" value="0.03"/>
     <!-- 臂 box x / y 厚 -->
@@ -146,7 +137,7 @@
   <xacro:property name="head_lim_max" value="0.8"/>
     <!-- 头关节限位（弧度） -->
   <!-- ear -->
-  <xacro:property name="ear_off_y"   value="0.045"/>
+  <xacro:property name="ear_off_y"   value="${measure_ear_root_half_width}"/>
   <xacro:property name="ear_len"     value="0.085"/>
   <xacro:property name="ear_thick_x" value="0.018"/>
   <xacro:property name="ear_width_y" value="0.028"/>
@@ -157,10 +148,13 @@
     <!-- 耳根相对 head_roll_link 原点(头底部中心/转轴) 的 z 抬升 = 耳高 - 头高；只抬升耳朵，头保持原位 -->
   <!-- tail -->
   <xacro:property name="tail_len"   value="0.095"/>
+  <xacro:property name="tail_wid"   value="0.050"/>
   <xacro:property name="tail_thick" value="0.02"/>
   <xacro:property name="tail_lim_min" value="-1.2"/>
   <xacro:property name="tail_lim_max" value="1.2"/>
-    <!-- 尾 全长 / 厚 / 限位 -->
+    <!-- 尾 box 全长 / 横向宽 / 厚 / 限位 -->
+  <xacro:property name="tail_root_x" value="${-measure_tail_center_offset_x + tail_len/2.0}"/>
+    <!-- 尾根位置由“尾 box 中心偏置”反推：root_x-tail_len/2 = -M14 -->
   <!-- ============ link box 边长（解耦：box 尺寸现独立；box 中心位置仍由①②关节距离定位） ============ -->
   <!-- 躯干 box -->
   <xacro:property name="torso_wid_y" value="${pelvis_half_width*2}"/>
@@ -177,8 +171,8 @@
   <xacro:property name="leg_shank_box_len"     value="${shank_length}"/>
     <!-- knee_link 小腿段 z 边长 -->
   <!-- 臂 box 各段长（截面 arm_thick_x / arm_width_y 见上） -->
-  <xacro:property name="arm_pitch_box_len" value="${arm_pitch_to_roll_y}"/>
-    <!-- arm_pitch_link 横向(y)边长 -->
+  <xacro:property name="arm_pitch_box_len" value="${joint_marker_size}"/>
+    <!-- arm_pitch_link 是 pitch/roll 共点的小型关节标记，不占用大臂长 -->
   <xacro:property name="arm_roll_box_len"  value="${arm_upper_z}"/>
     <!-- arm_roll_link 大臂 roll 段 z 边长 -->
   <xacro:property name="arm_yaw_box_len"   value="${arm_lower_z}"/>
@@ -384,26 +378,26 @@
   <!-- 手臂宏：生成 pitch/roll/yaw/elbow 四个 link（全部 revolute 可动） -->
   <!-- ============================================================ -->
   <xacro:macro name="arm_links" params="side sn">
-    <!-- arm_pitch_link：覆盖到 roll 的横向(y)段 -->
+    <!-- arm_pitch_link：pitch/roll 共点的关节标记 -->
     <link name="${side}_arm_pitch_link">
       <visual>
         <origin xyz="0 ${sn*arm_pitch_to_roll_y/2.0} 0" rpy="0 0 0"/>
         <geometry>
-          <box size="${arm_thick_x} ${arm_pitch_box_len} ${arm_width_y}"/>
+          <box size="${arm_pitch_box_len} ${arm_pitch_box_len} ${arm_pitch_box_len}"/>
         </geometry>
         <material name="arm_pitch"/>
       </visual>
 <collision>
         <origin xyz="0 ${sn*arm_pitch_to_roll_y/2.0} 0" rpy="0 0 0"/>
         <geometry>
-          <box size="${arm_thick_x} ${arm_pitch_box_len} ${arm_width_y}"/>
+          <box size="${arm_pitch_box_len} ${arm_pitch_box_len} ${arm_pitch_box_len}"/>
         </geometry>
       </collision>
     </link>
 
     <joint name="${side}_arm_roll_joint" type="revolute">
-      <!-- rpy 加 90°(x) 偏置：默认(angle=0)即 T-pose 水平外展，不再垂挂 -->
-      <origin xyz="0 ${sn*arm_pitch_to_roll_y} 0" rpy="${sn*1.57} 0 0"/>
+      <!-- pitch/roll 轴严格共点；rpy ±90° 使零位大臂沿 ±y 水平外展 -->
+      <origin xyz="0 0 0" rpy="${sn*1.5707963267948966} 0 0"/>
       <parent link="${side}_arm_pitch_link"/>
       <child  link="${side}_arm_roll_link"/>
       <axis xyz="${sn} 0 0"/>
@@ -508,7 +502,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <box size="0.004 0.004 0.004"/>
+          <box size="${joint_marker_size} ${joint_marker_size} ${joint_marker_size}"/>
         </geometry>
       </collision>
     </link>
@@ -556,7 +550,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <box size="0.004 0.004 0.004"/>
+          <box size="${joint_marker_size} ${joint_marker_size} ${joint_marker_size}"/>
         </geometry>
       </collision>
     </link>
@@ -572,7 +566,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <box size="0.004 0.004 0.004"/>
+          <box size="${joint_marker_size} ${joint_marker_size} ${joint_marker_size}"/>
         </geometry>
       </collision>
     </link>
@@ -621,7 +615,7 @@
   <!-- 尾巴：tail_pitch → tail_yaw 两关节（躯干背面伸出）             -->
   <!-- ============================================================ -->
   <joint name="tail_pitch_joint" type="revolute">
-    <origin xyz="${-torso_len_x/2.0} 0 ${tail_root_z}" rpy="0 0 0"/>
+    <origin xyz="${tail_root_x} 0 ${tail_root_z}" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child  link="tail_pitch_link"/>
     <axis xyz="0 1 0"/>
@@ -632,7 +626,7 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <box size="0.004 0.004 0.004"/>
+          <box size="${joint_marker_size} ${joint_marker_size} ${joint_marker_size}"/>
         </geometry>
       </collision>
     </link>
@@ -644,12 +638,12 @@
     <axis xyz="0 0 1"/>
     <limit lower="${tail_lim_min}" upper="${tail_lim_max}" effort="2.0" velocity="2"/>
   </joint>
-  <!-- tail_yaw_link：尾巴唯一 box，长度=尾全长 tail_len，沿 -x 从躯干背面伸出 -->
+  <!-- tail_yaw_link：简化尾 box，沿 -x 伸出；可视与碰撞几何严格一致 -->
   <link name="tail_yaw_link">
     <visual>
-      <origin xyz="-0.07 0 0" rpy="0 0 1.57"/>
+      <origin xyz="${-tail_len/2.0} 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/pikachu_skin_self_rig_mesh_T3Plane-edited.stl"/>
+        <box size="${tail_len} ${tail_wid} ${tail_thick}"/>
       </geometry>
       <material name="tail_brown"/>
     </visual>
